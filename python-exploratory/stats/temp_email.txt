@@ -1,0 +1,69 @@
+To: acsutt0n@gmail.com 
+To: amy.wheeler2@gmail.com 
+From: acsutt0n@gmail.com 
+msg: Report:
+
+Report:
+
+Num stocks owned: 5. Total invested: 4580.47. Market value: 4659.93. Net gain: 79.46 
+
+symbol: JNJ 
+
+currvalue: 1047.60 
+
+purvalue: 1042.30 
+
+currprice: 104.76 
+
+purprice: 104.23 
+
+gainloss: 5.30 
+
+symbol: VDC 
+
+purvalue: 1888.70 
+
+currvalue: 1887.50 
+
+purprice: 125.91 
+
+currprice: 125.83 
+
+gainloss: -1.20 
+
+symbol: MDT 
+
+currvalue: 81.14 
+
+currprice: 72.79 
+
+purvalue: 57.90 
+
+purprice: 51.94 
+
+gainloss: 23.24 
+
+symbol: CMCSA 
+
+currvalue: 633.29 
+
+purvalue: 580.92 
+
+currprice: 56.84 
+
+gainloss: 52.37 
+
+purprice: 52.14 
+
+symbol: SPY 
+
+purvalue: 1010.65 
+
+currvalue: 1010.40 
+
+purprice: 202.13 
+
+currprice: 202.08 
+
+gainloss: -0.25 
+

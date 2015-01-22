@@ -1,0 +1,6 @@
+create section_6904
+
+section_6904 {
+
+pt3dclear()
+

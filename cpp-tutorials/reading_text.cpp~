@@ -1,0 +1,29 @@
+// reading a text file
+#include <iostream>
+#include <fstream>
+#include <string>
+using namespace std;
+
+int main () {
+	string line;
+	ifstream myfile ("example.txt");
+	if (myfile.is_open())
+	{
+		while (! myfile.eof() ) // returns true if end of file has been reached (state flag)
+		{
+			getline (myfile,line);
+			cout << line << endl;
+		}
+		myfile.close();
+	}
+
+	else cout << "Unable to oprn file.\n";
+	return 0;
+}
+
+// other state flags
+// bad() - returns true if reading or writing operation fails
+// fail() - returns true in same cases as bad(), but also in case that a format error
+//		happens, such as when an alphabetical char is extracted when trying to read an int
+// good() - returns false in same cases as bad() and fail() return true
+// clear () - resets state flags; no params accepted

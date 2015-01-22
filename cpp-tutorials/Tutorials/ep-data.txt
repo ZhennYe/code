@@ -1,0 +1,7 @@
+Focal length of objective: 5,,
+f.1. eyepiece  magnification
+         8.0              1
+         4.0              1
+        45.0              0
+         4.0              1
+         1.0              5

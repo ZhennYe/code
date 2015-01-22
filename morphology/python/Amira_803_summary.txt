@@ -1,0 +1,43 @@
+################### from Amira
+Axon tip length = 3.32611
+Axon tip pos = 0.000000
+Path distance from Axon tip to Soma = 1.85738
+Path distance from Axon tip to random neurite tip = 3.32611
+(4.646840148698885e-06, 3.448275862068965e-05, 0.11256886389708358, 0.0028843447585200142, 0.024370578781842837, 0.00062444577246309582)
+total number of nodes: 65787
+total number of compartments: 66658
+total number of segments: 1726
+number of subgraphs: 1
+number of connected nodes: 65787
+number of connected compartments: 66658
+number of connected segments: 1726
+number of branches: 1699
+Soma Area = 0.000785229 mm^2
+Found 1 axon
+volume: 4.1395e-06 mm^3
+surface area: 0.0165094853791 mm^2
+Soma branch order: 100
+Soma centroid position at 0.823389
+
+
+
+############# from Imaris
+Axon tip length = 7.32312
+Axon tip pos = 1.000000
+Path distance from Axon tip to Soma = 401.24
+Path distance from Axon tip to random neurite tip = 523.823
+(4.646840148698885e-06, 3.448275862068965e-05, 0.0048168344455431066, 0.00047139733272844693, 0.0010428198284165489, 0.00010205509265255037)
+total number of nodes: 45274
+total number of compartments: 46888
+total number of segments: 3198
+number of subgraphs: 1
+number of connected nodes: 45274
+number of connected compartments: 46888
+number of connected segments: 3198
+number of branches: 3194
+Soma Area = 0.00802957 mm^2
+Found 2 axons
+volume: 9.37285e-05 mm^3
+surface area: 0.101016794778 mm^2
+Soma branch order: 32
+Soma centroid position at 0.846722

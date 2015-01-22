@@ -1,0 +1,120 @@
+Version 0.7-4 (2013-10-29)
+
+	Added reference to agridat package
+	Fixed Nightingale.Rd examples to avoid obscuring some segments by overplotting [thx: Monique Graf].  
+
+Version 0.7-3 (2013-08-20)
+
+	Cosmetic: fix long lines in .Rd files
+
+Version 0.7-2
+
+	Extended Nightingale examples
+
+Version 0.7-1
+
+	CushnyPebbles renamed to proper spelling, CushnyPeebles (thx: Ian E. Holliday)
+	Removed Suggests: ReadImages; for now, retain old code examples as \dontrun{}
+	Extended GaltonFamilies examples
+
+Version 0.7-0
+
+	Revised Langren.Rd examples to replace ReadImage with jpeg
+
+Version 0.6-14 (2012-12-01)
+
+	Extended examples for Playfair Wheat
+	Replaced original data(Wheat) on 26 intervals with a new version at 53 time points
+	  and a separate data.frame, Wheat.monarchs giving the reigns. Updated examples to
+	  more closely approximate Playfair's original and a revision.
+
+Version 0.6-13 (2011-11-03)
+
+	Added GaltonFamilies data
+	Fixed deprecated warnings from ggplot2
+
+Version 0.6-12 (2011-10-12)
+
+	Added CushnyPebbles data
+	Extended examples for Michelson and CushnyPebbles
+	Fixed Suggests: for all packages used in examples
+	Added ZeaMays data from Darwin, used by Fisher for an early non-parametric test
+	Illustrated permutation and non-parametric tests for ZeaMays data
+	Added examples for Macdonell data showing contour plots and simulations [thx: Jim Hanley]
+	Added frequency-expanded version, MacdonellRD
+	Now Suggest: lattice
+	Added plotting examples to PearsonLee
+	
+Version 0.6-11 (2011-10-05)
+
+	Added ChestSizes data - Quetelet's data on chest measurements of 5738 Scottish Militiamen
+	Added PolioTrials data - two experiments on the Salk polio vaccine
+	Added Cavendish data - density of the earth
+	Added Michelson data - speed of light experiments
+
+Version 0.6-10 (2010-12-22)
+
+	Additional variables added to Langren1644
+
+Version 0.6-9 (2010-07-27)
+
+	\dontrun{} portion of example(Snow) using sp, due to error from sp::Lines()
+	Minor documentation fix for car_2
+
+Version 0.6-8 (2010-03-19)
+
+	Added links to data sets on main package page
+
+Version 0.6-7 (2010-02-28)
+
+	Switched from inst/ChangeLog to NEWS
+	Corrected typo in Yeast.Rd
+
+Version 0.6-6 (2010-01-26)
+	Added Quarrels data
+
+Version 0.6-5 (2009-11-13)
+	Added Dactyl data
+	Added Pyx data
+	Fixed one-off error creating Night1, Night2
+	Added simple Dactyl examples; minor updates to other examples
+	Extended example(Jevons)
+	Added Fingerprints data
+
+Version 0.6-4 (2009-11-11)
+	Initial release to CRAN
+
+Version 0.6-3 (2009-11-08)
+	Nightingale$Month made ordered factor
+	Added Nightingale examples
+
+Version 0.6-1 (2009-11-06)
+	Added Yeast example
+	Fixed latin1 characters in Langren1644
+	Extended Langren example
+
+Version 0.6 (2009-11-05)
+	Added Yeast data
+
+Version 0.5 (2009-11-03)
+	Added Macdonell data
+	Added Langren/ggplot2 example
+	Added OldMaps data
+
+Version 0.4 (2009-11-02)
+	Added Nightingale data
+
+Version 0.3 (2009-10-27)
+	Added Snow data
+	Added Langren data
+	Added inst/images/google-toledo-rome3.jpg
+
+Version 0.2 (2009-10-23)
+	Added Minard data
+	Added Bowley data
+	
+Version 0.1 (2009-10-20)
+
+   Initial version uploaded to R-Forge
+
+

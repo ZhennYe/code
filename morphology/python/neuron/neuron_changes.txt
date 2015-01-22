@@ -1,0 +1,25 @@
+12Nov2014
+~/code/morphology/python/neuron/neuron_populationCellProperties.py
+1. in scatter plots, changed marker size to 10
+2. in box plots, removed outliers and decreases the yMax from 1.05*yMax
+   to yMax
+../NeuronGeometry.py
+1. line 441: added another list (radList) to keep track of the radius of the
+   parent segments in ratio calculations
+2. line 484: added radList to the properties dictionary
+3. line 501: added unit 'um' to the units dictionary
+4. line 344: forced median indexing to be int() in reponse to an error 
+   -- This error only popped up when I migrated to python 3.4
+5. line 340: same thing, forced medianInd = int(...)
+6. line 459: added avg of daughter-parent ratios for each segment:
+7. line 469: also added daughter-daughter radius
+        # added 11.12.2014
+        daughtRads, daughtCount = [], 0
+        DDR = []
+        for n in daughters:
+          daughtRads.append(n.avgRadius)
+          daughtCount = daughtCount + 1
+          DDR.append(n.avgRadius)
+        DPratios.append( (sum(daughtRads)/daughtCount)/segment.avgRadius )
+        daughterdaughter.append(np.mean([DDR[d]/DDR[d+1] for d in 
+                                         range(len(DDR)-1)]))

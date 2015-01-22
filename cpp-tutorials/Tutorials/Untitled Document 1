@@ -1,0 +1,12 @@
+// example for keyword 'this'
+// 'this' represents a pointer to the object whose member function is being executed
+// it is a pointer to the object itself
+
+#include <iostream>
+using namespace std;
+
+class CDummy {
+	public:
+		static int n;
+		CDummy () { n++; };		// contructor and overload operator
+		~CDummy () { n++; };	// desctructor

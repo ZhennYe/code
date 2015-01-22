@@ -1,0 +1,6 @@
+
+Given File type is not supported!!
+/home/alex/Data/Morphology/Python/803_new_SWC.swc !
+----------------------------------
+/home/alex/Data/Morphology/Python/803_new_SWC.swc	N_stems 	0	0	(0)	0	0	0	0 
+

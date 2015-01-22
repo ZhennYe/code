@@ -1,0 +1,106 @@
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[185]->filament_100000006[203]->filament_100000006[204]->filament_100000006[205]->filament_100000006[199]->filament_100000006[187]->filament_100000006[186]->filament_100000006[185]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[185]->filament_100000006[203]->filament_100000006[202]->filament_100000006[200]->filament_100000006[199]->filament_100000006[187]->filament_100000006[186]->filament_100000006[185]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[185]->filament_100000006[203]->filament_100000006[202]->filament_100000006[201]->filament_100000006[186]->filament_100000006[185]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[185]->filament_100000006[186]->filament_100000006[201]->filament_100000006[202]->filament_100000006[203]->filament_100000006[185]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[186]->filament_100000006[201]->filament_100000006[200]->filament_100000006[199]->filament_100000006[187]->filament_100000006[186]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[185]->filament_100000006[186]->filament_100000006[187]->filament_100000006[199]->filament_100000006[200]->filament_100000006[202]->filament_100000006[203]->filament_100000006[185]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[186]->filament_100000006[187]->filament_100000006[199]->filament_100000006[200]->filament_100000006[201]->filament_100000006[186]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[185]->filament_100000006[186]->filament_100000006[187]->filament_100000006[199]->filament_100000006[205]->filament_100000006[206]->filament_100000006[204]->filament_100000006[203]->filament_100000006[185]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[185]->filament_100000006[186]->filament_100000006[187]->filament_100000006[199]->filament_100000006[205]->filament_100000006[204]->filament_100000006[203]->filament_100000006[185]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[113]->filament_100000006[122]->filament_100000006[120]->filament_100000006[114]->filament_100000006[113]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[27]->filament_100000006[28]->filament_100000006[29]->filament_100000006[33]->filament_100000006[34]->filament_100000006[35]->filament_100000006[27]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[27]->filament_100000006[35]->filament_100000006[34]->filament_100000006[33]->filament_100000006[29]->filament_100000006[111]->filament_100000006[28]->filament_100000006[27]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[27]->filament_100000006[35]->filament_100000006[34]->filament_100000006[33]->filament_100000006[29]->filament_100000006[28]->filament_100000006[27]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[113]->filament_100000006[114]->filament_100000006[120]->filament_100000006[122]->filament_100000006[113]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[113]->filament_100000006[114]->filament_100000006[120]->filament_100000006[121]->filament_100000006[122]->filament_100000006[113]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[22]->filament_100000006[143]->filament_100000006[142]->filament_100000006[141]->filament_100000006[140]->filament_100000006[139]->filament_100000006[138]->filament_100000006[137]->filament_100000006[136]->filament_100000006[135]->filament_100000006[133]->filament_100000006[132]->filament_100000006[130]->filament_100000006[128]->filament_100000006[127]->filament_100000006[126]->filament_100000006[23]->filament_100000006[22]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[22]->filament_100000006[23]->filament_100000006[126]->filament_100000006[127]->filament_100000006[128]->filament_100000006[130]->filament_100000006[132]->filament_100000006[133]->filament_100000006[135]->filament_100000006[136]->filament_100000006[154]->filament_100000006[137]->filament_100000006[138]->filament_100000006[139]->filament_100000006[140]->filament_100000006[141]->filament_100000006[142]->filament_100000006[143]->filament_100000006[22]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[22]->filament_100000006[23]->filament_100000006[126]->filament_100000006[127]->filament_100000006[128]->filament_100000006[130]->filament_100000006[132]->filament_100000006[133]->filament_100000006[135]->filament_100000006[136]->filament_100000006[137]->filament_100000006[138]->filament_100000006[139]->filament_100000006[140]->filament_100000006[141]->filament_100000006[142]->filament_100000006[143]->filament_100000006[22]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[41]->filament_100000006[55]->filament_100000006[53]->filament_100000006[43]->filament_100000006[42]->filament_100000006[41]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[41]->filament_100000006[42]->filament_100000006[56]->filament_100000006[43]->filament_100000006[53]->filament_100000006[55]->filament_100000006[41]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[41]->filament_100000006[42]->filament_100000006[43]->filament_100000006[53]->filament_100000006[55]->filament_100000006[41]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[78]->filament_100000006[88]->filament_100000006[89]->filament_100000006[79]->filament_100000006[78]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[78]->filament_100000006[79]->filament_100000006[89]->filament_100000006[87]->filament_100000006[88]->filament_100000006[78]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[78]->filament_100000006[79]->filament_100000006[89]->filament_100000006[88]->filament_100000006[78]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[78]->filament_100000006[88]->filament_100000006[87]->filament_100000006[86]->filament_100000006[80]->filament_100000006[79]->filament_100000006[78]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[78]->filament_100000006[79]->filament_100000006[80]->filament_100000006[86]->filament_100000006[87]->filament_100000006[88]->filament_100000006[78]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[78]->filament_100000006[79]->filament_100000006[80]->filament_100000006[81]->filament_100000006[86]->filament_100000006[87]->filament_100000006[88]->filament_100000006[78]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[59]->filament_100000006[60]->filament_100000006[64]->filament_100000006[65]->filament_100000006[67]->filament_100000006[59]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[59]->filament_100000006[67]->filament_100000006[65]->filament_100000006[64]->filament_100000006[60]->filament_100000006[59]
+[1;31mHave not implement loop removal.
+Loop detected[0m: filament_100000006[59]->filament_100000006[67]->filament_100000006[65]->filament_100000006[64]->filament_100000006[61]->filament_100000006[60]->filament_100000006[59]
+Number of subgraphs = 19 / size of graphs: [1, 1, 3, 3, 1, 1, 1, 3, 3, 3, 1, 3, 5, 1, 5, 1, 3, 7, 214]
+Removed all but largest subgraphs
+number of connected nodes: 4876
+number of connected compartments: 4885
+number of connected segments: 214
+number of branches: 214
+Surface area = 0.0762017 mm^2
+Volume = 0.000167999 mm^3
+Surface to volume ratio = 453.586 mm^-1
+Path length from Soma to tips = 260.61 +228.44 -181.43
+Tortuosity of path from Soma to tips = 2.18 +8.98 -0.90
+Tortuosity of neuron branches = 1.03 +1.06 -0.03
+For neuron branches, branch angle = 53.95 +47.94 -38.77
+Rall-incompatible branch ratios: 1.24 1.24 0.23 0.27
+Rall-incompatible branch ratios: 0.65 1.12
+Rall-incompatible branch ratios: 0.53 1.05
+Rall-incompatible branch ratios: 1.30 0.90 1.16
+Rall-incompatible branch ratios: 1.13 0.75
+Rall-incompatible branch ratios: 0.57 1.08
+Rall-incompatible branch ratios: 1.01 0.70
+Rall-incompatible branch ratios: 0.88 1.06
+Rall-incompatible branch ratios: 0.80 1.06
+Rall-incompatible branch ratios: 0.89 1.21
+Rall-incompatible branch ratios: 1.14 0.64
+Rall-incompatible branch ratios: 1.14 0.75
+Rall-incompatible branch ratios: 1.03 0.92
+Rall-incompatible branch ratios: 1.06 0.86
+Rall-incompatible branch ratios: 1.32 0.91
+Rall-incompatible branch ratios: 0.56 1.02
+Rall-incompatible branch ratios: 1.03 0.39
+Rall-incompatible branch ratios: 0.99 1.36
+Rall-incompatible branch ratios: 1.52 0.84
+Rall-incompatible branch ratios: 1.12 0.86
+Rall-incompatible branch ratios: 0.94 1.26
+Rall-incompatible branch ratios: 1.09 0.87
+Rall-incompatible branch ratios: 0.75 1.13
+Rall-incompatible branch ratios: 0.59 2.00
+Rall-incompatible branch ratios: 1.24 0.97
+For neuron branches, Rall ratio = 1.43 +1.86 -1.07
+For neuron branches, daughter branch ratio = 0.76 +0.76 -0.46
+For neuron branches, Rall power = 1.83 +8.63 -13.67
+Traceback (most recent call last):
+  File "/home/alex/code/morphology/python/neuron/neuron_simulateGeometry.py", line 289, in _simulateModel
+    import neuron
+ImportError: No module named neuron
+

@@ -1,0 +1,43 @@
+MATLAB FOR NEUROSCIENTISTS
+
+Table of contents
+
+Part I - Fundamentals
+
+Part II - Data collection with matlab
+	Visual search & pop out				- 59
+	Attention					- 71
+	Psychophysics (vision)				- 79
+	Signal detection theory				- 97
+
+Part III - Data analysis with matlab
+	Freq. analysis (Fourier)			- 117
+	Freq analysis (nonstationary, spectrograms)	- 125
+	Wavelets					- 133
+	Convolution					- 141
+	Intro to phase plan analysis			- 153
+	Exploring the Fitzhugh-Nagumo model		- 163
+	Neural data analysis- encoding			- 173
+	PCA						- 183
+	Information theory				- 193
+	Neural decoding (discrete variables)		- 203
+	Neural decoding (continuous variables)		- 211
+	fMRI						- 219
+
+Part IV - Data modeling with matlab
+	Voltage-gated ion channels			- 229
+	Models of a single neuron			- 239
+	Models of the retina				- 247
+	Simple model of spiking neuron			- 255
+	Fitzhugh-Nagumo model - traveling waves		- 261
+	Decision theory 				- 275
+	Markov models					- 283
+	Modeling spike trains as a poisson process	- 291
+	Synaptic transmission				- 299
+	Neural networks - unsupervised learning		- 307
+	Neural networks - supervised learning
+
+Appendices
+	Thinking in matlab				- 339
+	Linear algebra review 				- 345
+	Master equation list				- 355
