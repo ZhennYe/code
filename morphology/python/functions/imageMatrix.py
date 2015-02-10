@@ -1,13 +1,14 @@
 # imageMatrix.py - image processing toolbox for neuron stuff
 # usage: python imageMatrix.py tiffDirectory/ outFile
 
-import os, sys
+import os, sys, math
 import numpy as np
 from PIL import Image
 from multiprocessing import Pool
-import matplotlib as plt
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
-import pickle
+#import pickle
 
 
 # SIMPLE TOOLS
@@ -43,39 +44,44 @@ def matrix2coords(darr, voxel):
       for y in range(len(darr[z][x])):
         if darr[z][x,y] > 0:
           coords.append([x*voxel[0],y*voxel[1],z*voxel[2]])
-    print('z-slice # %i done' %z)
+    print('z-slice # %i done' %int(z+1))
   return coords
 
 
 def coords2matrix(coords, voxel, i=1):
   # x-y-z tuples are converted to a matrix; "i" is the matrix value
   matrix = []
+  dims = len(voxel)
   for c in coords:
-    matrix.append([c[0]/voxel[0], c[1]/voxel[1], c[2]/voxel[2]])
+    matrix.append([int(c[i]/voxel[i]) for i in range(dims)])
   matrix = np.array(matrix)
-  maxs = [max(matrix[:,i]) for i in range(3)]
-  newmat = np.zeros([maxs[0],maxs[1],maxs[2]])
-  for m in matrix:
-    newmat[m[0],m[1],m[2]] = i
+  maxs = [max(matrix[:,i]) for i in range(dims)]
+  print(maxs, dims)
+  newmat = np.zeros([i+1 for i in maxs])
+  if dims == 2:
+    for m in matrix:
+      newmat[m[0],m[1]] = i
+  elif dims == 3:
+    for m in matrix:
+      newmat[m[0],m[1],m[2]] = i
   return newmat
 
 
-def gen_plane(vec, sshow=True):
+def gen_plane(vec, voxel, M=10, sshow=False):
   if len(vec) != 3:
     print('Error: a vector is defined by 3 values: i,j,k')
   else:
     plan = []
-    xs = np.linspace(vec[0]-10,vec[0]+10)
-    ys = np.linspace(vec[1]-10,vec[1]+10)
+    xs = np.linspace(vec[0]-voxel[0]*M,vec[0]+voxel[0]*M, M*2) # default is + 10 voxels
+    ys = np.linspace(vec[1]-voxel[1]*M,vec[1]+voxel[1]*M, M*2)
     def solve(vec, x, y):
       return -((x*vec[0] + y*vec[1])/vec[2])
     for m in xs:
       for n in ys:
-        plan.append([m,n,solve(vec,m,n)])
+        plan.append([m+voxel[0],n+voxel[1],solve(vec,m,n)+voxel[2]])
+        # this also scales it back to the original location
     lin = [[v*i for v in vec] for i in range(-10,10)] 
     if sshow == True:
-      import matplotlib.pyplot as plt
-      from mpl_toolkits.mplot3d import Axes3D
       fig = plt.figure()
       ax = fig.add_subplot(111, projection='3d')
       for p in plan:
@@ -84,6 +90,52 @@ def gen_plane(vec, sshow=True):
         ax.scatter(p[0],p[1],p[2], c='r', edgecolor='r')
       plt.show()
     return plan
+
+
+def test_plane(plan, cross_sec, voxel):
+  # if plane isn't large enough (all outer 1's adjacent to 0's) it doubles the size
+  if len(plan[0]) != 3 or len(voxel) != 3 or len(cross_sec[0]) != 3:
+    print('Need 3 values (x,y,z) for plane, cross section and voxel args')
+    return False
+  
+  def distance(pt0,pt1):
+    return np.sqrt(sum([(pt0[i]-pt1[i])**2 for i in range(3)]))
+  
+  def plane_info(plan):
+    def farthest_pt(pt,pts):
+      long_dist = 0
+      for p in pts:
+        if distance(p,pt) > long_dist:
+          long_dist = distance(p,pt)
+      return long_dist
+      
+    # start here
+  
+  def check_cs(p_info, cs_info):
+    # if the span of plan <= span of cs, the plane needs to be extended
+    # so that it is larger than the cross-section
+    expand = 1
+    for i in range(3):
+      if p_info['M'][i] <= cs_info['M'][i]:
+        expand = expand*0 
+    return [False, True][expand]
+  # if even 1 dimension is identical the plane should be extended
+  
+  #def expand_plan(p_info, voxel):
+  #  minmax = [['xmin','xmax'],['ymin','ymax'],['zmin','zmax']]
+
+  p_info = plan_info(plan)
+  cs_info = plan_info(cross_sec)
+  expand = check_cs(p_info, cs_info)
+  return expand
+  #if expand:
+  #  new_plane = expand_plan(p_info, voxel)
+  #  return [expand, new_plane]
+  #else:
+  #  return [expand]
+
+
+
 
 
 def switch_binary(arr):
@@ -153,11 +205,26 @@ def gen_segment(fake_filament):
   fils = os.listdir(fake_filament)
   fils = [fake_filament+i for i in fils]
   fils.sort()
-  pool = Pool()
-  darr = pool.map(load_fake_segment, fils) # 
-  pool.close()
-  pool.join()
+  darr = []
+  for f in fils:
+    darr.append(load_fake_segment(f))
+  #pool = Pool() # these calls were yielding a pickle error related to pool properties
+  #darr = pool.map(load_fake_segment, fils) # 
+  #pool.close()
+  #pool.join()
   return darr # return multi-dimensional array
+
+
+def plot_cross_secs(cs):
+  # assumes each element in cs is a cross section with a [x,y,z]
+  fig = plt.figure()
+  ax = fig.add_subplot(111, projection='3d')
+  cols = ['b','r','g','y','k']*int(len(cs)/5+1)
+  for c in range(len(cs)):
+    for i in range(len(cs[c])):
+      ax.scatter(cs[c][i][0],cs[c][i][1],cs[c][i][2], c=cols[c], 
+                 edgecolor = cols[c], alpha = 0.1)
+  plt.show()
 
 
 def fake_cross_section(fake_filament='/home/alex/data/morphology/848/848_081/fake_filament/'):
@@ -183,15 +250,22 @@ def fake_cross_section(fake_filament='/home/alex/data/morphology/848/848_081/fak
             skelcoords.append([x*y for x,y in zip(voxel,[i,j,s])])
     return skelcoords
   
-  def return_cross_section(vec, darr, voxel):
-    plancoords = gen_plane(vec, False)
+  def return_cross_section(pt0, pt1, darr, voxel, M=10):
+    # so that the plane can be scaled, get two points and instead of vec
+    vec = get_vector(pt0, pt1)
+    plancoords = gen_plane(vec, voxel, M, False)
+    # scale the plancoords to match with pt0
+    for p in range(len(plancoords)):
+      for i in range(3):
+        plancoords[p][i] = plancoords[p][i] + pt0[i]
     voxelcoords = matrix2coords(darr, voxel)
-    vdist = dist([0,0,0],voxel)
+    vdist = 2 * dist([0,0,0],voxel)
     cross_sec = []
     for p in plancoords:
       if return_nearest_dist(p, voxelcoords) <= vdist:
         cross_sec.append(p)
-    return cross_sec
+        
+    return cross_sec, plancoords
     # plan_mat = coords2matrix(plancoords, voxel)
     # want to find overlap between plane and segment
     
@@ -204,15 +278,39 @@ def fake_cross_section(fake_filament='/home/alex/data/morphology/848/848_081/fak
   carr = clean_filament(darr)
   skelcoords = get_skelcoords(carr, voxel)
   cross_secs = []
+  
   for s in range(len(skelcoords)-1):
-    cross_secs.append(return_cross_section(get_vector(skelcoords[s],
-                                                      skelcoords[s+1]),
-                                                      carr, voxel))
-  
+    pt0, pt1 = skelcoords[s],skelcoords[s+1]
+    M=10
+    cs, plancoords = return_cross_section(pt0, pt1, carr, voxel, M)
+    notbigenough = test_plane(plancoords, cs, voxel)
+    cycle = 0
+    while notbigenough:
+      M=M*2
+      cs, plancoords = return_cross_section(pt0, pt1, carr, voxel, M)
+      notbigenough = test_plane(plancoords, cs, voxel)
+      cycle = cycle + 1
+      print('%ith iteration. Current specs:' %cycle)
+      print(np.shape(cs), M)
+    cross_secs.append(cs) # once the plane exceeds the cross section, append
     
+  return cross_secs, narr
   
-  return narr
-  
+
+def plot_multi_coords(skelcoords, voxelcoords=False, plancoords=False):
+  fig = plt.figure()
+  ax = fig.add_subplot(111, projection='3d')
+  colors, alphas = ['r','b','k'], [0.1,0.01,0.01]
+  print('Starting plot...')
+  for s in skelcoords:
+    ax.scatter(s[0],s[1],s[2],c=colors[0],edgecolor=colors[0],alpha=alphas[0])
+  if voxelcoords:
+    for v in voxelcoords:
+      ax.scatter(v[0],v[1],v[2],c=colors[1],edgecolor=colors[1],alpha=alphas[1])
+  if plancoords:
+    for p in plancoords:
+      ax.scatter(p[0],p[1],p[2],c=colors[2],edgecolor=colors[2],alpha=alphas[2])
+  plt.show()
   
 
 

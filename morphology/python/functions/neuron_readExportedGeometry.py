@@ -492,22 +492,6 @@ def demoReadOld(geoFile):
 
 
 
-def paintPlots(geometry):
-  # graphical representation of hemisphere analysis
-  # fist, just collect segment names; get the points later
-  
-  
-  
-  """
-  # start @ soma
-  for n in geometry.soma.nodes:
-    print(n.x, n.y, n.z)
-  
-  if len(geometry.soma.neighbors) > 1
-  for n in geometry.soma.neighbors:
-  """
-  
-  #print(type(geometry.soma.nodes))
   
 
 
@@ -532,6 +516,14 @@ def demoRead(geoFile):
     Seg1s.append(c['filament1']) # here, location1 is always 0
     Seg2s.append(c['filament2']) # here, location2 is always 1
     #geometry.c['filament1'].coordAt(c['location1'])
+  used_segs = []
+  for x,y in zip(Seg1s, Seg2s):
+    used_segs.append(int(x.split('_')[1]))
+    used_segs.append(int(y.split('_')[1]))
+  for j in range(0,max(used_segs)):
+    if not j in used_segs:
+      print('Segment %i not present' %j)
+  geometry.displaySummary()
   
   return geometry
   

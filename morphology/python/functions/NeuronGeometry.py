@@ -2048,7 +2048,7 @@ class Segment:
     #    location in neighbor segment [0.0 - 1.0],
     #    connecting Node)
     self.neighborLocations = []
-    self.volume = None
+    #self.volume = None
 
 
   
