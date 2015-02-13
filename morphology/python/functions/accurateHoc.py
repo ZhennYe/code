@@ -134,12 +134,13 @@ class Hoc(geoFile, tiffFolder, voxel=[0.176,0.176,0.38]):
         
   
   
-
-  def writeHoc(self, newName):
+  def writeHoc(self, newName='newhoc.hoc'):
     """
     Create a new hoc file, but mantain all of the previous connections
     info since that's a pain to reproduce.
     """
+    conns = self.get_connections()
+    
     
     
   
