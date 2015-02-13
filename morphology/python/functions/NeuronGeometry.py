@@ -666,7 +666,7 @@ class Geometry:
     ###  -each key is a branch order (an integer)
     ###  -each item is a list of y-values (the list for all branches with
     ###   that branch order)
-    order = branchStat.keys()
+    order = list(branchStat.keys())
     order.sort()
     y = [branchStat[o] for o in order]
     x = list(range(len(order)))

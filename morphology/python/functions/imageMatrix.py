@@ -8,6 +8,7 @@ from multiprocessing import Pool
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
+from spiral import *
 #import pickle
 
 
@@ -32,6 +33,22 @@ def make255(arr, T=255):
     for j in range(len(arr[0])):
       if arr[i,j] > 0:
         zarr[i,j] = T
+  return zarr
+
+
+def dist(pt0,pt1):
+  return np.sqrt(sum([(pt1[i]-pt0[i])**2 for i in range(len(pt0))]))
+
+
+# invert and flatten
+def invert(arr):
+  zarr = np.zeros(np.shape(arr)[:2])
+  for i in range(np.shape(arr)[0]):
+    for j in range(np.shape(arr)[1]):
+      if arr[i,j,0] == 255:
+        zarr[i,j] = 0
+      if arr[i,j,0] == 0:
+        zarr[i,j] = 255
   return zarr
 
 
@@ -67,29 +84,10 @@ def coords2matrix(coords, voxel, i=1):
   return newmat
 
 
-def gen_plane(vec, voxel, M=10, sshow=False):
-  if len(vec) != 3:
-    print('Error: a vector is defined by 3 values: i,j,k')
-  else:
-    plan = []
-    xs = np.linspace(vec[0]-voxel[0]*M,vec[0]+voxel[0]*M, M*2) # default is + 10 voxels
-    ys = np.linspace(vec[1]-voxel[1]*M,vec[1]+voxel[1]*M, M*2)
-    def solve(vec, x, y):
-      return -((x*vec[0] + y*vec[1])/vec[2])
-    for m in xs:
-      for n in ys:
-        plan.append([m+voxel[0],n+voxel[1],solve(vec,m,n)+voxel[2]])
-        # this also scales it back to the original location
-    lin = [[v*i for v in vec] for i in range(-10,10)] 
-    if sshow == True:
-      fig = plt.figure()
-      ax = fig.add_subplot(111, projection='3d')
-      for p in plan:
-        ax.scatter(p[0],p[1],p[2], c='b', edgecolor='b', alpha=0.1)
-      for p in lin:
-        ax.scatter(p[0],p[1],p[2], c='r', edgecolor='r')
-      plt.show()
-    return plan
+def get_vector(pt0, pt1):
+  if len(pt0) == len(pt1):
+    return [x-y for x,y in zip(pt0,pt1)]
+
 
 
 def test_plane(plan, cross_sec, voxel):
@@ -150,6 +148,7 @@ def switch_binary(arr):
 
 
 def clean_filament(darr):
+  """ Prints the locations of the skelpoints in the fake filament. """
   #carr = np.zeros(np.shape(darr))
   for s in range(len(darr)): # for each slice
     width, start, row  = 0, None, None
@@ -166,53 +165,11 @@ def clean_filament(darr):
         start = temp_start
         row = r
     # at the end of each slice:
-    print(s, row, start, int(width/2))
+    # skelpoint location: (slice #, row #, start + k)
+    print(s, row, start, int(width/2)) 
     darr[s][row][start+int(width/2)] = 2
   return darr
 
-
-def display_fake_filament(darr):
-  rimgs = [Image.fromarray(darr[i]) for i in range(10)]
-  for k in range(10):
-    rimgs[k].show()
-  return
-
-
-def gen_segment(fake_filament):
-  # default value
-  
-  def make_1d(arr, invert=True, gray=False): # make 1-D and grayscale, invert
-    narr = np.zeros([len(arr), len(arr[0])])
-    if gray:
-      newscheme = [0, 125, 255] # gray skeleton on black neuron, background white
-    else:
-      newscheme = [0,2,1] # 'binary', not gray
-    for i in range(len(arr)):
-      for j in range(len(arr[0])):
-        if arr[i,j,0] == 255:
-          narr[i,j] = newscheme[0]
-        elif arr[i,j,0] == 0:
-          narr[i,j] = newscheme[2]
-        else:
-          narr[i,j] = newscheme[2]
-    return narr
-    
-  def load_fake_segment(imfile):
-    img = Image.open(imfile)
-    arr = np.array(img)
-    return make_1d(arr) # already been done!
-    
-  fils = os.listdir(fake_filament)
-  fils = [fake_filament+i for i in fils]
-  fils.sort()
-  darr = []
-  for f in fils:
-    darr.append(load_fake_segment(f))
-  #pool = Pool() # these calls were yielding a pickle error related to pool properties
-  #darr = pool.map(load_fake_segment, fils) # 
-  #pool.close()
-  #pool.join()
-  return darr # return multi-dimensional array
 
 
 def plot_cross_secs(cs):
@@ -227,6 +184,8 @@ def plot_cross_secs(cs):
   plt.show()
 
 
+
+######## fake cross sections #######
 def fake_cross_section(fake_filament='/home/alex/data/morphology/848/848_081/fake_filament/'):
   def dist(inds0, inds1):
     if len(inds0) != len(inds1): print('Dimension mismatch!')
@@ -281,21 +240,57 @@ def fake_cross_section(fake_filament='/home/alex/data/morphology/848/848_081/fak
   
   for s in range(len(skelcoords)-1):
     pt0, pt1 = skelcoords[s],skelcoords[s+1]
-    M=10
+    M=100
     cs, plancoords = return_cross_section(pt0, pt1, carr, voxel, M)
-    notbigenough = test_plane(plancoords, cs, voxel)
-    cycle = 0
-    while notbigenough:
-      M=M*2
-      cs, plancoords = return_cross_section(pt0, pt1, carr, voxel, M)
-      notbigenough = test_plane(plancoords, cs, voxel)
-      cycle = cycle + 1
-      print('%ith iteration. Current specs:' %cycle)
-      print(np.shape(cs), M)
+    # notbigenough = test_plane(plancoords, cs, voxel)
     cross_secs.append(cs) # once the plane exceeds the cross section, append
     
-  return cross_secs, narr
+  return cross_secs, carr
+
+
+def display_fake_filament(darr):
+  rimgs = [Image.fromarray(darr[i]) for i in range(10)]
+  for k in range(10):
+    rimgs[k].show()
+  return
+
+
+def gen_segment(fake_filament):
+  # default value
   
+  def make_1d(arr, invert=True, gray=False): # make 1-D and grayscale, invert
+    narr = np.zeros([len(arr), len(arr[0])])
+    if gray:
+      newscheme = [0, 125, 255] # gray skeleton on black neuron, background white
+    else:
+      newscheme = [0,2,1] # 'binary', not gray
+    for i in range(len(arr)):
+      for j in range(len(arr[0])):
+        if arr[i,j,0] == 255:
+          narr[i,j] = newscheme[0]
+        elif arr[i,j,0] == 0:
+          narr[i,j] = newscheme[2]
+        else:
+          narr[i,j] = newscheme[2]
+    return narr
+    
+  def load_fake_segment(imfile):
+    img = Image.open(imfile)
+    arr = np.array(img)
+    return make_1d(arr) # already been done!
+    
+  fils = os.listdir(fake_filament)
+  fils = [fake_filament+i for i in fils]
+  fils.sort()
+  darr = []
+  for f in fils:
+    darr.append(load_fake_segment(f))
+  #pool = Pool() # these calls were yielding a pickle error related to pool properties
+  #darr = pool.map(load_fake_segment, fils) # 
+  #pool.close()
+  #pool.join()
+  return darr # return multi-dimensional array
+
 
 def plot_multi_coords(skelcoords, voxelcoords=False, plancoords=False):
   fig = plt.figure()
@@ -388,9 +383,17 @@ def make_binary_thresh(imfile, thresh=20):
   # uses a hard threshold to determine which pixels to include
   img = Image.open(imfile)
   arr = np.array(img)
-  # helper function
+  arr = invert(arr)
+  try:
+    L = len(arr[0,0])
+  except:
+    L = 1
+  if L > 1:
+    print('FLATTENING DID NOT WORK!')
+    return False
+  # helper function - binarizes the matrix
   def betch(arr):
-    bets = np.zeros(np.shape(arr))
+    bets = np.zeros(np.shape(arr)[:2])
     for i in range(len(arr)):
       for j in range(len(arr[0])):
         if arr[i,j] > thresh:
@@ -440,6 +443,72 @@ def make_binary_fromhist(imfile,T=1.0, sshow=False):
 # MEAT AND POTATOES
 ########################################################################
 
+def gen_plane(vec, voxel, M=10, sshow=False):
+  """
+  Assuming that the distance between skelpoints is somewhat related
+  to the width of the neurite and therefore the length of the normal 
+  vector will reflect this.
+  """
+  if len(vec) != 3:
+    print('Error: a vector is defined by 3 values: i,j,k')
+  else:
+    numpts = int(dist([0,0,0],vec)/dist([0,0,0],voxel))*M
+    # i also think this is automatically scaled to pt0
+    plancoords = []
+    xs = np.linspace(vec[0]-voxel[0]*numpts,vec[0]+voxel[0]*numpts, numpts*2) # default is + 10 voxels
+    ys = np.linspace(vec[1]-voxel[1]*numpts,vec[1]+voxel[1]*numpts, numpts*2)
+    def solve(vec, x, y):
+      return -((x*vec[0] + y*vec[1])/vec[2])
+    for m in xs: # Xs generated first
+      for n in ys: # Ys generated second
+        plancoords.append([m+voxel[0],n+voxel[1],solve(vec,m,n)+voxel[2]])
+        # this also scales it back to the original location
+    lin = [[v*i for v in vec] for i in range(-10,10)] 
+    if sshow == True:
+      fig = plt.figure()
+      ax = fig.add_subplot(111, projection='3d')
+      for p in plancoords:
+        ax.scatter(p[0],p[1],p[2], c='b', edgecolor='b', alpha=0.1)
+      for p in lin:
+        ax.scatter(p[0],p[1],p[2], c='r', edgecolor='r')
+      plt.show()
+    return plancoords, numpts # ALSO returns numpoints
+
+
+def scale_plane(plancoords, pt0, voxel):
+  vcoords = []
+  for p in plancoords:
+    p = [p[i]+pt0[i] for i in range(3)]
+    vcoords.append([p[i]/voxel[i] for i in range(3)])
+  return vcoords
+
+
+def plane_XY(plancoords, numpts):
+  xdiff = dist(plancoords[1,1],plancoords[1+2*numpts,1])
+  ydiff = dist(plancoords[1,1],plancoords[1,1+2*numpts])
+  return [xdiff, ydiff]
+
+
+def return_cross_sec_array(plane, varr, numpts):
+  """
+  Plane is [i,j,k] triplets of the normal-plane, not [x,y,z] coordinates.
+  Varr is the gigantic 3-D array of the voxelized image. This function
+  returns a plane-sized 2-D array to be spiraled.
+  """
+  sarr = np.zeros([numpts, numpts])
+  for m in range(numpts):
+    for n in range(numpts):
+      # if the array == 1 at the plane voxel value, make a 1, else 0
+      if varr[plane[(m*numpts)+n]] == 1:
+        sarr[m,n] = 1
+      else:
+        sarr[m,n] = 0
+  # now 1s should be where the plane normal to the skelpoints vector
+  # intersects with supra-threshold image voxel values and 0 otherwise
+  return sarr
+  
+
+
 # this mapping function will parallelize image loading and thresholding
 def import_images(folder, par=True, ttime=True):
   """
@@ -487,7 +556,7 @@ def save_coords(coords, fname='tempcoords.p'):
 
 
 
-def get_voxel_locations(folder, fname, voxel=[0.176,0.176,0.38], ssave=True):
+def get_voxel_locations(folder, fname, voxel=[0.176,0.176,0.38], ssave=False):
   # uses raw threshold function
   # get images as list
   fils = os.listdir(folder)
@@ -503,16 +572,16 @@ def get_voxel_locations(folder, fname, voxel=[0.176,0.176,0.38], ssave=True):
   newtiflist.sort() # alphabetize
   # commandeer all cores
   stime = timer()
-  pool = Pool()
-  darr = pool.map(make_binary_thresh, newtiflist) # adjust threshold in function
-  pool.close()
-  pool.join()
+  # pool = Pool()
+  darr = [make_binary_thresh(i) for i in newtiflist] # adjust threshold in function
+  # pool.close()
+  # pool.join()
   print('Time taken for retrieving coordinates: %.2f' %(timer()-stime))
   # send to matrix2coords to get tuples back
   coords = matrix2coords(darr, voxel)
   if ssave:
     # save this
-    save_coords(coords)
+    save_coords(coords, fname)
   
   return coords, darr
 
@@ -542,7 +611,7 @@ if __name__ == '__main__':
     outfile = arguments[2]
   else:
     outfile = 'temp_coords.p'
-  get_voxel_locations(directory, outfile, [1,1,1])
+  get_voxel_locations(directory, outfile, [1,1,1], False)
  
 
 

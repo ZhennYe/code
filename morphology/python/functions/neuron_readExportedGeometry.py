@@ -489,6 +489,7 @@ def demoReadOld(geoFile):
   
   ### Display summary info
   geometry.displaySummary()
+  return geometry
 
 
 
@@ -509,20 +510,22 @@ def demoRead(geoFile):
   
   print('From soma to tips, tortuosity is %.1f +- %.1f'
         % (meanTort, stdTort))
-        
-  Cons =  geometry.connections
-  Seg1s, Seg2s = [], []
-  for c in Cons:
-    Seg1s.append(c['filament1']) # here, location1 is always 0
-    Seg2s.append(c['filament2']) # here, location2 is always 1
-    #geometry.c['filament1'].coordAt(c['location1'])
-  used_segs = []
-  for x,y in zip(Seg1s, Seg2s):
-    used_segs.append(int(x.split('_')[1]))
-    used_segs.append(int(y.split('_')[1]))
-  for j in range(0,max(used_segs)):
-    if not j in used_segs:
-      print('Segment %i not present' %j)
+  
+  # i commented out a bunch of shit that doesn't work with imaris
+  
+  #Cons =  geometry.connections
+  #Seg1s, Seg2s = [], []
+  #for c in Cons:
+  #  Seg1s.append(c['filament1']) # here, location1 is always 0
+  #  Seg2s.append(c['filament2']) # here, location2 is always 1
+  # #geometry.c['filament1'].coordAt(c['location1'])
+  #used_segs = []
+  #for x,y in zip(Seg1s, Seg2s):
+  #  used_segs.append(int(x.split('_')[1]))
+  #  used_segs.append(int(y.split('_')[1]))
+  #for j in range(0,max(used_segs)):
+  # if not j in used_segs:
+  #   print('Segment %i not present' %j)
   geometry.displaySummary()
   
   return geometry
