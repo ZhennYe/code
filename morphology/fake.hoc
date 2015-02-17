@@ -1,0 +1,20 @@
+create filament_999[2]
+
+filament_999[0] {
+  pt3dclear()
+  pt3dadd(0,45,52,0.1)
+  pt3dadd(1,53,60,0.1)
+  pt3dadd(2,61,68,0.1)
+  pt3dadd(3,68,76,0.1)
+  pt3dadd(4,77,84,0.1)
+}
+
+filament_999[1] {
+  pt3dadd(5,85,92,0.1)
+  pt3dadd(6,93,100,0.1)
+  pt3dadd(7,101,108,0.1)
+  pt3dadd(8,109,116,0.1)
+  pt3dadd(9,117,124,0.1)
+}
+
+connect filament_999[1](0.0), filament_999[0](1.0)

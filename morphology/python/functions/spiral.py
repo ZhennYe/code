@@ -37,8 +37,8 @@ class Spiral(): # cross-scetion
       for j in range(self.shape[1]):
         if self.arr[i,j] != self.target:
           self.dead_pts.append([i,j])
-    print('Starting with %i live points and %i dead points' 
-          %(len(self.live_pts),len(self.dead_pts)))
+    #print('Starting with %i live points and %i dead points' 
+    #      %(len(self.live_pts),len(self.dead_pts)))
     return self
 
   
@@ -46,11 +46,11 @@ class Spiral(): # cross-scetion
   def no_changes(self):
     # assess whether spiral process is done
     if self.no_change['prev_dead_pts'] is None:  # set prev dead pts
-      print('Setting self.no_change[prev_dead_pts]')
+      #print('Setting self.no_change[prev_dead_pts]')
       self.no_change['prev_dead_pts'] = len(self.dead_pts)
     elif self.no_change['prev_dead_pts'] == len(self.dead_pts): # increment count
       self.no_change['count'] = self.no_change['count'] + 0.5
-      print('Incremented delta to %.1f' %self.no_change['count'])
+      #print('Incremented delta to %.1f' %self.no_change['count'])
     else:
       self.no_change['prev_dead_pts'] = len(self.dead_pts) # set new prev dead pts
       #self.no_change['count'] = 0
@@ -59,11 +59,11 @@ class Spiral(): # cross-scetion
       self.no_change['prev_live_pts'] = len(self.live_pts)
     elif self.no_change['prev_dead_pts'] == len(self.live_pts): # increment count
       self.no_change['count'] = self.no_change['count'] + 0.5
-      print('Incremented delta to %.1f' %self.no_change['count'])
+      #print('Incremented delta to %.1f' %self.no_change['count'])
     else:
       self.no_change['prev_live_pts'] = len(self.live_pts) # set new prev live pts
       #self.no_change['count'] = 0
-    print(self.no_change)
+    #print(self.no_change)
     return self.no_change['count'] # 'delta'
 
 
@@ -77,13 +77,13 @@ class Spiral(): # cross-scetion
     if next_pt not in self.dead_pts and next_pt not in self.live_pts:
       if next_pt[0] in range(0,self.shape[0]) and next_pt[1] in range(0,self.shape[1]):
         #print(check[self.prev](self.x,self.y))
-        print('Next move OK')
+        #print('Next move OK')
         # print(self.live_pts)
         return [True, check[self.prev](self.x,self.y)]
       else:
         return [False]
     else:
-      print('Next move not OK')
+      #print('Next move not OK')
       return [False]
   
     
@@ -106,8 +106,8 @@ class Spiral(): # cross-scetion
       if [i,j] not in self.live_pts:
         #ind = self.live_pts.index([i,j])
         self.live_pts.append([i,j]) # remove it from live points
-        print('Added [%i,%i] to area_pts and removed it from live_pts'
-              %(i,j))
+        #print('Added [%i,%i] to area_pts and removed it from live_pts'
+        #      %(i,j))
       #else:
       #  self.live_pts.append([i,j])
       return False
@@ -124,8 +124,8 @@ class Spiral(): # cross-scetion
       if self.check_live_pt(self.x, self.y): # if point is alive, add it
         if [self.x,self.y] not in self.live_pts:
           self.live_pts.append([self.x,self.y])
-          print('Added point %i %i. Live points: %i' %(self.x, self.y,
-                                                     len(self.live_pts)))
+          #print('Added point %i %i. Live points: %i' %(self.x, self.y,
+          #                                           len(self.live_pts)))
       # else it is automatically added to dead_pts
   
   
@@ -137,8 +137,8 @@ class Spiral(): # cross-scetion
       i,j = p[0], p[1]
       if not self.check_live_pt(i,j):
         return
-        print('Live points: %i, dead points: %i, area points: %i' 
-              %(len(self.live_pts), len(self.dead_pts), len(self.area_pts)))
+        #print('Live points: %i, dead points: %i, area points: %i' 
+        #      %(len(self.live_pts), len(self.dead_pts), len(self.area_pts)))
     
         
   
@@ -155,13 +155,13 @@ class Spiral(): # cross-scetion
     _moves = cycle(moves)
     _prevs = cycle(prevs)
     delta = self.no_changes()
-    print(self.no_change)
+    #print(self.no_change)
     # cycle through points
     while len(self.live_pts) > 0:
       count = 0
       self.retire_pts()
       delta = self.no_changes()
-      print('Delta is %.1f' %delta)
+      # print('Delta is %.1f' %delta)
       # take a point until exhausted
       self.x, self.y = self.live_pts[int(np.random.random(1)*len(self.live_pts))]
       print('Starting new point %i %i' %(self.x, self.y))
@@ -181,8 +181,8 @@ class Spiral(): # cross-scetion
           next_move = next(_moves)
           self.prev = next(_prevs)
           count = count + 1
-          print('Live points: %i, dead points: %i, area points: %i' 
-                %(len(self.live_pts), len(self.dead_pts), len(self.area_pts)))
+          #print('Live points: %i, dead points: %i, area points: %i' 
+          #      %(len(self.live_pts), len(self.dead_pts), len(self.area_pts)))
         if delta > 50:
           return
           #if count ==4:

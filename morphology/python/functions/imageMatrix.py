@@ -5,7 +5,10 @@ import os, sys, math
 import numpy as np
 from PIL import Image
 from multiprocessing import Pool
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
 from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 from spiral import *
@@ -476,16 +479,16 @@ def gen_plane(vec, voxel, M=10, sshow=False):
 
 
 def scale_plane(plancoords, pt0, voxel):
-  vcoords = []
+  vcoords = [] # ints for indexing the 3-D array self.varr
   for p in plancoords:
     p = [p[i]+pt0[i] for i in range(3)]
-    vcoords.append([p[i]/voxel[i] for i in range(3)])
+    vcoords.append([int(p[i]/voxel[i]) for i in range(3)])
   return vcoords
 
 
 def plane_XY(plancoords, numpts):
-  xdiff = dist(plancoords[1,1],plancoords[1+2*numpts,1])
-  ydiff = dist(plancoords[1,1],plancoords[1,1+2*numpts])
+  xdiff = dist(plancoords[0], plancoords[1])
+  ydiff = dist(plancoords[0], plancoords[numpts])
   return [xdiff, ydiff]
 
 
@@ -499,10 +502,19 @@ def return_cross_sec_array(plane, varr, numpts):
   for m in range(numpts):
     for n in range(numpts):
       # if the array == 1 at the plane voxel value, make a 1, else 0
-      if varr[plane[(m*numpts)+n]] == 1:
-        sarr[m,n] = 1
+      shape = np.shape(varr)
+      if plane[(m*numpts)+n][0] > shape[0]-1 or \
+      plane[(m*numpts)+n][1] > shape[1]-1 or \
+      plane[(m*numpts)+n][2] > shape[2]-1:
+        sarr[m][n] = 0
       else:
-        sarr[m,n] = 0
+        try:
+          if varr[plane[(m*numpts)+n][0]][plane[(m*numpts)+n][1]][plane[(m*numpts)+n][2]] == 1:
+            sarr[m][n] = 1
+          else:
+            sarr[m][n] = 0
+        except:
+          sarr[m][n] = 0
   # now 1s should be where the plane normal to the skelpoints vector
   # intersects with supra-threshold image voxel values and 0 otherwise
   return sarr

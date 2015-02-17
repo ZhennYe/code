@@ -18,27 +18,33 @@ from spiral import *
 
 
 
-class Hoc(geoFile, tiffFolder, voxel=[0.176,0.176,0.38]):
-  def __init__(self, geoFile, tiffFolder=None):
+class Hoc():
+  def __init__(self, geoFile, tiffFolder, voxel=[0.176,0.176,0.38]):
     if tiffFolder == None:
       self.tiffFolder = '/home/alex/data/morphology/848/848_081/fake_filament/'
+    else:
+      self.tiffFolder = tiffFolder
+    self.geoFile = geoFile
     self.voxel = voxel
     self.geofile = geoFile
     self.varr = None
-    self.geometry, self.varr = load_geometry(geoFile, tiffFolder)
+    self.load_geometry()
     self.skelpoints, self.skel_vectors, self.skel_names = [], [], []
     self.skel_coords() # load skelcoords and skel vectors
     self.segments = {'*':None} # segments and nodes will go here
     self.hoc = [] # tuple of [seg_name,[x,y,z],rad]
+    self.get_cross_sections()
+    #self.get_connections()
+    #self.writeHoc()
     
     
     
   ##################### Loading functions ##################################
   
-  def load_geometry(self)
+  def load_geometry(self):
     # load voxelized image from directory, discard coordinates
     _, self.varr = get_voxel_locations(self.tiffFolder, 'f', self.voxel, False)
-    self.geometry = demoRead(hocFile)
+    self.geometry = demoRead(self.geoFile)
     return self
 
 
@@ -75,44 +81,45 @@ class Hoc(geoFile, tiffFolder, voxel=[0.176,0.176,0.38]):
 
 
   ####################### Money functions ##################################
+  
+  def add_node(self, n,s, cross_dims):
+    # n = str(n)
+    if self.skel_names[n] not in self.segments.keys():
+      # if it doesn't exist, then the first node doesn't exist either
+      self.segments[self.skel_names[n]] = {'0': {'coord': self.skelpoints[n],
+                                                 'area': s.area*cross_dims[0]*cross_dims[1],
+                                                 'surface': s.surface['xs']*cross_dims[0] +\
+                                                            s.surface['ys']*cross_dims[1],
+                                                 'arr': reproduce_matrix(s.live_pts)}}
+      self.segments[self.skel_names[n]]['0']['rad'] = \
+        np.sqrt(self.segments[self.skel_names[n]]['0']['area']/np.pi)
+    else:
+      new = len(self.segments[self.skel_names[n]])
+      self.segments[self.skel_names[n]][str(new)]={'coord': self.skelpoints[n],
+                                                   'area': s.area*cross_dims[0]*cross_dims[1],
+                                                   'surface': s.surface['xs']*cross_dims[0] +\
+                                                              s.surface['ys']*cross_dims[1],
+                                                   'arr': reproduce_matrix(s.live_pts)}
+      self.segments[self.skel_names[n]][str(new)]['rad'] =  \
+        np.sqrt(self.segments[self.skel_names[n]][str(new)]['area']/np.pi)
+    return self
 
+  
   def get_cross_sections(self):
     """
     Do like everything.
     """
-    def add_node(n,s, cross_dims):
-      if self.skel_names[n] not in self.segments.keys():
-        # if it doesn't exist, then the first node doesn't exist either
-        self.segments[self.skel_names[n]] = {'0': {'coord': self.skelpoints[n],
-                                                   'area': s.area*cross_dims[0]*cross_dims[1],
-                                                   'surface': s.surface['xs']*cross_dims[0] +\
-                                                              s.surface['ys']*cross_dims[1],
-                                                   'arr': reproduce_matrx(s.live_pts)}}
-        self.segments[self.skel_names[n]] = {'0': {'rad': \
-        self.segments[self.skel_names[n]]['0']['surface']/2*np.pi}}
-      else:
-        new = len(self.segments[self.skel_names[n]])
-        self.segments[self.skel_names[n]][str(new)]={'coord': self.skelpoints[n],
-                                                     'area': s.area*cross_dims[0]*cross_dims[1],
-                                                     'surface': s.surface['xs']*cross_dims[0] +\
-                                                                s.surface['ys']*cross_dims[1],
-                                                     'arr': reproduce_matrix(s.live_pts)}
-        self.segments[self.skel_names[n]] = {str(new): {'rad': \
-        self.segments[self.skel_names[n]][str(new)]['surface']/2*np.pi}}
-      return self
-      
-      
     # create cross-sections to populate nodes & segments
     for n in range(len(self.skelpoints)):
       plancoords, numpts = gen_plane(self.skel_vectors[n],self.voxel) # imageMatrix
       cross_dims = plane_XY(plancoords, numpts) # imageMatrix
-      vcoords = scale_plan(plancoords, self.skelpoints[n], self.voxel) # imageMatrix
+      vcoords = scale_plane(plancoords, self.skelpoints[n], self.voxel) # imageMatrix
       sarr = return_cross_sec_array(vcoords, self.varr, numpts) # imageMatrix
       s = Spiral(sarr) # spiral
       # populate segments and nodes dicts
       self.add_node(n,s,cross_dims)
-      self.hoc.append([self.skel_names[n], self.skelpoints[n],
-                       self.segments[self.skel_names[n]][str(len(self.segments[self.skel_names[n]]))]['rad']])
+      #self.hoc.append([self.skel_names[n], self.skelpoints[n],
+      #                 self.segments[self.skel_names[n]][str(len(self.segments[self.skel_names[n]]))]['rad']])
     # done
     return self
       
@@ -128,7 +135,7 @@ class Hoc(geoFile, tiffFolder, voxel=[0.176,0.176,0.38]):
         if type(splitLine) is list:
           if splitLine[0] == 'connect':
             # save everything 
-          conns.append(line)
+            conns.append(line)
     # should have all the connections now as a list in conns
     return conns
         
@@ -140,7 +147,44 @@ class Hoc(geoFile, tiffFolder, voxel=[0.176,0.176,0.38]):
     info since that's a pain to reproduce.
     """
     conns = self.get_connections()
+    with open(newName, 'w') as fOut: # MAKE SURE this file doesn't exist
+      # since it is set to append?? (a instead of w)
     
+      def new_filament(name):
+        s = name + ' {'
+        fOut.write(s)
+        fOut.write('pt3dclear()')
+        return
+      
+      def pt3dadd(coord, rad):
+        s = ','.join([str(c) for c in coord])
+        s = '  pt3dadd(' + s + ',' + str(rad) + ')'
+        fOut.write(s)
+        return
+      
+      def end_filament():
+        fOut.write('}')
+        fOut.write('\n')
+        return
+      
+      # start writing
+      for sname in self.segments.keys():  # for each segment
+        new_filament(sname)               # start a new segment
+        for node in self.segments[sname]: # for each node
+          pt3dadd(node.coords, node.rad)  # write that node + radius
+        end_filament()                    # end that filament
+      
+      # write the connections
+      for conline in conns:
+        fOut.write(conline)
+    # newhoc now closed
+    return
+    
+    
+        
+    
+    
+     
     
     
   
