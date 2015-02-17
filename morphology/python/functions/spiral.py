@@ -159,7 +159,7 @@ class Spiral(): # cross-scetion
     # cycle through points
     while len(self.live_pts) > 0:
       count = 0
-      self.retire_pts()
+      # self.retire_pts()
       delta = self.no_changes()
       # print('Delta is %.1f' %delta)
       # take a point until exhausted
