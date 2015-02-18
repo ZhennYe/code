@@ -327,7 +327,7 @@ class Geometry:
     self.calcBranchOrder(doPlot=False)
     self.shollAnalysis(straightenNeurites=True)
     self.mergeBranchesByDistanceToEdge()
-    pyplot.show()
+    #pyplot.show() ##### SHOW PLOTS!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
   #############################################################################
   def getProperties(self, passiveFile="", display=False, # CHANGED FALSE

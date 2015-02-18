@@ -183,7 +183,7 @@ class Spiral(): # cross-scetion
           count = count + 1
           #print('Live points: %i, dead points: %i, area points: %i' 
           #      %(len(self.live_pts), len(self.dead_pts), len(self.area_pts)))
-        if delta > 50:
+        if delta > 10:
           return
           #if count ==4:
           #  print(count)
