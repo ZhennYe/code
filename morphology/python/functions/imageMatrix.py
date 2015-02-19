@@ -45,13 +45,25 @@ def dist(pt0,pt1):
 
 # invert and flatten
 def invert(arr):
-  zarr = np.zeros(np.shape(arr)[:2])
-  for i in range(np.shape(arr)[0]):
-    for j in range(np.shape(arr)[1]):
-      if arr[i,j,0] == 255:
-        zarr[i,j] = 0
-      if arr[i,j,0] == 0:
-        zarr[i,j] = 255
+  K = np.shape(arr)
+  if len(K)==3:
+    zarr = np.zeros(np.shape(arr)[:2])
+    for i in range(np.shape(arr)[0]):
+      for j in range(np.shape(arr)[1]):
+        if arr[i,j,0] == 255:
+          zarr[i,j] = 0
+        if arr[i,j,0] == 0:
+          zarr[i,j] = 255
+  elif len(K)==2:
+    zarr = np.zeros(np.shape(arr)[:2])
+    for i in range(np.shape(arr)[0]):
+      for j in range(np.shape(arr)[1]):
+        if arr[i,j] == 255:
+          zarr[i,j] = 0
+        if arr[i,j] == 0:
+          zarr[i,j] = 255
+  else:
+    print('Bad shape of array sent to invert')
   return zarr
 
 
