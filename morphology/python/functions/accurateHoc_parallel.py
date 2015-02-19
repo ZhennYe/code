@@ -20,11 +20,12 @@ from timeit import default_timer as timer
 
 
 class Hoc():
-  def __init__(self, geoFile, tiffFolder, voxel=[0.176,0.176,0.38]):
+  def __init__(self, geoFile, tiffFolder, voxel=[0.176,0.176,0.38], threads=None):
     if tiffFolder == None:
       self.tiffFolder = '/home/alex/data/morphology/848/848_081/fake_filament/'
     else:
       self.tiffFolder = tiffFolder
+    self.threads = threads
     self.geoFile = geoFile
     self.voxel = voxel
     self.geofile = geoFile
@@ -91,7 +92,7 @@ class Hoc():
     else:
       new = len(self.segments[node['segname']])
       self.segments[node['segname']][str(new)] = node
-    return self
+    return selft
 
   
   def get_cross_sections(self):
@@ -99,7 +100,10 @@ class Hoc():
     Do like everything. Paralleize?
     """
     from multiprocessing import Pool
-    pool = Pool()
+    if self.threads:
+      pool = Pool(self.threads)
+    else:
+      pool = Pool()
     N = range(len(self.skelpoints))
     nodes = pool.map(self.par_cross_sections, N)
     # or:
