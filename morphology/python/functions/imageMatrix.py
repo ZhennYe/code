@@ -458,7 +458,7 @@ def make_binary_fromhist(imfile,T=1.0, sshow=False):
 # MEAT AND POTATOES
 ########################################################################
 
-def gen_plane(vec, voxel, M=20, sshow=False):
+def gen_plane(vec, voxel, M=15, sshow=False):
   """
   Assuming that the distance between skelpoints is somewhat related
   to the width of the neurite and therefore the length of the normal 

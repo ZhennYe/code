@@ -17,6 +17,7 @@ class SkelHoc():
     self.segments = {'*': None}
     self.connections = []
     self.sources, self.targets = None, None
+    self.dist = None
     
     # now do shit
     self.read_xml()
@@ -61,6 +62,15 @@ class SkelHoc():
     return self
   
   
+  def q_distance(self):
+    def dist(pt0, pt1):
+      if len(pt0) != len(pt1):
+        print('Dimension mismatch between pt0 and pt1')
+        return
+      return np.sqrt(sum([(pt1[i]-pt0[i])**2 for i in range(len(pt0))]))
+    
+    for 
+  
   
   ####### Do analysis ########
   
@@ -69,7 +79,6 @@ class SkelHoc():
     Run through edges, nodes and branchpoints to return the actual
     segments. 
     """
-    print('Creating segments ...')
     # start with a random edge (or node)
     self.sources = [i['source'] for i in self.edges]
     self.targets = [i['target'] for i in self.edges]
@@ -126,7 +135,6 @@ class SkelHoc():
     # end of while loop
     if nodes[0] not in self.branchpoints or nodes[-1] not in self.branchpoints:
       print('Segment does not start and end with branchpoints:')
-      print(nodes)
     self.format_segment(nodes) # format the segment to prepare for hoc
     return self
 
@@ -151,16 +159,20 @@ class SkelHoc():
       end0s.append(self.segments[c]['0'])
       last = len(self.segments[c])-1
       end1s.append(self.segments[c][str(last)])
+    print(len(end0s), len(end1s))
     for e in range(len(end_segs)):
+      print('Checking for connections to %s' %e)
       if end1s[e] in end0s:
         # found a segment that connects to e's 1th end
         f = end0s.index(end1s[e])
+        print('Found partner: %i' %f)
         newcon = {'0': end_segs[f], '1': end_segs[e]}
         if newcon not in self.connections:
           self.connections.append(newcon)
       if end0s[e] in end1s:
         # found a segment that connects to e's 0th end
         f = end1s.index(end0s[e])
+        print('Found partner: %i' %f)
         newcon = {'0': end_segs[e], '1': end_segs[f]}
         if newcon not in self.connections:
           self.connections.append(newcon)
@@ -168,6 +180,46 @@ class SkelHoc():
     return self
 
   
+  
+  ####### write the hoc file #####
+  def write_hoc(self):
+    with open(self.hocfile, 'r') as fOut:
+      
+      def start_hoc(total_segs):
+        fOut.write('create filament_999[%i]\n\n' %total_segs)
+        return
+      
+      def create_filament(sname):
+        fOut.write('filament_999[%i] {\n' %sname)
+        fOut.write('  pt3dclear()\n')
+        return
+      
+      def pt3dadd(node):
+        fOut.write('  pt3dadd(%f, %f, %f, %f)\n'
+                   %(node[0], node[1], node[2], node[3]))
+        return
+      
+      def end_filament():
+        fOut.write('}\n\n')
+        return
+      
+      def connect_filaments(conns):
+        # conns is a dict of shape {'0': filA, '1': filB}
+        fOut.write('connect filament_999[%i](0.0), filament_999[%i](1.0)\n'
+                   %(conns['0'], conns['1']))
+        return
+      
+      # do stuff
+      start_hoc(len(self.segments.keys()))
+      for sname in self.segments.keys():
+        create_filament(int(sname))
+        for node in self.segments[sname].keys():
+          pt3dadd(self.segments[sname][node])
+        end_filament()
+      
+      for con in self.connections:
+        pass
+      return
   
 
 
