@@ -98,13 +98,10 @@ class SkelHoc():
     for a in All:
       if All.count(a) > 2 and a not in self.branchset:
         self.branchset.append(a)
-      if a not in self.nodelist:
-        print('A source/target node not in the nodelist')
     
     self.branchset = self.branchset*2
     self.nodelist = self.nodelist + self.branchset
-    
-    
+    # print(self.branchset)
     orig = int(len(self.branchset))
     while len(self.branchset) > 0:
       if len(self.branchset)%500 == 0:
@@ -133,36 +130,25 @@ class SkelHoc():
       return
     current = b
     while go:
-      if current in self.sources and current not in self.branchpoints:
+      if current in self.sources:
         ind = self.sources.index(current)
         current = self.targets[ind]
-        if current not in nodes:
-          nodes.append(current)
-        if current in self.nodelist:
-          self.nodelist.pop(self.nodelist.index(current))
-        else:
-          print('Current %i not in self.nodelist!' %current)
-        
-      if current in self.targets and current not in self.branchpoints:
-        ind = self.targets.index(current)
-        current = self.sources[ind]
-        if current not in nodes:
-          nodes.append(current)
-        if current in self.nodelist:
-          self.nodelist.pop(self.nodelist.index(current))
-        else:
-          print('Current %i not in self.nodelist!' %current)
+        nodes.append(current)
         self.sources.pop(ind)
         self.targets.pop(ind)
-      if current in self.branchpoints:
+      elif current in self.targets and current not in self.branchpoints:
+        ind = self.targets.index(current)
+        current = self.sources[ind]
+        nodes.append(current)
+        self.sources.pop(ind)
+        self.targets.pop(ind)
+      elif current in self.branchpoints:
         go = False
         try:
           self.branchset.pop(self.branchset.index(current))
         except:
           print('Tried to pop %i from branchset but was already popped'
                 % current)
-        self.sources.pop(ind)
-        self.targets.pop(ind)
       else:
         go = False
     # end of while loop

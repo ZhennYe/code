@@ -5,8 +5,6 @@ import os, sys, math
 import numpy as np
 from PIL import Image
 from multiprocessing import Pool
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from mpl_toolkits.mplot3d import Axes3D
@@ -21,6 +19,14 @@ def load_img_array(imFile):
   img = Image.open(imFile)
   arr = np.array(img)
   return arr
+
+
+def show_matrix(arr):
+  show_array(arr)
+def show_array(arr):
+  img = Image.fromarray(arr)
+  img.show()
+  return
 
 
 def show_dist(l):
@@ -307,20 +313,21 @@ def gen_segment(fake_filament):
   return darr # return multi-dimensional array
 
 
-def plot_multi_coords(skelcoords, voxelcoords=False, plancoords=False):
+def plot_multi_coords(skelcoords, voxelcoords=None, plancoords=None):
   fig = plt.figure()
   ax = fig.add_subplot(111, projection='3d')
   colors, alphas = ['r','b','k'], [0.1,0.01,0.01]
   print('Starting plot...')
   for s in skelcoords:
     ax.scatter(s[0],s[1],s[2],c=colors[0],edgecolor=colors[0],alpha=alphas[0])
-  if voxelcoords:
+  if voxelcoords is not None:
     for v in voxelcoords:
       ax.scatter(v[0],v[1],v[2],c=colors[1],edgecolor=colors[1],alpha=alphas[1])
-  if plancoords:
+  if plancoords is not None:
     for p in plancoords:
       ax.scatter(p[0],p[1],p[2],c=colors[2],edgecolor=colors[2],alpha=alphas[2])
   plt.show()
+  return
   
 
 
@@ -458,12 +465,13 @@ def make_binary_fromhist(imfile,T=1.0, sshow=False):
 # MEAT AND POTATOES
 ########################################################################
 
-def gen_plane(vec, voxel, M=15, sshow=False):
+def gen_plane(pt0, pt1, voxel, M=15, sshow=False):
   """
   Assuming that the distance between skelpoints is somewhat related
   to the width of the neurite and therefore the length of the normal 
   vector will reflect this.
   """
+  vec = gen_vec(pt0, pt1)
   if len(vec) != 3:
     print('Error: a vector is defined by 3 values: i,j,k')
   else:
@@ -478,6 +486,14 @@ def gen_plane(vec, voxel, M=15, sshow=False):
       for n in ys: # Ys generated second
         plancoords.append([m+voxel[0],n+voxel[1],solve(vec,m,n)+voxel[2]])
         # this also scales it back to the original location
+    means = [np.mean([p[0] for p in plancoords]),
+             np.mean([p[1] for p in plancoords]),
+             np.mean([p[2] for p in plancoords])]
+    # subtract the means, add the first pt
+    for p in range(len(plancoords)):
+      plancoords[p][0] = plancoords[p][0] - means[0] + pt0[0]
+      plancoords[p][1] = plancoords[p][1] - means[1] + pt0[1]
+      plancoords[p][2] = plancoords[p][2] - means[2] + pt0[2]
     lin = [[v*i for v in vec] for i in range(-10,10)] 
     if sshow == True:
       fig = plt.figure()

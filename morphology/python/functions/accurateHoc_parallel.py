@@ -92,7 +92,7 @@ class Hoc():
     else:
       new = len(self.segments[node['segname']])
       self.segments[node['segname']][str(new)] = node
-    return selft
+    return self
 
   
   def get_cross_sections(self):
@@ -104,7 +104,7 @@ class Hoc():
       pool = Pool(self.threads)
     else:
       pool = Pool()
-    N = range(len(self.skelpoints))
+    N = range(len(self.skelpoints)-1)
     nodes = pool.map(self.par_cross_sections, N)
     # or:
     # nodes = [self.par_cross_sections(i) for i in N]
@@ -116,7 +116,7 @@ class Hoc():
     return self
     
   def par_cross_sections(self, n):
-    plancoords, numpts = gen_plane(self.skel_vectors[n],self.voxel) # imageMatrix
+    plancoords, numpts = gen_plane(self.skelpoints[n], self.skelpoints[n+1],self.voxel) # imageMatrix
     cross_dims = plane_XY(plancoords, numpts) # imageMatrix
     vcoords = scale_plane(plancoords, self.skelpoints[n], self.voxel) # imageMatrix
     sarr = return_cross_sec_array(vcoords, self.varr, numpts) # imageMatrix
