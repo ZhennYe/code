@@ -116,18 +116,24 @@ class Hoc():
     return self
     
   def par_cross_sections(self, n):
-    plancoords, numpts = gen_plane(self.skelpoints[n], self.skelpoints[n+1],self.voxel) # imageMatrix
+    plancoords, numpts = \
+      gen_plane(self.skelpoints[n], self.skelpoints[n+1],self.voxel) # imageMatrix
+    print('Called gen_plane')
     cross_dims = plane_XY(plancoords, numpts) # imageMatrix
-    vcoords = scale_plane(plancoords, self.skelpoints[n], self.voxel) # imageMatrix
-    sarr = return_cross_sec_array(vcoords, self.varr, numpts) # imageMatrix
-    s = Spiral(sarr) # spiral
+    print('Called plane_XY')
+    #vcoords = scale_plane(plancoords, self.skelpoints[n], self.voxel) # imageMatrix
+    #print('Called scale_plane')
+    sarr = return_cross_sec_array(plancoords, self.varr, numpts) # imageMatrix
+    print('Called return_cross_sec_array')
+    s = Spiral(sarr)#, self.skelpoints[n]) # spiral
     print('Points for segment %i done in parallel.' %n)
     node = {'coord': self.skelpoints[n], 
             'area': s.area*cross_dims[0]*cross_dims[1],
             'surface': s.surface['xs']*cross_dims[0] + \
                        s.surface['ys']*cross_dims[1],
             'arr': reproduce_matrix(s.live_pts),
-            'segname': self.skel_names[n]}
+            'segname': self.skel_names[n],
+            'start': s.start}
     node['rad'] = np.sqrt(node['area']/np.pi)
     return node
 

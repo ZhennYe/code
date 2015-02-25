@@ -1,11 +1,12 @@
 # spiral.py -- this spirals in a space-filling way
 
 import numpy as np
+from imageMatrix import *
 
 
 
 class Spiral(): # cross-scetion
-  def __init__(self, arr):
+  def __init__(self, arr, start=None, tolerance=5000):
     self.arr = np.array(arr)
     self.shape = np.shape(self.arr)
     self.area_pts = []
@@ -13,7 +14,12 @@ class Spiral(): # cross-scetion
     self.surface = None
     self.live_pts = []
     self.dead_pts = []
-    self.pos = self.set_start()
+    self.tolerance = tolerance
+    if start == None:
+      self.pos = [int(self.shape[0]/2), int(self.shape[1]/2)]
+    else:
+      self.pos = start
+    self.start = self.pos
     self.x, self.y = None, None
     self.prev = None
     self.target = self.arr[self.pos[0], self.pos[1]]
@@ -25,9 +31,9 @@ class Spiral(): # cross-scetion
   ####################
   # the first group of functions help spiral()
   def set_start(self):
-    adjx = 1 if self.shape[0] % 2 == 0 else 0
-    adjy = 1 if self.shape[1] % 2 == 0 else 0
-    return [int(i) for i in [self.shape[0]/2-adjx, self.shape[1]/2-adjy]]
+    # assumes only one filament is present, white on dark
+    _, self.pos = clean_filament(self.arr)
+    
 
 
   
@@ -164,7 +170,7 @@ class Spiral(): # cross-scetion
       # print('Delta is %.1f' %delta)
       # take a point until exhausted
       self.x, self.y = self.live_pts[int(np.random.random(1)*len(self.live_pts))]
-      print('Starting new point %i %i' %(self.x, self.y))
+      # print('Starting new point %i %i' %(self.x, self.y))
       while count < 4: # if next exists, go to it
         if self.check_next()[0]:
           # print(self.check_next())
@@ -183,7 +189,7 @@ class Spiral(): # cross-scetion
           count = count + 1
           #print('Live points: %i, dead points: %i, area points: %i' 
           #      %(len(self.live_pts), len(self.dead_pts), len(self.area_pts)))
-        if delta > 10:
+        if delta > self.tolerance:
           return
           #if count ==4:
           #  print(count)
