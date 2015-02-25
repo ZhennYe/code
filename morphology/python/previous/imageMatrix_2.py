@@ -97,19 +97,6 @@ def invert(arr):
   return zarr
 
 
-def copy_matrix(arr):
-  arr2 = np.zeros(np.shape(arr))
-  for i in range(len(arr)):
-    for j in range(len(arr[i])):
-      if len(np.shape(arr))==2:
-        arr2[i][j] = arr[i][j]
-      elif len(np.shape(arr))==3:
-        for k in range(len(arr[i][j])):
-          arr2[i][j][k] = arr[i][j][k]
-  return arr2
-
-
-
 def matrix2coords(darr, voxel):
   # A 3-D array is converted to a list of triplets at each voxel
   print('Converting the matrix to coordinates.')
@@ -131,7 +118,7 @@ def matrix2coords(darr, voxel):
 
 
 def coords2matrix(coords, voxel, i=1):
-  # x-y-z tuples are converted to a matrix; "i" is the matrix value (binary? b&w?)
+  # x-y-z tuples are converted to a matrix; "i" is the matrix value
   matrix = []
   dims = len(voxel)
   for c in coords:
@@ -152,41 +139,6 @@ def coords2matrix(coords, voxel, i=1):
 def get_vector(pt0, pt1):
   if len(pt0) == len(pt1):
     return [x-y for x,y in zip(pt0,pt1)]
-
-
-
-def scale_plane(plancoords, pt0, voxel):
-  vcoords = [] # ints for indexing the 3-D array self.varr
-  for p in plancoords:
-    p = [p[i]+pt0[i] for i in range(3)]
-    vcoords.append([int(p[i]/voxel[i]) for i in range(3)])
-  return vcoords
-
-
-def plane_XY(plancoords, numpts):
-  xdiff = dist(plancoords[0], plancoords[1])
-  ydiff = dist(plancoords[0], plancoords[numpts])
-  return [xdiff, ydiff]
-
-
-
-def find2(arr):
-  for i in range(len(arr)):
-    for j in range(len(arr[i])):
-      if arr[i][j] == 2:
-        return
-  print('Could not find 2')
-  return False
-
-
-
-def arr_max(arr):
-  fmax = 0
-  for i in range(len(arr)):
-    for j in range(len(arr[i])):
-      if arr[i][j] > fmax:
-        fmax = arr[i][j]
-  return fmax
 
 
 
@@ -569,25 +521,23 @@ def make_binary_fromhist(imfile,T=1.0, sshow=False):
 # MEAT AND POTATOES
 ########################################################################
 
-def gen_plane(pt0, pt1, voxel, M=10, sshow=False):
+def gen_plane(pt0, pt1, voxel, M=15, sshow=False):
   """
   Assuming that the distance between skelpoints is somewhat related
   to the width of the neurite and therefore the length of the normal 
   vector will reflect this.
-  Plane: d = vec[0]*x
   """
   vec = gen_vec(pt0, pt1)
   if len(vec) != 3:
     print('Error: a vector is defined by 3 values: i,j,k')
   else:
-    d = vec[0]*pt0[0]+vec[1]*pt0[1]+vec[2]*pt0[2]
     numpts = int(dist([0,0,0],vec)/dist([0,0,0],voxel))*M
     # i also think this is automatically scaled to pt0
     plancoords = []
     xs = np.linspace(vec[0]-voxel[0]*numpts,vec[0]+voxel[0]*numpts, numpts*2) # default is + 10 voxels
     ys = np.linspace(vec[1]-voxel[1]*numpts,vec[1]+voxel[1]*numpts, numpts*2)
     def solve(vec, x, y):
-      return (d - x*vec[0] + y*vec[1])/vec[2]
+      return -((x*vec[0] + y*vec[1])/vec[2])
     for m in xs: # Xs generated first
       for n in ys: # Ys generated second
         plancoords.append([m+voxel[0],n+voxel[1],solve(vec,m,n)+voxel[2]])
@@ -612,76 +562,21 @@ def gen_plane(pt0, pt1, voxel, M=10, sshow=False):
     return plancoords, numpts # ALSO returns numpoints
 
 
+def scale_plane(plancoords, pt0, voxel):
+  vcoords = [] # ints for indexing the 3-D array self.varr
+  for p in plancoords:
+    p = [p[i]+pt0[i] for i in range(3)]
+    vcoords.append([int(p[i]/voxel[i]) for i in range(3)])
+  return vcoords
+
+
+def plane_XY(plancoords, numpts):
+  xdiff = dist(plancoords[0], plancoords[1])
+  ydiff = dist(plancoords[0], plancoords[numpts])
+  return [xdiff, ydiff]
+
 
 def return_cross_sec_array(plane, varr, numpts, switch=False):
-  """
-  Plane is [i,j,k] triplets of the normal-plane, not [x,y,z] coordinates.
-  Varr is the gigantic 3-D array of the voxelized image. This function
-  returns a plane-sized 2-D array to be spiraled.
-  """
-  vdist = dist([0,0,0],voxel)
-  # plane = [plane[len(plane)-i-1] for i in range(len(plane))]
-  sarr = np.zeros((numpts*2, numpts*2)) # get the whole plane, keep skelpoint at center
-  log = []
-  means = []
-  for i in range(3):
-    means.append(int(np.mean([p[i] for p in plane])))
-  print('Center of plane is: %i,%i,%i' %(means[0],means[1],means[2]))
-  # SHOULD switch varr[z,x,y] to match plane[x,y,z], not sure why this works...
-  for m in range(len(sarr)): # 'i' values first
-    for n in range(len(sarr[m])): # 'j' values of new array
-      if switch:
-        vals = [int(i) for i in [plane[m*2*numpts+n][1],plane[m*2*numpts+n][0], plane[m*2*numpts+n][1]]]
-      else:                                            # vals = [z,x,y]
-        vals = [int(i) for i in plane[m*2*numpts + n]] # vals = [x,y,z]
-
-      if vals[0] < 0 or vals[0] > np.shape(varr)[0]-1: # varr = [z,x,y]
-        sarr[m][n] = 0 # X
-      elif vals[1] < 0 or vals[1] > np.shape(varr)[1]-1:
-        sarr[m][n] = 0 # Y
-      elif vals[2] < 0 or vals[2] > np.shape(varr)[2]-1:
-        sarr[m][n] = 0 # Z
-      else: ####
-        if switch:
-          if varr[vals[2]][vals[0]][vals[1]] == 1:
-            sarr[m][n] = 1
-          elif varr[vals[2]][vals[0]][vals[1]] == 2:
-            print('FOUND ONE!')
-            sarr[m][n] = 2
-        else:
-          if varr[vals[0]][vals[1]][vals[2]] == 1:
-            sarr[m][n] = 1
-            log.append([dist(vals,means),m,n])
-  newlog = sorted(log)
-  
-  return sarr, [newlog[0][1],newlog[0][2]]
-  
-
-  """
-  sarr = np.zeros([numpts, numpts])
-  for m in range(numpts):
-    for n in range(numpts):
-      # if the array == 1 at the plane voxel value, make a 1, else 0
-      shape = np.shape(varr)
-      # if the plane is past the reaches of the varr, make it zero
-      if plane[(m*numpts)+n][0] > shape[0]-1 or plane[(m*numpts)+n][1] > shape[1]-1 or plane[(m*numpts)+n][2] > shape[2]-1:
-        sarr[m][n] = 0
-      else:
-        try:
-          if varr[plane[(m*numpts)+n][0]][plane[(m*numpts)+n][1]][plane[(m*numpts)+n][2]] == 1:
-            sarr[m][n] = 1
-          else:
-            sarr[m][n] = 0
-        except:
-          sarr[m][n] = 0
-  # now 1s should be where the plane normal to the skelpoints vector
-  # intersects with supra-threshold image voxel values and 0 otherwise
-  return sarr
-  """
-
-
-
-def return_cross_sec_array_old(plane, varr, numpts, switch=False):
   """
   Plane is [i,j,k] triplets of the normal-plane, not [x,y,z] coordinates.
   Varr is the gigantic 3-D array of the voxelized image. This function
@@ -720,58 +615,28 @@ def return_cross_sec_array_old(plane, varr, numpts, switch=False):
   # done with rows
   
   return sarr
-
-
-
-def test_cross_sec(plane, varr, numpts, switch=False):
-  cs_coords = []
-  means = []
-  for i in range(3):
-    means.append(int(np.mean([p[i] for p in plane])))
-  print('Center of plane is: %i,%i,%i' %(means[0],means[1],means[2]))
-  # SHOULD switch varr[z,x,y] to match plane[x,y,z], not sure why this works...
-  for p in range(len(plane)):
-   # 'j' values of new array
-      if switch:
-        vals = [int(i) for i in [plane[p][1],plane[p][0], plane[p][1]]]
-      else:                                            # vals = [z,x,y]
-        vals = [int(i) for i in plane[p]] # vals = [x,y,z]
-
-      if vals[0] < 0 or vals[0] > np.shape(varr)[0]-1: # varr = [z,x,y]
-        pass
-      elif vals[1] < 0 or vals[1] > np.shape(varr)[1]-1:
-        pass
-      elif vals[2] < 0 or vals[2] > np.shape(varr)[2]-1:
-        pass
-      else: # point "exists" in varr
-        if switch:
-          if varr[vals[2]][vals[0]][vals[1]] == 1:
-            cs_coords.append(vals)
-            sarr[m][n] = 2
-        elif not switch: ###
-          if varr[vals[0]][vals[1]][vals[2]] == 1:
-            cs_coords.append(vals)
-
-  return cs_coords
-
-
-
-def get_cross_section(volcoords, plancoords, voxel, numpts):
   """
-  Use distance function instead of indexing?
+  sarr = np.zeros([numpts, numpts])
+  for m in range(numpts):
+    for n in range(numpts):
+      # if the array == 1 at the plane voxel value, make a 1, else 0
+      shape = np.shape(varr)
+      # if the plane is past the reaches of the varr, make it zero
+      if plane[(m*numpts)+n][0] > shape[0]-1 or plane[(m*numpts)+n][1] > shape[1]-1 or plane[(m*numpts)+n][2] > shape[2]-1:
+        sarr[m][n] = 0
+      else:
+        try:
+          if varr[plane[(m*numpts)+n][0]][plane[(m*numpts)+n][1]][plane[(m*numpts)+n][2]] == 1:
+            sarr[m][n] = 1
+          else:
+            sarr[m][n] = 0
+        except:
+          sarr[m][n] = 0
+  # now 1s should be where the plane normal to the skelpoints vector
+  # intersects with supra-threshold image voxel values and 0 otherwise
+  return sarr
   """
-  vdist = dist([0,0,0],voxel)
-  sarr = np.zeros((numpts*2, numpts*2))
-  cs_coords = []
-  count = 0
-  for p in plancoords:
-    if min([dist(p, v) for v in volcoords]) <= vdist:
-       cs_coords.append(p)
-    count = count + 1
-    if count%1000==0:
-      print('%i of %i done' %(count, len(plancoords)))
-  return cs_coords  
-
+  
 
 
 # this mapping function will parallelize image loading and thresholding

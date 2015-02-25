@@ -119,13 +119,13 @@ class Hoc():
     plancoords, numpts = \
       gen_plane(self.skelpoints[n], self.skelpoints[n+1],self.voxel) # imageMatrix
     print('Called gen_plane')
-    cross_dims = plane_XY(plancoords, numpts) # imageMatrix
-    print('Called plane_XY')
+    #cross_dims = plane_XY(plancoords, numpts) # imageMatrix
+    #print('Called plane_XY')
     #vcoords = scale_plane(plancoords, self.skelpoints[n], self.voxel) # imageMatrix
     #print('Called scale_plane')
-    sarr = return_cross_sec_array(plancoords, self.varr, numpts) # imageMatrix
+    sarr, start_pos = return_cross_sec_array(plancoords, self.varr, numpts) # imageMatrix
     print('Called return_cross_sec_array')
-    s = Spiral(sarr)#, self.skelpoints[n]) # spiral
+    s = Spiral(sarr, start_pos)#, self.skelpoints[n]) # spiral
     print('Points for segment %i done in parallel.' %n)
     node = {'coord': self.skelpoints[n], 
             'area': s.area*cross_dims[0]*cross_dims[1],
