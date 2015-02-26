@@ -613,7 +613,7 @@ def gen_plane(pt0, pt1, voxel, M=10, sshow=False):
 
 
 
-def return_cross_sec_array(plane, varr, numpts, switch=False):
+def return_cross_sec_array(plane, varr, numpts, voxel, switch=False):
   """
   Plane is [i,j,k] triplets of the normal-plane, not [x,y,z] coordinates.
   Varr is the gigantic 3-D array of the voxelized image. This function

@@ -123,7 +123,8 @@ class Hoc():
     #print('Called plane_XY')
     #vcoords = scale_plane(plancoords, self.skelpoints[n], self.voxel) # imageMatrix
     #print('Called scale_plane')
-    sarr, start_pos = return_cross_sec_array(plancoords, self.varr, numpts) # imageMatrix
+    sarr, start_pos = return_cross_sec_array(plancoords, self.varr, 
+                                             numpts, self.voxel) # imageMatrix
     print('Called return_cross_sec_array')
     s = Spiral(sarr, start_pos)#, self.skelpoints[n]) # spiral
     print('Points for segment %i done in parallel.' %n)
