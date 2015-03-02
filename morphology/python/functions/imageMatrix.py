@@ -652,6 +652,7 @@ def return_cross_sec_array(plane, varr, numpts, voxel, switch=False):
           if varr[vals[0]][vals[1]][vals[2]] == 1:
             sarr[m][n] = 1
             log.append([dist(vals,means),m,n])
+
   newlog = sorted(log)
   
   return sarr, [newlog[0][1],newlog[0][2]]

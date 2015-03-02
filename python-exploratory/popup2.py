@@ -32,3 +32,8 @@ def task_complete():
     form = AppForm()
     form.show()
     app.exec_()
+
+
+#############
+if __name__ == '__main__':
+  task_complete()

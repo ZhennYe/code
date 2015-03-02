@@ -327,7 +327,7 @@ class Geometry:
     self.calcBranchOrder(doPlot=False)
     self.shollAnalysis(straightenNeurites=True)
     self.mergeBranchesByDistanceToEdge()
-    #pyplot.show() ##### SHOW PLOTS!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    pyplot.show() ##### SHOW PLOTS!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
   #############################################################################
   def getProperties(self, passiveFile="", display=False, # CHANGED FALSE
@@ -2058,8 +2058,11 @@ class Segment:
   
   
   def _setNodeLocations(self):
-    locs = list(cumsum(comp.length for comp in self.compartments))
-    self.nodeLocations = [loc / locs[-1] for loc in locs]
+    try:
+      locs = list(cumsum(comp.length for comp in self.compartments))
+      self.nodeLocations = [loc / locs[-1] for loc in locs]
+    except:
+      self.nodeLocations = [0.0, 1.0]
 
 
   def compartmentAt(self, location, choice=None):
