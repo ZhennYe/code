@@ -105,9 +105,9 @@ class Hoc():
     else:
       pool = Pool()
     N = range(len(self.skelpoints)-1)
-    nodes = pool.map(self.par_cross_sections, N)
+    # nodes = pool.map(self.par_cross_sections, N)
     # or:
-    # nodes = [self.par_cross_sections(i) for i in N]
+    nodes = [self.par_cross_sections(i) for i in N]
     # doesn't seem to be any faster....
     pool.close()
     pool.join()
