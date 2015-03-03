@@ -493,6 +493,16 @@ def demoReadOld(geoFile):
 
 
 
+###############################################################################
+def multi_demoRead(geoFile, passiveFile="", display=True, makePlots=False):
+  ### Read in geometry file and pre-compute various quantities
+  # create geometry object
+  geometry = HocGeometry(geoFile)
+  #geometry.displaySummary()
+  # return the properties
+  return geometry.getProperties(passiveFile, display=display,
+                                makePlots=makePlots)
+
   
 
 

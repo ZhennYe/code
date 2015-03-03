@@ -366,16 +366,10 @@ def gen_segment(fake_filament):
   return darr # return multi-dimensional array
 
 
-def plot_multi_coords(skelcoords, voxelcoords=None, plancoords=None, alfs=None):
+def plot_multi_coords(skelcoords, voxelcoords=None, plancoords=None):
   fig = plt.figure()
   ax = fig.add_subplot(111, projection='3d')
-  colors = ['r','b','k']
-  if alfs is None:
-    alphas =  [0.1,0.01,0.01]
-  elif type(alfs) is int:
-    alphas=[alfs, alfs, alfs]
-  elif type(alfs) is list:
-    alphas = alfs
+  colors, alphas = ['r','b','k'], [0.1,0.01,0.01]
   print('Starting plot...')
   for s in skelcoords:
     ax.scatter(s[0],s[1],s[2],c=colors[0],edgecolor=colors[0],alpha=alphas[0])
@@ -593,7 +587,6 @@ def return_cross_sec_array(plane, varr, numpts, switch=False):
   means = []
   for i in range(3):
     means.append(int(np.mean([p[i] for p in plane])))
-  log = []
   #sarr[means[0]][means[
   # SHOULD switch varr[z,x,y] to match plane[x,y,z], not sure why this works...
   for m in range(len(sarr)): # 'i' values first
@@ -616,16 +609,12 @@ def return_cross_sec_array(plane, varr, numpts, switch=False):
         elif not switch: ###
           if varr[vals[0]][vals[1]][vals[2]] > 0:
             sarr[m][n] = 1
-            log.append([dist(vals, means), m,n])
-
+        else: ##
+          sarr[m][n] = 0
     # done with cols
   # done with rows
-  newlog = sorted(log)
-  print(newlog)
-  if len(newlog) > 0:
-    return sarr, [newlog[0][1],newlog[0][2]]
-  else:
-    return sarr, None
+  
+  return sarr
   """
   sarr = np.zeros([numpts, numpts])
   for m in range(numpts):

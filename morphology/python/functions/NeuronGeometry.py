@@ -2049,6 +2049,7 @@ class Segment:
     #    connecting Node)
     self.neighborLocations = []
     #self.volume = None
+    self.branchOrder = None
 
 
   

@@ -109,8 +109,8 @@ class Hoc():
     # or:
     nodes = [self.par_cross_sections(i) for i in N]
     # doesn't seem to be any faster....
-    pool.close()
-    pool.join()
+    #pool.close()
+    #pool.join()
     for node in nodes:
       self.add_node(node)
     return self
@@ -119,15 +119,18 @@ class Hoc():
     plancoords, numpts = \
       gen_plane(self.skelpoints[n], self.skelpoints[n+1],self.voxel) # imageMatrix
     print('Called gen_plane')
-    #cross_dims = plane_XY(plancoords, numpts) # imageMatrix
+    cross_dims = plane_XY(plancoords, numpts) # imageMatrix
     #print('Called plane_XY')
     #vcoords = scale_plane(plancoords, self.skelpoints[n], self.voxel) # imageMatrix
     #print('Called scale_plane')
     sarr, start_pos = return_cross_sec_array(plancoords, self.varr, 
                                              numpts, self.voxel) # imageMatrix
     print('Called return_cross_sec_array')
-    s = Spiral(sarr, start_pos)#, self.skelpoints[n]) # spiral
-    print('Points for segment %i done in parallel.' %n)
+    if start_pos is not None:
+      s = Spiral(sarr, start_pos)#, self.skelpoints[n]) # spiral
+    else:
+      
+    print('Points for node %i done in parallel.' %n)
     node = {'coord': self.skelpoints[n], 
             'area': s.area*cross_dims[0]*cross_dims[1],
             'surface': s.surface['xs']*cross_dims[0] + \

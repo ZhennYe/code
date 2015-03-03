@@ -1,4 +1,5 @@
 # XmlToHoc.py - converts an xml file created in knossos to a hoc file
+# usage: python XmlToHoc_simple.py skelfile.nml hocfile (opt)
 
 
 import os, sys
@@ -155,12 +156,12 @@ class SkelHoc():
         return
       
       def create_filament(sname):
-        fOut.write('filament_999[%i] {' %sname)
+        fOut.write('filament_999[%i] {\n' %sname)
         fOut.write('  pt3dclear()\n')
         return
       
       def pt3dadd(node):
-        fOut.write('  pt3dadd(%f, %f, %f, %f)'
+        fOut.write('  pt3dadd(%f, %f, %f, %f)\n'
                    %(node[0], node[1], node[2], node[3]))
         return
       
@@ -170,7 +171,7 @@ class SkelHoc():
       
       def connect_filaments(conns):
         # conns is a dict of shape {'0': filA, '1': filB}
-        fOut.write('connect filament_999[%i](0.0), filament_999[%i](1.0)'
+        fOut.write('connect filament_999[%i](0.0), filament_999[%i](1.0)\n'
                    %(conns['0'], conns['1']))
         return
       
@@ -207,6 +208,21 @@ def split_sources_targets(ldict):
   
 
 
+
+
+
+##########################
+if __name__ == '__main__':
+  
+  args = sys.argv
+  if len(args) < 2:
+    print('Need a skeleton file to analyze')
+  skelfile = args[1]
+  if len(args) > 2:
+    hocfile = args[2]
+    h = SkelHoc(skelfile, hocfile)
+  else:
+    h = SkelHoc(skelfile)
 
 
 
