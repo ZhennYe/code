@@ -536,9 +536,11 @@ def demoRead(geoFile):
   #for j in range(0,max(used_segs)):
   # if not j in used_segs:
   #   print('Segment %i not present' %j)
-  geometry.displaySummary()
   
-  return geometry
+  geometry.displaySummary()
+  #properties = geometry.getProperties()
+  
+  return geometry#, properties
   
     
     

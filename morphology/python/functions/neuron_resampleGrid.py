@@ -518,7 +518,7 @@ def writeFile(points, outfile):
 # Ax^2 + By^2 + Cz^2 + 2Dxy + 2Exz + 2Fyz + 2Gx + 2Hy + 2Iz = 1
 
 
-# CONTROL
+################### CONTROL ##################################
 def outerPointsControl(nodes, outfile=None):
   # only pre-req is to run getNoSomaPoints first
   gridpoints, spacing = getGridPoints(nodes)

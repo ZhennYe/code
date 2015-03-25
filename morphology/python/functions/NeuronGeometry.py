@@ -2001,28 +2001,54 @@ def _removeNeighbor(segment, neighbor):
 
 def getBranchAngle(segment, neighbor, segLoc, nLoc, node):
   # calculate angle between segment and its neighbor
-  if segLoc == 0:
-    segNode = segment.nodes[1]
-  elif segLoc == 1:
-    segNode = segment.nodes[-2]
-  else:
-    ind = segment.nodes.index(node)
-    segNode = segment.nodes[ind-1]
   
-  if nLoc == 0:
-    nNode = neighbor.nodes[1]
-  elif nLoc == 1:
-    nNode = neighbor.nodes[-2]
+  # 2-node segment progression (produced from xml knossos skeletons)
+  if len(segment.nodes) == 2 and len(neighbor.nodes) == 2:
+    if segLoc == 0:
+      segNode = segment.nodes[0]
+    elif segLoc == 1:
+      segNode = segment.nodes[-1]
+    else:
+      ind = segment.nodes.index(node)
+      segNode = segment.nodes[ind] # why -1?
+    if nLoc == 0:
+      nNode = neighbor.nodes[0]
+    elif nLoc == 1:
+      nNode = neighbor.nodes[1]
+    else:
+      ind = neighbor.nodes.index(node)
+      nNode = neighbor.nodes[ind]
+
+  
+  # normal progression
   else:
-    ind = neighbor.nodes.index(node)
-    nNode = neighbor.nodes[ind+1]
+    if segLoc == 0:
+      segNode = segment.nodes[1]
+    elif segLoc == 1:
+      segNode = segment.nodes[-2]
+    else:
+      ind = segment.nodes.index(node)
+      segNode = segment.nodes[ind-1]
+    
+    if nLoc == 0:
+      nNode = neighbor.nodes[1]
+    elif nLoc == 1:
+      nNode = neighbor.nodes[-2]
+    else:
+      ind = neighbor.nodes.index(node)
+      nNode = neighbor.nodes[ind+1]
   
   segVec = (node.x - segNode.x, node.y - segNode.y, node.z - segNode.z)
   nVec = (nNode.x - node.x, nNode.y - node.y, nNode.z - node.z)
   dot = sum(sC * nC for sC, nC in zip(segVec, nVec))
   segMag = sum(sC * sC for sC in segVec)
   nMag = sum(nC * nC for nC in nVec)
-  cosAngle = max(-1.0, min(1.0, dot / sqrt(segMag * nMag)))
+  if len(segment.nodes) > 2:
+    #cosAngle = max(-1.0, min(1.0, dot / sqrt(segment.length)))
+    cosAngle = max(-1.0, min(1.0, dot / sqrt(segMag * nMag))) ########## MAJOR EDIT
+  else:
+    print('2-node segment')
+    cosAngle = max(-1.0, min(1.0, dot / sqrt(segment.length)))
   try:
     angle = (180/pi) * acos(cosAngle)
   except ValueError:
@@ -2173,7 +2199,10 @@ class Segment:
     if n0 == n1:
       return float('inf')
     euclideanD = sqrt((n0.x - n1.x)**2 + (n0.y - n1.y)**2 + (n0.z - n1.z)**2)
-    return self.length / euclideanD
+    if euclideanD == 0:
+      return 1
+    else:
+      return self.length / euclideanD
     
   @property
   def isTerminal(self):

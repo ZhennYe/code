@@ -41,7 +41,7 @@ def getTortuosity(hocFile):
     def getPathDist(self):
       total_dist = 0
       numNodes = len(self.nodes)
-      for n in numNodes - 1:
+      for n in range(numNodes - 1):
         total_dist = total_dist + pointDist(self.nodes[n], self.nodes[n+1])
       self.pathdist = total_dist
       return self.pathdist

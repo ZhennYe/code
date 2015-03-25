@@ -7,6 +7,7 @@ function [gpts] = showEllipseFit(pts, reverse)
 % Inputs:
 %   pts - the points produced by neuron_resampleGrid.py
 %   reverse - (optional) which axis to reverse (needed sometimes)
+%          ex: [-1], or [-1,-1] or [-1,1,-1]
 %
 % Outputs:
 %   gpts - the adjusted scaled grid points

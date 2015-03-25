@@ -2149,7 +2149,10 @@ class Segment:
     if n0 == n1:
       return float('inf')
     euclideanD = sqrt((n0.x - n1.x)**2 + (n0.y - n1.y)**2 + (n0.z - n1.z)**2)
-    return self.length / euclideanD
+    if euclideanD == 0:
+      return 1
+    else:
+      return self.length / euclideanD
     
   @property
   def isTerminal(self):

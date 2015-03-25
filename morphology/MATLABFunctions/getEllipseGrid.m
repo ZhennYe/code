@@ -16,7 +16,9 @@ end
 v = [0:0.01:pi]; % make sure this matches (in some way) ellipsoid_fit.m dt
 zrange = ax(3) .* cos(v);
 
-ax = ax * 2; % expand for fun
+ax = ax;% * 2; % expand for fun
+dax=[ax(1), ax(2), ax(3)*2];
+ax=dax;
 
 zs = linspace(ax(3), 0, 10); % downsample here
 zs = zs - mean(zs);
@@ -27,11 +29,12 @@ for z = 1:length(zs)
   s = zs(z)/max(zs); % scale to max z
   % get scaled ellipse points
   [~, ~, xell, yell] = zslice(s*ax(1), s*ax(2), s*ax(3)); 
-  R = unique([xell, yell], 'rows');
-  R = sortrows(R, 2);
-  R_pos_x = find(R(:,1) < 0);
+  R = [xell, yell];
+  R = unique(R, 'rows');
+  %R = sortrows(R, 2);
+  R_pos_x = find(R(:,2) > 0);
   R = R(R_pos_x,:);
-  R = flipdim(R,1);
+  R = flip(R,1); % not sure why flipping over end here...
   
   for n = 1:length(R(:,1))/2
     % dx = 10*abs(mean(diff(R(:,1))));
@@ -50,6 +53,7 @@ for z = 1:length(zs)
         grid(end+1, 1) = xcurr; % xxx(j);
         grid(end, 2) = yyy(j);
         grid(end, 3) = zs(end-z+1);
+        %disp(size(grid));
       %end
     end
     
