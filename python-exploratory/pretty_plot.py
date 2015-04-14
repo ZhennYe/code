@@ -180,7 +180,7 @@ def line_scatter(xdata, ydata, labelsin=None, title=None,
                 'deeppink','orchid']
   markerlist = ['v','o','*','s']
   fig = plt.figure()
-  ax = fig.add_subplot(111) # change this to 121 for legend outside fig
+  ax = fig.add_subplot(222) # change this to 121 for legend outside fig
   
   if groups is not None:
     L = len(groups)
@@ -221,16 +221,18 @@ def line_scatter(xdata, ydata, labelsin=None, title=None,
     patches.append(pink_patch)
     patches.append(orchid_patch) 
   # This can be useful for putting the legend outside the fig  vvv
-  plt.legend(handles=patches,loc='upper left')# bbox_to_anchor=(1.05,1), loc=2, borderaxespad=0.)
+  #plt.legend(handles=patches,loc='upper left')# bbox_to_anchor=(1.05,1), loc=2, borderaxespad=0.)
   if title:
-    ax.set_title(title, fontsize=20)
+    ax.set_title(title, fontsize=40)
   ax.spines['left'].set_position('zero')
   ax.spines['bottom'].set_position('zero')
   if ax_titles:
-    ax.set_xlabel(ax_titles[0], fontsize=15)
+    ax.set_xlabel(ax_titles[0], fontsize=25)
     ax.xaxis.set_label_coords(0.5,0)
-    ax.set_ylabel(ax_titles[1], fontsize=15)
+    ax.set_ylabel(ax_titles[1], fontsize=25)
     ax.yaxis.set_label_coords(0,0.5)
+  plt.xticks([-3,3],fontsize=25)
+  plt.yticks([-40,20],fontsize=25)
   plt.show()
 
 

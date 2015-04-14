@@ -62,12 +62,14 @@ def stem(ang_bounds, num, rad):
   return new_pts, new_bounds
   
 
+
 def concat_points(new_pts, new_bounds, prevpt, pts, connections, bounds):
   for p in range(len(new_pts)):
     pts.append(new_pts[p])
     connections.append([pts.index(prevpt),pts.index(new_pts[p])])
     bounds.append(new_bounds[p])
   return pts, connections, bounds
+
 
 
 def many_completed(layers, l):
@@ -91,7 +93,10 @@ def many_completed(layers, l):
 
 
 
-### for dev
+##########################################################################
+#                       Start here for constant length                   #
+##########################################################################
+
 from neuron_readExportedGeometry import *
 import numpy as np
 import matplotlib.pyplot as plt
@@ -182,7 +187,7 @@ def plot_radial_dend(connections, pts, colors=None):
 
 
 
-# bad version
+# bad version ################################
 def get_layers(geo):
   seglist = [geo.soma]
   layers, count = [], -1

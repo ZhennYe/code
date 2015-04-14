@@ -5,7 +5,7 @@
 import os, sys
 import numpy as np
 import networkx as nx
-
+import copy
 
 
 class SkelHoc():
@@ -24,12 +24,17 @@ class SkelHoc():
     self.sources, self.targets = None, None
     self.dist = None
     self.nochange = 0
+    self.getrad = False
+    self.used_nodes = []
+    self.connver = 'dic'
     
     # now do shit
     self.read_xml()
     self.q_distance()
     self.make_segments()
-    self.refine_connections()
+    #self.refine_connections_2()
+    self.refine_connections_3()
+    #self.refine_connections()
     self.write_hoc()
   
   
@@ -37,9 +42,12 @@ class SkelHoc():
   ####### Read File #######
   def add_node(self, line):
     splits = line.split('"')
-    ID, x, y, z, rad = splits[1], float(splits[5]), float(splits[7]), \
-                       float(splits[9]), float(splits[3])
-    self.nodes[ID] = [x,y,z,rad]
+    ID, x, y, z = splits[1], float(splits[5]), float(splits[7]), \
+                       float(splits[9])
+    thing = [x,y,z]
+    if self.getrad:
+      thing.append(float(splits[3]))
+    self.nodes[ID] = thing
     self.nodelist.append(int(ID))
     return self
   
@@ -129,12 +137,14 @@ class SkelHoc():
   
   
   def refine_connections(self):
+    # supposedly this finds which point 2 segments have in common
+    # and creates a connection based on that, but it clearly doesn't work
     self.segments = list(zip(self.sources, self.targets))
     for con in self.connections:
       # target=0, source = 1
-      if self.targets[con[0]] == self.sources[con[1]]:
+      if self.targets[con[1]] == self.sources[con[0]]:
         self.add_connection(con[1],con[0])
-      elif self.targets[con[1]] == self.sources[con[0]]:
+      elif self.targets[con[0]] == self.sources[con[1]]:
         self.add_connection(con[0],con[1])
       else:
         print('could not find connection points for [%i, %i]' \
@@ -144,6 +154,88 @@ class SkelHoc():
       pass
     
     return self
+  
+  
+  
+  def refine_connections_2(self):
+    # this one uses only overlapping nodes to connect segments
+    # only the copies are popped, all saved stuff should come from self.segments
+    self.segments = list(zip(self.sources, self.targets))
+    self.nodes.pop('*')
+    tempnodes = self.nodes
+    tempsegs = copy.deepcopy(self.segments)
+    conn_positions, conn_indices = [], []
+    # for each node
+    for n in tempnodes.keys():
+      currnode = tempnodes[n]
+      # print('currnode is %s' %n)
+      self.used_nodes.append(n)
+      # tempnodes.pop(n) ## can't change dict size during iteration
+      # find which first (n) segment (sn=index)
+      for sn in range(len(self.segments)):
+        if int(n) in self.segments[sn]:
+          # print('found matching segment')
+          n_pos = self.segments[sn].index(int(n))
+          # check if that node is somewhere else
+          for m in tempnodes.keys():
+            if tempnodes[m] == currnode and m not in used_nodes:
+              print('Found matching node')
+              # find the matching (m) segment(s) (sm=index)
+              for sm in range(len(self.segments)):
+                if int(m) in self.segments[sm]:
+                  # found a possible match, make sure not already there in some order
+                  if [sn, sm] not in conn_indices and [sm, sn] not in conn_indices and sm!=sn:
+                    m_pos = self.segments[sm].index(int(m))
+                    conn_indices.append([sn, sm])
+                    conn_positions.append([n_pos, m_pos])
+              # if node m was a match, pop it
+              # tempnodes.pop(m) ## can't change dict size during iteration
+              self.used_nodes.append(m)
+    # now make connlist
+    print(conn_indices)
+    for k in range(len(conn_indices)):
+      self.connlist.append([conn_indices[k][i] for i in conn_positions[k]])
+  
+    return self
+  
+  
+  
+  def refine_connections_3(self):
+    # this does same as 2 but with segment-node index instead of nodes
+    print('Called Refine #3')
+    self.segments = list(zip(self.sources, self.targets))
+    allnodes, connections = [], []
+    # for each segment s
+    for s in range(len(self.segments)):
+      # for each node n in s
+      for n in range(len(self.segments[s])):
+        first = self.segments[s][n]
+        # add it to used_nodes first
+        # used_segs.append(self.segments[s][n])
+        # now go through the possible segments
+        for ss in range(len(self.segments)):
+          for m in range(len(self.segments[ss])):
+            second = self.segments[ss][m]
+            # print('comparing %i to %i' %(self.segments[s][n], self.segments[ss][m]))
+            if first == second:
+              keylist = [list(k.keys()) for k in connections]
+              if [str(ss),str(s)] not in keylist and [str(s),str(ss)] not in keylist:
+                print('Found match')
+                connections.append({str(ss): m, 
+                                    str(s): n})
+              # used_segs.append(self.segments[ss][m])
+    # show connections
+    newconns = []
+    for k in range(len(connections)):
+      if len(connections[k]) == 2:
+        newconns.append(connections[k])
+    
+    print(newconns)
+    self.connlist = newconns
+    
+    return self
+  
+  
   
   
   
@@ -161,8 +253,12 @@ class SkelHoc():
         return
       
       def pt3dadd(node):
+        if self.getrad:
+          rad = node[3]
+        else:
+          rad = 1.5
         fOut.write('  pt3dadd(%f, %f, %f, %f)\n'
-                   %(node[0], node[1], node[2], node[3]))
+                   %(node[0], node[1], node[2], rad))
         return
       
       def end_filament():
@@ -170,9 +266,15 @@ class SkelHoc():
         return
       
       def connect_filaments(conns):
-        # conns is a dict of shape {'0': filA, '1': filB}
-        fOut.write('connect filament_999[%i](0.0), filament_999[%i](1.0)\n'
-                   %(conns['0'], conns['1']))
+        if self.connver=='dic': # this means refine_2 was not used
+          # conns is a dict of shape {'0': filA, '1': filB}
+          keys, vals = list(conns.keys()), list(conns.values())
+          fOut.write('connect filament_999[%i](%i), filament_999[%i](%i)\n'
+                     %(int(keys[0]),vals[0],int(keys[1]),vals[1]))
+        else:
+          # conns is a list of shape [filA, filB] for 0th and 1th ends, respectively
+          fOut.write('connect filament_999[%i](0.0), filament_999[%i](1.0)\n'
+                     %(conns[0], conns[1]))
         return
       
       # start the hoc file

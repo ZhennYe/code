@@ -121,17 +121,20 @@ def plot_tapers(n=6):
   cols = ['b','g','r','c','m','y','k']*4
   
   fig = plt.figure()
-  plt.plot(time, soma, 'k', linewidth=4, alpha=0.4)
+  ax = fig.add_subplot(222)
+  ax.plot(time, soma, 'k', linewidth=4, alpha=0.4)
   for v in range(len(volts)):
-    plt.plot(time, volts[v], cols[v], linewidth=2, alpha=0.7)
+    ax.plot(time, volts[v], cols[v], linewidth=2, alpha=0.7)
 
-  plt.title('Taper vs. Response', fontsize=20)
-  plt.xlabel('Time (ms)', fontsize=15)
-  plt.ylabel('Voltage (mV)', fontsize=15)
+  plt.title('Taper vs. Response', fontsize=40)
+  plt.xlabel('Time (s)', fontsize=25)
+  plt.ylabel('Voltage (mV)', fontsize=25)
   traces = ['Soma - no taper', 'Dend (no taper)']
   for b in range(1, len(bounds)):
     traces.append('Dend (%.1f taper)' %(1-bounds[b]/bounds[0]))
-  plt.legend(traces, loc='best')
+  plt.legend(traces, bbox_to_anchor=(-.5,1), loc=1, borderaxespad=0.)
+  plt.yticks([-50.2,-50.],fontsize=25)
+  plt.xticks([0,10],fontsize=25)
   plt.show()
 
 
@@ -239,17 +242,20 @@ def plot_lengths(n=6, props=None):
   cols = ['b','g','r','c','m','y','k']*4
   #print(lengths)
   fig = plt.figure()
-  plt.plot(time, soma, 'k', linewidth=4, alpha=0.4)
+  ax = fig.add_subplot(222)
+  ax.plot(time, soma, 'k', linewidth=4, alpha=0.4)
   for v in range(len(volts)):
-    plt.plot(time, volts[v], cols[v], linewidth=2, alpha=0.7)
+    ax.plot(time, volts[v], cols[v], linewidth=2, alpha=0.7)
 
-  plt.title('Length vs. Response', fontsize=20)
-  plt.xlabel('Time (ms)', fontsize=15)
-  plt.ylabel('Voltage (mV)', fontsize=15)
+  plt.title('Length vs. Response', fontsize=40)
+  plt.xlabel('Time (s)', fontsize=25)
+  plt.ylabel('Voltage (mV)', fontsize=25)
   traces = ['Soma (%i um)' %(lengths[0]), 'Dend (%i um)' %(lengths[0])]
   for b in range(1,len(lengths)):
     traces.append('Dend (%i um)' %(lengths[b]))
-  plt.legend(traces, loc='best')
+  plt.legend(traces, bbox_to_anchor=(-.5,1), loc=1, borderaxespad=0.)
+  plt.yticks([-50.2,-50.],fontsize=25)
+  plt.xticks([0,10],fontsize=25)
   plt.show()
 
 
@@ -264,14 +270,22 @@ def length_IV_curve(Isteps=[-3,-2.5,-2,-1.5,-1,-0.5,0,0.5,1,1.5,2,2.5,3],
     responses.append(reps)
   
   fig = plt.figure()
+  ax = fig.add_subplot(222)
   for i in range(n):
     reps = [r[i]+50. for r in responses]
-    plt.plot(Isteps, reps, 'k',linewidth=2, alpha=0.5)
-  plt.xlabel('Applied current (nA)', fontsize=15)
-  plt.ylabel('Response (mV)', fontsize=15)
-  plt.title('I-V curve for passive neuron', fontsize=20)
+    ax.plot(Isteps, reps, 'k',linewidth=2, alpha=0.5)
+
   traces = ['%i um' %(l) for l in lengths]
-  plt.legend(traces, loc='best')
+  # plt.legend(traces, loc='best')
+  ax.spines['left'].set_position('zero')
+  ax.spines['bottom'].set_position('zero')
+  plt.xticks([-10,10], fontsize=25)
+  plt.yticks([-1,1], fontsize=25)
+  plt.xlabel('Applied current (nA)', fontsize=25)
+  plt.ylabel('Response (mV)', fontsize=25)
+  ax.yaxis.set_label_coords(0,0.5)
+  ax.xaxis.set_label_coords(0.5,0)
+  plt.title('I-V curve for passive neuron', fontsize=40)
   plt.show()
   
   return
@@ -284,11 +298,11 @@ def IV(i=10):
   print(response)
   fig = plt.figure()
   plt.plot(time, soma, 'k')
-  plt.xlabel('Applied current (nA)', fontsize=15)
-  plt.ylabel('Response (mV)', fontsize=15)
-  plt.title('I-V curve for passive neuron', fontsize=20)
+  plt.xlabel('Applied current (nA)', fontsize=25)
+  plt.ylabel('Response (mV)', fontsize=25)
+  plt.title('I-V curve for passive neuron', fontsize=30)
   traces = ['%i um' %(l) for l in lengths]
-  plt.legend(traces, loc='best')
+  #plt.legend(traces, loc='best')
   plt.show()
   return
 
@@ -296,9 +310,9 @@ def IV(i=10):
 ############
 if __name__ == '__main__':
   #IV()
-  length_IV_curve()
+  #length_IV_curve()
   #plot_lengths()
-  #plot_tapers()
+  plot_tapers()
   
 
 

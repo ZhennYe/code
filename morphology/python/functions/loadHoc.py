@@ -16,6 +16,7 @@ class HocGeometry:
     self.secRads = {}
     self.outFile = newFile
     self.medrad = False
+    self.nodes = {}
     
     # run the code
     self.readFile()
@@ -27,13 +28,12 @@ class HocGeometry:
   
   def addNode(self, splitLine):
     # add a node to the current section
-    
-    ptsplit = splitLine[0].split(',')
-    print(ptsplit)
-    pt1 = float(ptsplit[0].split('(')[1])
-    pt2 = float(ptsplit[1])
-    pt3 = float(ptsplit[2])
-    rad = float(ptsplit[3].split(')')[0])
+    #ptsplit = splitLine.split(',')
+    #print(ptsplit)
+    pt1 = float(splitLine[0].split('(')[1].split(',')[0])
+    pt2 = float(splitLine[1].split(',')[0])
+    pt3 = float(splitLine[2].split(',')[0])
+    rad = float(splitLine[3].split(')')[0])
     current_node = [pt1, pt2, pt3]
     if self.currentSection not in self.sections.keys():
       self.sections[self.currentSection] = [current_node]
@@ -43,6 +43,8 @@ class HocGeometry:
       self.secRads[self.currentSection] = [rad]
     else:
       self.secRads[self.currentSection].append(rad)
+    # add node to log
+    self.nodes[len(self.nodes)] = [pt1, pt2, pt3, rad]
     
     return self
   
@@ -50,8 +52,8 @@ class HocGeometry:
   
   def addConnection(self, splitLine):
     # add a connection item
-    prevsec = int(splitLine[1].split('_')[1].split('(')[0])
-    nextsec = int(splitLine[2].split('_')[1].split('(')[0])
+    prevsec = int(splitLine[1].split('[')[1].split(']')[0])
+    nextsec = int(splitLine[2].split('[')[1].split(']')[0])
     connect = [prevsec, nextsec]
     self.connections.append(connect)
     
@@ -72,17 +74,20 @@ class HocGeometry:
         
         if splitLine:
 
-          if splitLine[0] == 'create':
+          if splitLine[0].split('_')[0] == 'filament':
+            print('Found new segment')
             self.openSection = True
           elif splitLine[0] == 'connect':
+            print('Found new connection entry')
             self.addConnection(splitLine)
           elif splitLine[0] == '}':
             # print('Added section %i' % self.currentSection)
             self.openSection = False
           elif self.openSection == True:
             if len(splitLine) > 1 and splitLine[1] == '{':
-              self.currentSection = int(splitLine[0].split('_')[1])
+              self.currentSection = int(splitLine[0].split('[')[1].split(']')[0])
             elif splitLine[0].split('(')[0] == 'pt3dadd':
+              print('Found new point')
               self.addNode(splitLine)
     print('Finished reading %i lines.' % lineNum)
     
