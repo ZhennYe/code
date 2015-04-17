@@ -69,6 +69,7 @@ def pretty_scatter(V, labelsin, title=None):
   """
   
   """
+  return
   
 
 
@@ -233,6 +234,35 @@ def line_scatter(xdata, ydata, labelsin=None, title=None,
     ax.yaxis.set_label_coords(0,0.5)
   plt.xticks([-3,3],fontsize=25)
   plt.yticks([-40,20],fontsize=25)
+  plt.show()
+
+
+
+def pretty_distribution(data, benchmark=None, bins=None, bars=False, title=None):
+  # plots a pretty distribution of the Data, with or without a benchmark
+  from scipy.interpolate import spline
+  if bins is None:
+    bins = len(data)/20
+  hist, bin_edges = np.histogram(data, bins)
+  bin_e = [(bin_edges[i]+bin_edges[i+1])/2 for i in range(len(bin_edges)-1)]
+  # interpolate for smoothed spline curve
+  xnew = np.linspace(bin_e[0], bin_e[-1], 300)
+  h_down = [np.mean(hist[i*4:i*4+4]) for i in range(int(len(hist)/4))] # maybe need -1 sometimes
+  b_down = [np.mean(bin_e[i*4:i*4+4]) for i in range(int(len(bin_e)/4))]
+  power_smooth = spline(b_down, h_down, xnew)
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  # draw curved line
+  ax.plot(xnew, power_smooth, linewidth=2, c='royalblue')
+  # fill under smoothed line or bars
+  if not bars:
+    ax.fill(xnew, power_smooth, facecolor='royalblue',alpha=0.4)
+  else:
+    ax.hist(data, bins=bins, edgecolor='lightskyblue', color='royalblue', alpha=0.4)
+  if benchmark:
+    ax.plot([benchmark, benchmark],[0,max(hist)*.8], color='deeppink', linewidth=3)
+  if title:
+    ax.set_title(title, fontsize=40)
   plt.show()
 
 

@@ -10,7 +10,7 @@ _usageStr=\
 
 
 import os, sys, re, math
-from NeuronGeometry import *
+from pyramidal_NeuronGeometry import *
 import numpy as np
 import networkx as nx
 
@@ -94,7 +94,7 @@ class HocGeometry(Geometry):
         of each terminal segment
     NOTE: This will NOT contain Axon or Soma even if they are terminal segments
     """
-    self.checkConnectivity(removeDisconnected=True)
+    self.checkConnectivity(removeDisconnected=False)
     
     soma = self.soma
     axons = self.findAxons()
@@ -148,7 +148,7 @@ class HocGeometry(Geometry):
         of each terminal segment
     NOTE: This will NOT contain Axon or Soma even if they are terminal segments
     """
-    h = self.checkConnectivity(removeDisconnected=True)
+    h = self.checkConnectivity(removeDisconnected=False)
     #print(len(h))
     #for s in h:
     #  print([s.coordAt(0), s.coordAt(1)])
@@ -195,7 +195,7 @@ class HocGeometry(Geometry):
       positions is a list of floats (0 or 1) that point to the terminal end
         of each terminating branch
     """
-    self.checkConnectivity(removeDisconnected=True)
+    self.checkConnectivity(removeDisconnected=False)
     axons = self.findAxons()
     if not axons:
       return [], []

@@ -308,7 +308,7 @@ class Geometry:
     print("total number of compartments: %d" % len(self.compartments))
     print("total number of segments: %d" % len(self.segments))
 
-    subGraphs = self.checkConnectivity(removeDisconnected=True, debugInfo=True)
+    subGraphs = self.checkConnectivity(removeDisconnected=False, debugInfo=True)
     
     print("number of connected nodes: %d" % len(self.nodes))
     print("number of connected compartments: %d" % len(self.compartments))
@@ -1860,7 +1860,9 @@ class Geometry:
       2. be longer then minLength
       3. have its terminal node less than edgeSafety * node radius from the
          furthest extent of the neuron in x, y, or z
+      4. AND, for pyramidal, be the longest axon
     """
+    
     for segment in self.segments:
       if len(segment.nodes) != len(segment.compartments) + 1:
         raise AssertionError('%s has %d nodes and %d compartments'
@@ -1926,16 +1928,29 @@ class Geometry:
       
       if ((not n0 and _isEdgeNode(branch.nodes[0], edgeSafety)) or 
           (not n1 and _isEdgeNode(branch.nodes[-1], edgeSafety))):
-        branch.addTag('Axon')
-        self._axonBranches.append(branch)
-        segments = {c.segment for c in branch.compartments}
+        
+        ## This way only the longest axon is kept
+        if len(self._axonBranches) > 0:
+          if branch.length > self._axonBranches[0].length:
+            self._axonBranches.pop(0)
+          #  branch.addTag('Axon')
+            self._axonBranches.append(branch)
+        else: # if there aren't any axons yet, just keep it
+          self._axonBranches.append(branch)
+        
+        # after that, find the last segment in the only axon
+        for b in self._axonBranches:
+          b.addTag('Axon')
+        print('self._axonBranches is length: %i' %len(self._axonBranches))
+        segments = {c.segment for c in self._axonBranches[0].compartments}
         if debugInfo:
           print('Found axon with segments %s' %
                 ' '.join(s.name for s in segments))
         for s in segments:
           s.addTag('Axon')
           if s.isTerminal:
-            self._axons.append(s)
+            if len(self._axons) < 1:
+              self._axons.append(s)
     
     if findBranch:
       return self._axonBranches
