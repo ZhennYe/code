@@ -1,0 +1,160 @@
+<RTXI class="settings" >
+ <OBJECT component="rt" id="0" >
+  <PARAM name="Period" >200000</PARAM>
+ </OBJECT>
+ <OBJECT component="io" id="1" >
+  <PARAM name="0 Destination ID" >11</PARAM>
+  <PARAM name="0 Destination channel" >0</PARAM>
+  <PARAM name="0 Source ID" >13</PARAM>
+  <PARAM name="0 Source channel" >0</PARAM>
+  <PARAM name="1 Destination ID" >11</PARAM>
+  <PARAM name="1 Destination channel" >0</PARAM>
+  <PARAM name="1 Source ID" >14</PARAM>
+  <PARAM name="1 Source channel" >0</PARAM>
+  <PARAM name="2 Destination ID" >11</PARAM>
+  <PARAM name="2 Destination channel" >0</PARAM>
+  <PARAM name="2 Source ID" >15</PARAM>
+  <PARAM name="2 Source channel" >0</PARAM>
+  <PARAM name="3 Destination ID" >12</PARAM>
+  <PARAM name="3 Destination channel" >0</PARAM>
+  <PARAM name="3 Source ID" >11</PARAM>
+  <PARAM name="3 Source channel" >0</PARAM>
+  <PARAM name="4 Destination ID" >13</PARAM>
+  <PARAM name="4 Destination channel" >0</PARAM>
+  <PARAM name="4 Source ID" >12</PARAM>
+  <PARAM name="4 Source channel" >0</PARAM>
+  <PARAM name="5 Destination ID" >14</PARAM>
+  <PARAM name="5 Destination channel" >0</PARAM>
+  <PARAM name="5 Source ID" >12</PARAM>
+  <PARAM name="5 Source channel" >0</PARAM>
+  <PARAM name="6 Destination ID" >14</PARAM>
+  <PARAM name="6 Destination channel" >1</PARAM>
+  <PARAM name="6 Source ID" >11</PARAM>
+  <PARAM name="6 Source channel" >0</PARAM>
+  <PARAM name="7 Destination ID" >15</PARAM>
+  <PARAM name="7 Destination channel" >0</PARAM>
+  <PARAM name="7 Source ID" >11</PARAM>
+  <PARAM name="7 Source channel" >0</PARAM>
+  <PARAM name="8 Destination ID" >15</PARAM>
+  <PARAM name="8 Destination channel" >1</PARAM>
+  <PARAM name="8 Source ID" >12</PARAM>
+  <PARAM name="8 Source channel" >0</PARAM>
+  <PARAM name="Num Links" >9</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="comedi_driver.so" id="2" >
+  <PARAM name="Num Devices" >0</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="model_loader.so" id="4" />
+ <OBJECT component="plugin" library="dynamo_model_loader.so" id="5" />
+ <OBJECT component="plugin" library="system_control.so" id="6" />
+ <OBJECT component="plugin" library="oscilloscope.so" id="7" >
+  <PARAM name="Num Panels" >1</PARAM>
+  <OBJECT id="3" name="0" >
+   <PARAM name="0 ID" >11</PARAM>
+   <PARAM name="0 index" >0</PARAM>
+   <PARAM name="0 offset" >0</PARAM>
+   <PARAM name="0 pen color" >#ff0000</PARAM>
+   <PARAM name="0 pen style" >1</PARAM>
+   <PARAM name="0 pen width" >2</PARAM>
+   <PARAM name="0 scale" >0.02</PARAM>
+   <PARAM name="0 type" >2</PARAM>
+   <PARAM name="1 ID" >13</PARAM>
+   <PARAM name="1 index" >0</PARAM>
+   <PARAM name="1 offset" >0</PARAM>
+   <PARAM name="1 pen color" >#000000</PARAM>
+   <PARAM name="1 pen style" >1</PARAM>
+   <PARAM name="1 pen width" >2</PARAM>
+   <PARAM name="1 scale" >2e-11</PARAM>
+   <PARAM name="1 type" >2</PARAM>
+   <PARAM name="2 ID" >14</PARAM>
+   <PARAM name="2 index" >0</PARAM>
+   <PARAM name="2 offset" >0</PARAM>
+   <PARAM name="2 pen color" >#00ff00</PARAM>
+   <PARAM name="2 pen style" >1</PARAM>
+   <PARAM name="2 pen width" >2</PARAM>
+   <PARAM name="2 scale" >1e-11</PARAM>
+   <PARAM name="2 type" >2</PARAM>
+   <PARAM name="3 ID" >15</PARAM>
+   <PARAM name="3 index" >0</PARAM>
+   <PARAM name="3 offset" >0</PARAM>
+   <PARAM name="3 pen color" >#000000</PARAM>
+   <PARAM name="3 pen style" >1</PARAM>
+   <PARAM name="3 pen width" >2</PARAM>
+   <PARAM name="3 scale" >1e-11</PARAM>
+   <PARAM name="3 type" >2</PARAM>
+   <PARAM name="DivT" >100</PARAM>
+   <PARAM name="DivX" >10</PARAM>
+   <PARAM name="DivY" >10</PARAM>
+   <PARAM name="H" >450</PARAM>
+   <PARAM name="Num Channels" >4</PARAM>
+   <PARAM name="Paused" >0</PARAM>
+   <PARAM name="Refresh" >100</PARAM>
+   <PARAM name="Size" >5001</PARAM>
+   <PARAM name="W" >800</PARAM>
+   <PARAM name="X" >0</PARAM>
+   <PARAM name="Y" >0</PARAM>
+  </OBJECT>
+ </OBJECT>
+ <OBJECT component="plugin" library="data_recorder.so" id="8" >
+  <PARAM name="Num Panels" >0</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="connector.so" id="9" />
+ <OBJECT component="plugin" library="performance_measurement.so" id="10" />
+ <OBJECT component="plugin" library="IZCell.so" id="11" >
+  <PARAM name="I_offset" >0</PARAM>
+  <PARAM name="a" >0.03</PARAM>
+  <PARAM name="b" >0.25</PARAM>
+  <PARAM name="c" >-60</PARAM>
+  <PARAM name="d" >4</PARAM>
+  <PARAM name="paused" >0</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="SpikeDetect.so" id="12" >
+  <PARAM name="Min Interval(s)" >0.005</PARAM>
+  <PARAM name="Threshold(mV)" >-20</PARAM>
+  <PARAM name="paused" >0</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="SpikeRateController.so" id="13" >
+  <PARAM name="IApp" >0.639602</PARAM>
+  <PARAM name="InitialI" >0</PARAM>
+  <PARAM name="MaxDeltaI" >1e-04</PARAM>
+  <PARAM name="TargetISI" >400</PARAM>
+  <PARAM name="paused" >0</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="SumPSG.so" id="14" >
+  <PARAM name="AMPA NMDA Modulation Amp" >0</PARAM>
+  <PARAM name="AMPA NMDA Modulation Freq" >0</PARAM>
+  <PARAM name="Acquire?" >0</PARAM>
+  <PARAM name="Cell (#)" >1</PARAM>
+  <PARAM name="Esyn" >0</PARAM>
+  <PARAM name="Esyn GABA" >-75</PARAM>
+  <PARAM name="File Info" >[1 - 0.025,1,8 - 0.025,1.68,6.21 - 0,1.68,6.21 - 0,-75,500,1000 - 10,-10 - 30,0.2,0]no comment</PARAM>
+  <PARAM name="File Prefix" >SumPSG</PARAM>
+  <PARAM name="GABA Modulation Amp" >.2</PARAM>
+  <PARAM name="GABA Modulation Freq" >30</PARAM>
+  <PARAM name="GmaxAMPA" >0.025</PARAM>
+  <PARAM name="GmaxGABA" >0.025</PARAM>
+  <PARAM name="GmaxNMDA" >0</PARAM>
+  <PARAM name="Percent Done" >100</PARAM>
+  <PARAM name="Record Len (sec)" >300</PARAM>
+  <PARAM name="Shift" >0</PARAM>
+  <PARAM name="Use Conductance?" >1</PARAM>
+  <PARAM name="paused" >1</PARAM>
+  <PARAM name="rate" >500</PARAM>
+  <PARAM name="rate GABA" >1000</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="Autapse.so" id="15" >
+  <PARAM name="Acquire?" >0</PARAM>
+  <PARAM name="Cell (#)" >1</PARAM>
+  <PARAM name="Delay (ms)" >1</PARAM>
+  <PARAM name="End G (nS)" >.03</PARAM>
+  <PARAM name="File Info" >[0 -- 0.03:1:0.03 -- 1]</PARAM>
+  <PARAM name="File Prefix" >autapse</PARAM>
+  <PARAM name="Onset Delay (s)" >0</PARAM>
+  <PARAM name="PSG Fall (ms)" >50</PARAM>
+  <PARAM name="PSG Rise (ms)" >1</PARAM>
+  <PARAM name="Rate (nS/sec)" >1</PARAM>
+  <PARAM name="Start G (nS)" >.03</PARAM>
+  <PARAM name="onset_cnt" >0</PARAM>
+  <PARAM name="paused" >1</PARAM>
+ </OBJECT>
+</RTXI>

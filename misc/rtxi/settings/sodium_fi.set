@@ -1,0 +1,262 @@
+<RTXI class="settings" >
+ <OBJECT component="rt" id="0" >
+  <PARAM name="Period" >200000</PARAM>
+ </OBJECT>
+ <OBJECT component="io" id="1" >
+  <PARAM name="0 Destination ID" >11</PARAM>
+  <PARAM name="0 Destination channel" >0</PARAM>
+  <PARAM name="0 Source ID" >16</PARAM>
+  <PARAM name="0 Source channel" >0</PARAM>
+  <PARAM name="1 Destination ID" >16</PARAM>
+  <PARAM name="1 Destination channel" >0</PARAM>
+  <PARAM name="1 Source ID" >11</PARAM>
+  <PARAM name="1 Source channel" >0</PARAM>
+  <PARAM name="2 Destination ID" >16</PARAM>
+  <PARAM name="2 Destination channel" >0</PARAM>
+  <PARAM name="2 Source ID" >17</PARAM>
+  <PARAM name="2 Source channel" >0</PARAM>
+  <PARAM name="3 Destination ID" >17</PARAM>
+  <PARAM name="3 Destination channel" >0</PARAM>
+  <PARAM name="3 Source ID" >16</PARAM>
+  <PARAM name="3 Source channel" >0</PARAM>
+  <PARAM name="Num Links" >4</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="comedi_driver.so" id="2" >
+  <PARAM name="0" >/dev/comedi0</PARAM>
+  <PARAM name="Num Devices" >1</PARAM>
+  <OBJECT id="13" name="0" >
+   <PARAM name="0 AI Active" >1</PARAM>
+   <PARAM name="0 AI Gain" >0.1</PARAM>
+   <PARAM name="0 AI Range" >0</PARAM>
+   <PARAM name="0 AI Reference" >0</PARAM>
+   <PARAM name="0 AI Units" >0</PARAM>
+   <PARAM name="0 AO Active" >1</PARAM>
+   <PARAM name="0 AO Gain" >1e+09</PARAM>
+   <PARAM name="0 AO Range" >0</PARAM>
+   <PARAM name="0 AO Reference" >0</PARAM>
+   <PARAM name="0 AO Units" >0</PARAM>
+   <PARAM name="0 DIO Active" >0</PARAM>
+   <PARAM name="0 DIO Direction" >0</PARAM>
+   <PARAM name="1 AI Active" >0</PARAM>
+   <PARAM name="1 AI Gain" >1</PARAM>
+   <PARAM name="1 AI Range" >0</PARAM>
+   <PARAM name="1 AI Reference" >0</PARAM>
+   <PARAM name="1 AI Units" >0</PARAM>
+   <PARAM name="1 AO Active" >0</PARAM>
+   <PARAM name="1 AO Gain" >1</PARAM>
+   <PARAM name="1 AO Range" >0</PARAM>
+   <PARAM name="1 AO Reference" >0</PARAM>
+   <PARAM name="1 AO Units" >0</PARAM>
+   <PARAM name="1 DIO Active" >0</PARAM>
+   <PARAM name="1 DIO Direction" >0</PARAM>
+   <PARAM name="10 AI Active" >0</PARAM>
+   <PARAM name="10 AI Gain" >1</PARAM>
+   <PARAM name="10 AI Range" >0</PARAM>
+   <PARAM name="10 AI Reference" >0</PARAM>
+   <PARAM name="10 AI Units" >0</PARAM>
+   <PARAM name="11 AI Active" >0</PARAM>
+   <PARAM name="11 AI Gain" >1</PARAM>
+   <PARAM name="11 AI Range" >0</PARAM>
+   <PARAM name="11 AI Reference" >0</PARAM>
+   <PARAM name="11 AI Units" >0</PARAM>
+   <PARAM name="12 AI Active" >0</PARAM>
+   <PARAM name="12 AI Gain" >1</PARAM>
+   <PARAM name="12 AI Range" >0</PARAM>
+   <PARAM name="12 AI Reference" >0</PARAM>
+   <PARAM name="12 AI Units" >0</PARAM>
+   <PARAM name="13 AI Active" >0</PARAM>
+   <PARAM name="13 AI Gain" >1</PARAM>
+   <PARAM name="13 AI Range" >0</PARAM>
+   <PARAM name="13 AI Reference" >0</PARAM>
+   <PARAM name="13 AI Units" >0</PARAM>
+   <PARAM name="14 AI Active" >0</PARAM>
+   <PARAM name="14 AI Gain" >1</PARAM>
+   <PARAM name="14 AI Range" >0</PARAM>
+   <PARAM name="14 AI Reference" >0</PARAM>
+   <PARAM name="14 AI Units" >0</PARAM>
+   <PARAM name="15 AI Active" >0</PARAM>
+   <PARAM name="15 AI Gain" >1</PARAM>
+   <PARAM name="15 AI Range" >0</PARAM>
+   <PARAM name="15 AI Reference" >0</PARAM>
+   <PARAM name="15 AI Units" >0</PARAM>
+   <PARAM name="2 AI Active" >0</PARAM>
+   <PARAM name="2 AI Gain" >1</PARAM>
+   <PARAM name="2 AI Range" >0</PARAM>
+   <PARAM name="2 AI Reference" >0</PARAM>
+   <PARAM name="2 AI Units" >0</PARAM>
+   <PARAM name="2 DIO Active" >0</PARAM>
+   <PARAM name="2 DIO Direction" >0</PARAM>
+   <PARAM name="3 AI Active" >0</PARAM>
+   <PARAM name="3 AI Gain" >1</PARAM>
+   <PARAM name="3 AI Range" >0</PARAM>
+   <PARAM name="3 AI Reference" >0</PARAM>
+   <PARAM name="3 AI Units" >0</PARAM>
+   <PARAM name="3 DIO Active" >0</PARAM>
+   <PARAM name="3 DIO Direction" >0</PARAM>
+   <PARAM name="4 AI Active" >0</PARAM>
+   <PARAM name="4 AI Gain" >1</PARAM>
+   <PARAM name="4 AI Range" >0</PARAM>
+   <PARAM name="4 AI Reference" >0</PARAM>
+   <PARAM name="4 AI Units" >0</PARAM>
+   <PARAM name="4 DIO Active" >0</PARAM>
+   <PARAM name="4 DIO Direction" >0</PARAM>
+   <PARAM name="5 AI Active" >0</PARAM>
+   <PARAM name="5 AI Gain" >1</PARAM>
+   <PARAM name="5 AI Range" >0</PARAM>
+   <PARAM name="5 AI Reference" >0</PARAM>
+   <PARAM name="5 AI Units" >0</PARAM>
+   <PARAM name="5 DIO Active" >0</PARAM>
+   <PARAM name="5 DIO Direction" >0</PARAM>
+   <PARAM name="6 AI Active" >0</PARAM>
+   <PARAM name="6 AI Gain" >1</PARAM>
+   <PARAM name="6 AI Range" >0</PARAM>
+   <PARAM name="6 AI Reference" >0</PARAM>
+   <PARAM name="6 AI Units" >0</PARAM>
+   <PARAM name="6 DIO Active" >0</PARAM>
+   <PARAM name="6 DIO Direction" >0</PARAM>
+   <PARAM name="7 AI Active" >0</PARAM>
+   <PARAM name="7 AI Gain" >1</PARAM>
+   <PARAM name="7 AI Range" >0</PARAM>
+   <PARAM name="7 AI Reference" >0</PARAM>
+   <PARAM name="7 AI Units" >0</PARAM>
+   <PARAM name="7 DIO Active" >0</PARAM>
+   <PARAM name="7 DIO Direction" >0</PARAM>
+   <PARAM name="8 AI Active" >0</PARAM>
+   <PARAM name="8 AI Gain" >1</PARAM>
+   <PARAM name="8 AI Range" >0</PARAM>
+   <PARAM name="8 AI Reference" >0</PARAM>
+   <PARAM name="8 AI Units" >0</PARAM>
+   <PARAM name="9 AI Active" >0</PARAM>
+   <PARAM name="9 AI Gain" >1</PARAM>
+   <PARAM name="9 AI Range" >0</PARAM>
+   <PARAM name="9 AI Reference" >0</PARAM>
+   <PARAM name="9 AI Units" >0</PARAM>
+   <PARAM name="AI Count" >16</PARAM>
+   <PARAM name="AO Count" >2</PARAM>
+   <PARAM name="DIO Count" >8</PARAM>
+  </OBJECT>
+ </OBJECT>
+ <OBJECT component="plugin" library="model_loader.so" id="4" />
+ <OBJECT component="plugin" library="dynamo_model_loader.so" id="5" />
+ <OBJECT component="plugin" library="system_control.so" id="6" />
+ <OBJECT component="plugin" library="oscilloscope.so" id="7" >
+  <PARAM name="Num Panels" >1</PARAM>
+  <OBJECT id="3" name="0" >
+   <PARAM name="0 ID" >13</PARAM>
+   <PARAM name="0 index" >0</PARAM>
+   <PARAM name="0 offset" >0</PARAM>
+   <PARAM name="0 pen color" >#ff0000</PARAM>
+   <PARAM name="0 pen style" >1</PARAM>
+   <PARAM name="0 pen width" >2</PARAM>
+   <PARAM name="0 scale" >0.02</PARAM>
+   <PARAM name="0 type" >2</PARAM>
+   <PARAM name="1 ID" >11</PARAM>
+   <PARAM name="1 index" >0</PARAM>
+   <PARAM name="1 offset" >0</PARAM>
+   <PARAM name="1 pen color" >#000000</PARAM>
+   <PARAM name="1 pen style" >1</PARAM>
+   <PARAM name="1 pen width" >2</PARAM>
+   <PARAM name="1 scale" >2e-10</PARAM>
+   <PARAM name="1 type" >2</PARAM>
+   <PARAM name="2 ID" >16</PARAM>
+   <PARAM name="2 index" >0</PARAM>
+   <PARAM name="2 offset" >0</PARAM>
+   <PARAM name="2 pen color" >#0000ff</PARAM>
+   <PARAM name="2 pen style" >1</PARAM>
+   <PARAM name="2 pen width" >2</PARAM>
+   <PARAM name="2 scale" >0.02</PARAM>
+   <PARAM name="2 type" >2</PARAM>
+   <PARAM name="3 ID" >17</PARAM>
+   <PARAM name="3 index" >0</PARAM>
+   <PARAM name="3 offset" >0</PARAM>
+   <PARAM name="3 pen color" >#00ff00</PARAM>
+   <PARAM name="3 pen style" >1</PARAM>
+   <PARAM name="3 pen width" >2</PARAM>
+   <PARAM name="3 scale" >1e-09</PARAM>
+   <PARAM name="3 type" >2</PARAM>
+   <PARAM name="DivT" >100</PARAM>
+   <PARAM name="DivX" >10</PARAM>
+   <PARAM name="DivY" >10</PARAM>
+   <PARAM name="H" >450</PARAM>
+   <PARAM name="Num Channels" >4</PARAM>
+   <PARAM name="Paused" >0</PARAM>
+   <PARAM name="Refresh" >100</PARAM>
+   <PARAM name="Size" >5001</PARAM>
+   <PARAM name="W" >800</PARAM>
+   <PARAM name="X" >0</PARAM>
+   <PARAM name="Y" >0</PARAM>
+  </OBJECT>
+ </OBJECT>
+ <OBJECT component="plugin" library="data_recorder.so" id="8" >
+  <PARAM name="Num Panels" >1</PARAM>
+  <OBJECT id="12" name="0" >
+   <PARAM name="0 ID" >13</PARAM>
+   <PARAM name="0 index" >0</PARAM>
+   <PARAM name="0 type" >2</PARAM>
+   <PARAM name="1 ID" >11</PARAM>
+   <PARAM name="1 index" >0</PARAM>
+   <PARAM name="1 type" >2</PARAM>
+   <PARAM name="Downsample" >1</PARAM>
+   <PARAM name="H" >260</PARAM>
+   <PARAM name="Num Channels" >2</PARAM>
+   <PARAM name="W" >550</PARAM>
+   <PARAM name="X" >706</PARAM>
+   <PARAM name="Y" >602</PARAM>
+  </OBJECT>
+ </OBJECT>
+ <OBJECT component="plugin" library="connector.so" id="9" />
+ <OBJECT component="plugin" library="performance_measurement.so" id="10" />
+ <OBJECT component="plugin" library="Istep.so" id="11" >
+  <PARAM name="Acquire?" >0</PARAM>
+  <PARAM name="Cell (#)" >1</PARAM>
+  <PARAM name="Cycles (#)" >1</PARAM>
+  <PARAM name="Delay (sec)" >0.5</PARAM>
+  <PARAM name="Duty Cycle (%)" >50</PARAM>
+  <PARAM name="File Info" >[1/0.5/1/50/0 - 0:10:1e+07]n/a</PARAM>
+  <PARAM name="File Prefix" >Istep</PARAM>
+  <PARAM name="Increments" >10</PARAM>
+  <PARAM name="Max Amp (pA)" >10000000</PARAM>
+  <PARAM name="Min Amp (pA)" >0</PARAM>
+  <PARAM name="Offset (pA)" >0</PARAM>
+  <PARAM name="Period (sec)" >1</PARAM>
+  <PARAM name="paused" >0</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="acquire.so" id="14" >
+  <PARAM name="Duration" >40000</PARAM>
+  <PARAM name="Samples" >40000</PARAM>
+  <PARAM name="paused" >1</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="synch.so" id="15" >
+  <PARAM name="Models" >14,11</PARAM>
+  <PARAM name="paused" >1</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="neuron.so" id="16" >
+  <PARAM name="Cm" >1</PARAM>
+  <PARAM name="E_K" >-77</PARAM>
+  <PARAM name="E_L" >-54.4</PARAM>
+  <PARAM name="E_Na" >50</PARAM>
+  <PARAM name="G_K_max" >36</PARAM>
+  <PARAM name="G_L" >0.3</PARAM>
+  <PARAM name="G_Na_max" >120</PARAM>
+  <PARAM name="Iapp_offset" >0</PARAM>
+  <PARAM name="V0" >-65</PARAM>
+  <PARAM name="h" >0.596111</PARAM>
+  <PARAM name="m" >0.0529342</PARAM>
+  <PARAM name="n" >0.317681</PARAM>
+  <PARAM name="paused" >0</PARAM>
+  <PARAM name="rate" >40000</PARAM>
+ </OBJECT>
+ <OBJECT component="plugin" library="KV.so" id="17" >
+  <PARAM name="EK" >-90</PARAM>
+  <PARAM name="GK" >10</PARAM>
+  <PARAM name="Vnhalf" >-45</PARAM>
+  <PARAM name="midtau" >-50</PARAM>
+  <PARAM name="mintau" >0.4</PARAM>
+  <PARAM name="ninfk" >3</PARAM>
+  <PARAM name="paused" >0</PARAM>
+  <PARAM name="peaktau" >8</PARAM>
+  <PARAM name="s" >4.54021e-05</PARAM>
+  <PARAM name="s_inf" >0</PARAM>
+  <PARAM name="taun" >2.73334</PARAM>
+ </OBJECT>
+</RTXI>
