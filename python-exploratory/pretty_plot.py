@@ -267,6 +267,48 @@ def pretty_distribution(data, benchmark=None, bins=None, bars=False, title=None)
 
 
 
+def pretty_line(xdata, ydata, labels=None, axlabels=None, title=None):
+  if axlabels:
+    if len(axlabels) != 2:
+      print('Axlabels should have 2 items')
+      axlabels=None
+  colorlist = ['forestgreen','royalblue','deeppink','darkkhaki']
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  # use simple heuristics for determining if there are multiple y's
+  if len(ydata) > 1 and len(ydata) <= 4 and len(ydata) != len(xdata):
+    for y in range(len(ydata)):
+      ax.plot(xdata, ydata[y], linewidth=2, c=colorlist[y])
+      ax.plot(xdata, ydata[y], linewidth=3, c=colorlist[y], alpha=0.2)
+  # if multiple x's and y's
+  elif len(ydata) > 1 and len(ydata) <= 4 and len(ydata) == len(xdata):
+    for y in range(len(ydata)):
+      ax.plot(xdata[y], ydata[y], linewidth=2, c=colorlist[y])
+      ax.plot(xdata[y], ydata[y], linewidth=3, c=colorlist[y], alpha=0.2)
+  else:
+    ax.plot(xdata, ydata, linewidth=2, c=colorlist[0])
+    ax.plot(xdata, ydata, linewidth=3, c=colorlist[0], alpha=0.2)
+  # simple legend !
+  if labels:
+    if len(labels) != len(ydata):
+      print('Num labels must equal num ydata!')
+    else:
+      patches = []
+      for y in range(len(labels)):
+        patch = mpatches.Patch(color=colorlist[y], label=labels[y])
+        patches.append(patch)
+      ax.legend(handles=patches)
+  if axlabels:
+    ax.set_xlabel(axlabels[0], fontsize=15)
+    ax.set_ylabel(axlabels[1], fontsize=15)
+  if title:
+    ax.set_title(title, fontsize=25)
+  ax.set_ylim([-0.5,3.5])
+  ax.set_xlim([-0.5,5.5])
+  plt.show()
+
+
+
 
 def pretty_dendrogram(nodes):
 
