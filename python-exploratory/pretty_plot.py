@@ -243,7 +243,7 @@ def pretty_distribution(data, benchmark=None, bins=None, bars=False, title=None)
   from scipy.interpolate import spline
   if bins is None:
     bins = len(data)/20
-  hist, bin_edges = np.histogram(data, bins)
+  hist, bin_edges = np.histogram(data, bins=bins)
   bin_e = [(bin_edges[i]+bin_edges[i+1])/2 for i in range(len(bin_edges)-1)]
   # interpolate for smoothed spline curve
   xnew = np.linspace(bin_e[0], bin_e[-1], 300)

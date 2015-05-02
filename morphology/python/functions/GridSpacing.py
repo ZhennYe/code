@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from NeuronGeometry import *
 from getSkeleton import *
 import sys
-import numbapro as pro
+# import numbapro as pro
 
 
 # python 2.7 holdover compatibility

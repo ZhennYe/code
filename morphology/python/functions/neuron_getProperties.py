@@ -3,7 +3,44 @@
 from neuron_readExportedGeometry import *
 import numpy as np
 import math
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
+
+
+# helper functions
+def name(geo):
+  return geo.fileName.split('/')[-1].split('.')[0]
+
+
+def farthest_pt(pts):
+  dmax = 0
+  for i in pts:
+    for j in pts:
+      if dist3(i,j) > dmax:
+        dmax = dist3(i,j)
+  return dmax
+
+
+def checko(obj):
+  unique_files, unique_items, unique_cells = None, None, None
+  if type(obj) is not dict:
+    print('Only works for dictionaries'); return 
+  if len(obj['files']) != len(np.unique(obj['files'])):
+    print('Duplicates found in files!')
+  unique_files = len(np.unique(obj['files']))
+  for k in obj.keys():
+    if k != 'files' and k != 'cellTypes' and k != 'cellType':
+      if len(obj[k]) != len(np.unique(obj[k])):
+        print('Duplicates found in %s!' %k)
+      unique_items = len(np.unique(obj[k]))
+  try:
+    unique_cells = len(np.unique(obj['cellTypes']))
+  except:
+    unique_cells = len(np.unique(obj['cellType']))
+  print('Contents: %i unique files, %i unique items, %i cell types'
+         %(unique_files, unique_items, unique_cells))
+  return
 
 
 #######################################################################
@@ -128,18 +165,22 @@ def path_lengths(geo):
   path = [pDF.distanceTo(x,y) for x, y in zip(tipsegs, tipinds)]
   tort = [pDF.tortuosityTo(x,y) for x, y in zip(tipsegs, tipinds)]
   return path, tort
-  
-# if FilamentIndex != geo.segments[index], use this: 
-# tipsegs = [i for i in geo.segments if geo.getFilamentIndex(i) in tips]
-# path, tort = [], []
-# for x, y in zip(tipsegs, tipinds):          
-#  try:
-#    p, t = pDF.distanceTo(x,y), pDF.tortuosityTo(x,y)
-#    path.append(p)
-#    tort.append(t)
-#  except:
-#    continue
 
+
+def path_lengths2(geo):
+  # if FilamentIndex != geo.segments[index], use this: 
+  tips, tipinds = geo.getTipIndices()
+  tipsegs = [i for i in geo.segments if geo.getFilamentIndex(i) in tips]
+  pDF = PathDistanceFinder(geo, geo.soma, 0.5)
+  path, tort = [], []
+  for x, y in zip(tipsegs, tipinds):          
+    try:
+      p, t = pDF.distanceTo(x,y), pDF.tortuosityTo(x,y)
+      path.append(p)
+      tort.append(t)
+    except:
+      continue
+  return path, tort
 
 
 
@@ -293,7 +334,7 @@ def angleBetween(plane1,plane2,planCoords):
   return angle*180/np.pi
 
 
-def get_torques(geo)
+def get_torques(geo):
   # return bifurcation torques
   Cons =  geo.connections
   Seg1s, Seg2s = [], []
@@ -319,7 +360,7 @@ def get_torques(geo)
           friends.append(Seg1s[Seg2s.index(s.name)])
     #print('friends compiled')
       
-    for s in geometry.segments:
+    for s in geo.segments:
       if s.name in friends:
         friendcoords.append([s.coordAt(1)])
     count = count + 1
@@ -344,6 +385,324 @@ def get_torques(geo)
   for P in planCoordskeys:
     torques.append(angleBetween(P[0],P[1],planCoords))
   return torques
+
+
+
+###############################################################################
+# Ellipse fitting, distance to nearest point stuff
+
+
+def getNoSomaPoints(geo):
+  # get the downsampled nodes, but not the soma
+  somaPos = geo.soma.coordAt\
+            (geo.soma.centroidPosition(mandateTag='Soma'))
+  print('Soma position: %.5f, %.5f, %.5f' %(somaPos[0],somaPos[1],somaPos[2])) # works
+  nodes = []
+  for seg in geo.segments:
+    if 'Soma' not in seg.tags:
+      nodes.append(seg.coordAt(0))
+      nodes.append(seg.coordAt(0.5))
+      nodes.append(seg.coordAt(1))
+  print('Sampled %i nodes' %len(nodes))
+  
+  return nodes
+
+
+
+def findBounds(nodelist):
+  # return the x,y,z bounds of the node list
+  xs, ys, zs = [], [], []
+  
+  for n in range(len(nodelist)):
+    xs.append(nodelist[n][0])
+    ys.append(nodelist[n][1])
+    zs.append(nodelist[n][2])
+
+  bounds = {'xmin': min(xs), 'xmax': max(xs), 
+            'ymin': min(ys), 'ymax': max(ys),
+            'zmin': min(zs), 'zmax': max(zs)}
+  
+  return bounds
+
+
+
+def getGridPoints(nodelist, pplot=False):
+  # create a grid around the neuropil and use linspace to fill the volume
+  bounds = findBounds(nodelist)
+  gridpoints = []
+  xs = np.linspace(bounds['xmin'], bounds['xmax'], 10)
+  ys = np.linspace(bounds['ymin'], bounds['ymax'], 10)
+  zs = np.linspace(bounds['zmin'], bounds['zmax'], 10)
+  spacing = xs[1]-xs[0]
+  
+  # 1000 grid volume points
+  for i in range(len(xs)-1):
+    for j in range(len(ys)-1):
+      for k in range(len(zs)-1):
+        gridpoints.append([(xs[i]+xs[i+1])/2,
+                           (ys[j]+ys[j+1])/2,
+                           (zs[k]+zs[k+1])/2])
+  print('gridpoints is length %i' %len(gridpoints))
+  
+  boxx, boxy, boxz = [], [], []
+  for g in range(len(gridpoints)):
+    boxx.append(gridpoints[g][0])
+    boxy.append(gridpoints[g][1])
+    boxz.append(gridpoints[g][2])
+  
+  nodex, nodey, nodez = [], [], []
+  for n in range(len(nodelist)):
+    nodex.append(nodelist[n][0])
+    nodey.append(nodelist[n][1])
+    nodez.append(nodelist[n][2])
+  
+  if pplot:
+    fig1 = plt.figure()
+    ax1 = fig1.add_subplot(111, projection='3d')
+  #ax.plot(boxx, boxy)
+    ax1.scatter(boxx, boxy, boxz, color='r', marker='.', alpha=0.5)
+    ax1.scatter(nodex, nodey, nodez, color='k', marker='.', alpha=1)
+  # ax.set_xlabel('')
+  # plt.show()
+    
+  return gridpoints, spacing
+  
+
+
+def closestPoint(rectpoint, nodes):
+  # find the closest neuron node to a rectangle point
+  ptmin = np.inf
+  ptind, pt = None, None
+  for n in range(len(nodes)):
+    dist = dist3(rectpoint, nodes[n])
+    if dist < ptmin:
+      ptmin = dist
+      ptind = n
+      pt = nodes[n]
+  return ptind, ptmin
+
+
+def closestPointPool(things):
+  # find the closest neuron node to a rectangle point
+  # things[0] = rect point, things[1] = all nodes
+  things[0] = rectpoint
+  things
+  ptmin = np.inf
+  ptind, pt = None, None
+  for n in range(len(nodes)):
+    dist = dist3(rectpoint, nodes[n])
+    if dist < ptmin:
+      ptmin = dist
+      ptind = n
+      pt = nodes[n]
+  return ptind, ptmin
+
+
+def getSurfacePoints(gridpoints, nodes, spacing, pplot=False):
+  # given volume points and neuropil nodes, create downsampled
+  # volume of the neuropil (if a neuron point is in a given cube, 
+  # the cube is a 1, else 0
+  ellipsePoints = []
+  if type(gridpoints) is not np.ndarray:
+    gridpoints = np.array(gridpoints)
+  if type(nodes) is not np.ndarray:
+    nodes = np.array(nodes)
+  
+  for b in range(len(gridpoints)):
+    _, dist = closestPoint(gridpoints[b], nodes)
+    if dist <= spacing/8.:
+      ellipsePoints.append(gridpoints[b])
+    if b % 100 == 0 and b != 0:
+      print('%i/%i points examined' %(b, len(gridpoints)))
+      
+  print('Now have %i neuropil points' %len(ellipsePoints))
+  
+  surfx, surfy, surfz = [], [], []
+  for s in ellipsePoints:
+    surfx.append(s[0])
+    surfy.append(s[1])
+    surfz.append(s[2])
+  if pplot:
+    fig2 = plt.figure()
+    ax2 = fig2.add_subplot(111, projection='3d')
+    ax2.scatter(surfx, surfy, surfz, color='g', marker='.')
+    ax2.set_xlabel('X axis')
+    ax2.set_ylabel('Y axis')
+    ax2.set_zlabel('Z axis')
+    plt.show()
+  
+  return ellipsePoints
+
+
+def writeFile(points, outfile):
+  # write points to a ascii; this is generally not necessary
+  if outfile is None:
+    outfile = 'neuropil_surfpoints.txt'  
+  with open(outfile, 'w') as fOut:
+    for p in range(len(points)):
+      # print(points[p])
+      ptstring = [str(points[p][0]), str(points[p][1]), str(points[p][2])]
+      ptstr = ' '.join(ptstring)
+      fOut.write(ptstr)
+      fOut.write('\n')
+      #print
+  fOut.close()
+  print('%s file written.' %outfile)
+  return
+
+
+# Ax^2 + By^2 + Cz^2 + 2Dxy + 2Exz + 2Fyz + 2Gx + 2Hy + 2Iz = 1
+
+def give_ellipse(axes, shrink, translate):
+  """
+  axes: [1x3], shrink: scalar (ratio), translate: [1x3]
+  Returns a 2-D ellipse of points when given the 3 axes ([maj, min, 3rd])
+  and where on the 3rd axis the current slice is
+  --> axes = original evals ### scale omitted here
+  --> 'shrink' is the ratio that determines 
+      how large how the ellipse should be stretched in 2-D
+  --> axes[2] not used in this version
+  """
+  norm_ax = [i/max(axes) for i in axes]
+  xs = np.linspace(-norm_ax[0],norm_ax[0],1000)
+  ys = [np.sqrt( (1 - (i**2/norm_ax[0])) * norm_ax[1] ) for i in xs]
+  # get rid of the nans
+  opts = [[x,y] for x,y in zip(xs,ys) if np.isfinite(y)]
+  # need to get the negative part of the y half of the graph
+  pts = []
+  for p in opts:
+    pts.append([p[0],-p[1]])
+    pts.append(p)
+  # pts are currently the 'largest' possible, need to shrink by 'where'
+  pts = np.array(pts)
+  pts = pts * shrink
+  newpts = []
+  for p in pts:
+    _pt = [axes[0] * p[0] + translate[0],  \
+           axes[1] * p[1] + translate[1],  \
+           translate[2]]
+    if _pt not in newpts:
+      newpts.append(_pt)
+  
+  return newpts
+
+
+def get_reduced_points(geo, outfile=None):
+  # only pre-req is to run getNoSomaPoints first
+  nodes = getNoSomaPoints(geo)
+  gridpoints, spacing = getGridPoints(nodes)
+  ellipsePoints = getSurfacePoints(gridpoints, nodes, spacing)
+  #writeFile(ellipsePoints, outfile)
+  
+  return ellipsePoints
+
+
+def check_eigen(s_vals, s_vecs, pts):
+  """
+  For singular value decomposition, check the orientations of vectors
+  vs. the points they're supposed to represent
+  """
+  # Get zero-centered points first
+  #means = [pts[i] for i in range(len(pts)) if i%100==0] # downsample
+  means = pts
+  _m = [np.mean([j[0] for j in means]), np.mean([j[1] for j in means]),
+        np.mean([j[2] for j in means])]
+  # subtract the mean but keep the shape
+  newmeans = []
+  for m in means:
+    newmeans.append([m[0]-_m[0],m[1]-_m[1],m[2]-_m[2]])
+  dmax = farthest_pt(pts)
+  # get eigenvectors normalized by distance from farthest pts
+  scales = [i/max(s_vals)*dmax for i in s_vals]
+  print(scales)
+  v1 = [[0,0,0],[scales[0]*s_vecs[0][0], scales[0]*s_vecs[1][0], 
+                 scales[0]*s_vecs[2][0]]]
+  v2 = [[0,0,0],[scales[1]*s_vecs[0][1], scales[1]*s_vecs[1][1], 
+                 scales[1]*s_vecs[2][1]]]
+  v3 = [[0,0,0],[scales[2]*s_vecs[0][2], scales[2]*s_vecs[1][2], 
+                 scales[2]*s_vecs[2][2]]]
+  print(v1,v2,v3)
+  fig = plt.figure()
+  ax = fig.add_subplot(111, projection='3d')
+  
+  for m in newmeans:
+    ax.scatter(m[0],m[1],m[2], c='b', edgecolor='b', alpha=0.2)
+  ax.plot([0,v1[1][0]], [0,v1[1][1]], [0,v1[1][2]], c='r')
+  ax.plot([0,v2[1][0]], [0,v2[1][1]], [0,v2[1][2]], c='g')
+  ax.plot([0,v3[1][0]], [0,v3[1][1]], [0,v3[1][2]], c='k')
+  plt.show()
+  return newmeans
+
+
+def build_ellipse(geo):
+  """
+  Uses singular values from a uniformly resampled neuron grid to get
+  major/minor axes to create an ellipsoid; scales and translates the
+  ellipsoid back to neuron space.
+  """
+  gpts = get_reduced_points(geo)
+  gmean = [np.mean([i[0] for i in gpts]),
+           np.mean([i[1] for i in gpts]),
+           np.mean([i[2] for i in gpts])]
+  # get singular values
+  _, s_vals, s_vecs = np.linalg.svd(gpts)
+  s = np.array([i/max(s_vals) for i in s_vals])
+  # scale singular values by longest distance
+  dmax = farthest_pt(gpts)
+  s = s * dmax
+  # hyperbolic scaling reference for taper of top/bottom
+  _x = np.linspace(0,10,50)
+  _y = -_x**2 + 100
+  y = [i/max(_y) for i in _y]
+  y.reverse()
+  zscale = [i for i in y]
+  y.reverse()
+  for i in y:
+    zscale.append(i)
+  eig_pts = []
+  # make 100 layers of v3
+  zlayers = np.linspace(-s[2],s[2],100)
+  for v in zlayers:
+    newpts = give_ellipse(s, zscale[list(zlayers).index(v)], 
+                          [0,0,0])
+    for p in newpts:
+      eig_pts.append(p)
+  eig_pts = np.array(eig_pts)
+  # now have all eigen points, need to re-orient axes
+  pts = eig_pts.dot(np.linalg.inv(s_vecs))
+  # now translate:
+  pts = [[p[0]+gmean[0], p[1]+gmean[1], p[2]+gmean[2]] for p in pts]
+  return pts, gpts, eig_pts
+  
+    
+def get_distances(geo, multi=None):
+  """
+  Return the "distances", the distance from each ellipse point to the
+  closest point of the neuron's skeleton.
+  """
+  if multi is None:
+    ellipse_pts, _, _ = build_ellipse(geo)
+    nodes = getNoSomaPoints(geo)
+    distances = []
+    for e in ellipse_pts:
+      _, d = closestPoint(e, nodes)
+      distances.append(e)
+    return distances
+  elif type(multi) is int:
+    from multiprocessing import Pool
+    p = Pool(multi)
+    distances = pool.map(closestPointPool, 
+  
+  
+
+
+
+  
+
+
+
+
+
 
 
 
