@@ -26,7 +26,7 @@ def pretty_boxplot(V, labelsin, title=None, ticks=None):
   labels = ['PD', 'LG' ...], ticks = ['791_233', ...]
   ticks=False to omit x-ticks altogether; None for legend=ticks
   """
-  mi, ma = lims(V)
+  # mi, ma = lims(V)
   L = list(np.unique(labelsin))
   C = [L.index(i) for i in labelsin]
   fcolors = ['darkkhaki', 'royalblue', 'forestgreen','lavenderblush']
@@ -38,7 +38,7 @@ def pretty_boxplot(V, labelsin, title=None, ticks=None):
                      patch_artist=True)
     #ax.set_xticks([i-1 for i in range(len(ticks))])
     #ax.set_xticklabels(ticks, rotation=45) # rotate ticks
-  elif ticks is False:
+  elif ticks is None:
     box = ax.boxplot(V, labels=[' ' for i in range(len(labelsin))],
                      showmeans=True, notch=True, patch_artist=True)
   else:
@@ -61,7 +61,8 @@ def pretty_boxplot(V, labelsin, title=None, ticks=None):
   # title
   ax.set_title(title, fontsize=20)
   
-  plt.show(); return
+  plt.show()
+  return
 
 
 

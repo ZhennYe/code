@@ -43,6 +43,14 @@ def checko(obj):
   return
 
 
+def nodex(n):
+  return [n.x, n.y, n.z]
+
+
+def node3(n0, n1):
+  return dist3(nodex(n0),nodex(n1))
+
+
 #######################################################################
 # branch angles
 
@@ -52,6 +60,7 @@ def dist3(pt0, pt1):
   else:
     print('dimension mismatch')
     print(pt0, pt1)
+
 
 
 
@@ -200,7 +209,7 @@ def interpoint_dist(geo):
   return dists
 
 
-def interpolate_nodes(geo):
+def interpolate_nodes(geo, return_nodes=False):
   # find the most common distance betwixt successive nodes and then,
   # when successive nodes leave integer multiples of this distance
   # interpolate the difference to 'even' it out
@@ -241,7 +250,81 @@ def interpolate_nodes(geo):
   distances = []
   for p in pts:
     distances.append(dist3(soma, p))
-  return distances
+  if return_nodes:
+    return distances, pts
+  else:
+    return distances
+
+
+def hooser_sholl(geo, sholl_lines=1000):
+  """
+  Sholl analysis without repeats or missed counts. Sholl_lines can be
+  integer, whereupon the program creates that many evenly-spaced radii,
+  or can be a vector whose values are used for sholl radii.
+  """
+  # helper functions
+  def can_branch_be_added_again(geo, branch, sholl, key):
+    # profile branch
+    soma = geo.soma.nodeAt(0)
+    dD = [np.sign(node3(branch.nodes[n+1],soma)-node3(branch.nodes[n],soma))
+          for n in range(len(branch.nodes)-1)]
+    dLoc = [node3(i,soma) for i in branch.nodes[:-1]]
+    changepts = []
+    last_i = dD[0]
+    for i in dD:
+      if np.sign(i) != np.sign(last_i):
+        changepts.append([dLoc[dD.index(i)], np.sign(i)])
+        last_i = np.sign(i) # if there's a change, update the i
+    # now figure out how many can be added
+    if len(changepts) == 0:
+      return False
+    # if it only loops back once and hasn't been added twice, add it again
+    elif len(changepts) == 1:
+      if changepts[0][1] == -1: # if loops back
+        if float(key) > changepts[0][0]:
+          if sholl[key][1].count(branch) <= 1: # make 
+            return True
+      elif changepts[0][1] == 1: # if loops OUT
+        if float(key) > changepts[0][0]:
+          if sholl[key][1].count(branch) <= 1:
+            return True
+    else: # multiple change pts
+      if sholl[key][1].count(branch) >= len(changepts) + 1:
+        return False # already used all its changepts
+      else:
+        # assume forward order
+        c = sholl[key][1].count(branch)
+        change_sholls = [i[0] for i in changepts]
+        if float(key) > min(change_sholls) and float(key) < max(change_sholls):
+          return
+    return
+          
+  
+  def cross_node(geo, branch, nodeNum, sholl):
+    soma = geo.soma.nodeAt(0)
+    try:
+      next_dist = node3(branch.nodes[nodeNum+1], soma)
+    except:
+      next_dist = node3(branch.nodes[nodeNum], soma)
+    try:
+      prev_dist = node3(branch.nodes[nodeNum-1], soma)
+    except:
+      prev_dist = node3(branch.nodes[nodeNum], soma)
+    node_dist = node3(branch.nodes[nodeNum], soma)
+    for i in [float(k) for k in sholl.keys()]:
+      if i < max([next_dist, node_dist, prev_dist]) and \
+        i > min([next
+      
+  soma = geo.soma.coordAt(0.5)
+  sholl = {} # dictionary of crossings as keys, numcrossings as [0] (int)
+             # and branches that cross (as objects? names?) as [1] (list)
+  # integer mode
+  if type(sholl_lines) is int:
+    
+  
+  
+
+
 
 
 ######################################################################
@@ -678,22 +761,62 @@ def build_ellipse(geo):
 def get_distances(geo, multi=None):
   """
   Return the "distances", the distance from each ellipse point to the
-  closest point of the neuron's skeleton.
+  closest point of the neuron's skeleton. Can be parallelized by multi=int.
   """
   if multi is None:
     ellipse_pts, _, _ = build_ellipse(geo)
     nodes = getNoSomaPoints(geo)
     distances = []
+    # make sure this isn't ridiculously long
+    if len(ellipse_pts) > 100000:
+      ellipse_pts = ellipse_pts[::10]
     for e in ellipse_pts:
       _, d = closestPoint(e, nodes)
-      distances.append(e)
+      distances.append(d)
+      if ellipse_pts.index(e)%1000==0:
+        print('%i (of %i) sampled so far' %(ellipse_pts.index(e), len(ellipse_pts)))
     return distances
   elif type(multi) is int:
     from multiprocessing import Pool
     p = Pool(multi)
-    distances = pool.map(closestPointPool, 
+    #distances = pool.map(closestPointPool, 
+  return distances
   
+
+
+#######################################################################
+# simple branch stuff
+
+def branch_lengths(geo, locations=False):
+  lengths = [b.length for b in geo.branches]
+  locations = [b.coordAt(0.5) for b in geo.branches]
+  if locations:
+    return lengths, locations
+  else:
+    return lengths
+
+
+def branch_order(geo):
+  geo.calcForewardBranchOrder()
+  return [b.branchOrder for b in geo.branches]
+    
+
+def 
+
+
+
+#######################################################################
+# tip-to-tip distances
+
+def tip_to_tip(geo):
+  """
+  Who knows -- this might be important some day.
+  """  
+  tips, tipInds = geo.
   
+
+
+
 
 
 
