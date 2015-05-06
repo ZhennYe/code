@@ -197,6 +197,7 @@ def path_lengths2(geo):
 # sholl stuff
 
 def interpoint_dist(geo):
+  # NOT CURRENTLY USED
   # determine the distances between successive points
   def nodex(node):
     return [node.x, node.y, node.z]
@@ -209,7 +210,46 @@ def interpoint_dist(geo):
   return dists
 
 
+def can_branch_be_added_again(geo, branch, sholl, key):
+  # NOT CURRENTLY USED
+  # profile branch
+  soma = geo.soma.nodeAt(0)
+  dD = [np.sign(node3(branch.nodes[n+1],soma)-node3(branch.nodes[n],soma))
+        for n in range(len(branch.nodes)-1)]
+  dLoc = [node3(i,soma) for i in branch.nodes[:-1]]
+  changepts = []
+  last_i = dD[0]
+  for i in dD:
+    if np.sign(i) != np.sign(last_i):
+      changepts.append([dLoc[dD.index(i)], np.sign(i)])
+      last_i = np.sign(i) # if there's a change, update the i
+  # now figure out how many can be added
+  if len(changepts) == 0:
+    return False
+  # if it only loops back once and hasn't been added twice, add it again
+  elif len(changepts) == 1:
+    if changepts[0][1] == -1: # if loops back
+      if float(key) > changepts[0][0]:
+        if sholl[key][1].count(branch) <= 1: # make 
+          return True
+    elif changepts[0][1] == 1: # if loops OUT
+      if float(key) > changepts[0][0]:
+        if sholl[key][1].count(branch) <= 1:
+          return True
+  else: # multiple change pts
+    if sholl[key][1].count(branch) >= len(changepts) + 1:
+      return False # already used all its changepts
+    else:
+      # assume forward order
+      c = sholl[key][1].count(branch)
+      change_sholls = [i[0] for i in changepts]
+      if float(key) > min(change_sholls) and float(key) < max(change_sholls):
+        return
+  return
+
+
 def interpolate_nodes(geo, return_nodes=False):
+  # NOT CURRENTLY USED
   # find the most common distance betwixt successive nodes and then,
   # when successive nodes leave integer multiples of this distance
   # interpolate the difference to 'even' it out
@@ -262,67 +302,94 @@ def hooser_sholl(geo, sholl_lines=1000):
   integer, whereupon the program creates that many evenly-spaced radii,
   or can be a vector whose values are used for sholl radii.
   """
+  def get_neighbors(geo, branch, neb_segs):
+    # For each possible neighbor, if it shares more than 1 node in common
+    # with the branch, don't add it (it's probably the branch itself)
+    possible_nodes = branch.nodes
+    possible_segs, possible_locs = [], []
+    for s in neb_segs:
+      count = 0
+      for n in s.nodes:
+        if n in possible_nodes:
+          count = count + 1
+          if s.nodes.index(n) == len(s.nodes):
+            possible_locs.append(-1)
+          else:
+            possible_locs.append(s.nodes.index(n))
+          possible_segs.append(s)
+      if count > 1:
+        for j in range(count):
+          possible_segs.pop()
+          possible_locs.pop()
+    # get the actual location of
+    next_locs = []
+    for i in possible_locs:
+      if i == 0:
+        next_locs.append(1)
+      elif i == -1:
+        next_locs.append(-2)
+    possible_segs, possible_locs = possible_segs[0], possible_locs[0]
+    return possible_segs.nodes[possible_locs]
+    
   # helper functions
-  def can_branch_be_added_again(geo, branch, sholl, key):
-    # profile branch
-    soma = geo.soma.nodeAt(0)
-    dD = [np.sign(node3(branch.nodes[n+1],soma)-node3(branch.nodes[n],soma))
-          for n in range(len(branch.nodes)-1)]
-    dLoc = [node3(i,soma) for i in branch.nodes[:-1]]
-    changepts = []
-    last_i = dD[0]
-    for i in dD:
-      if np.sign(i) != np.sign(last_i):
-        changepts.append([dLoc[dD.index(i)], np.sign(i)])
-        last_i = np.sign(i) # if there's a change, update the i
-    # now figure out how many can be added
-    if len(changepts) == 0:
-      return False
-    # if it only loops back once and hasn't been added twice, add it again
-    elif len(changepts) == 1:
-      if changepts[0][1] == -1: # if loops back
-        if float(key) > changepts[0][0]:
-          if sholl[key][1].count(branch) <= 1: # make 
-            return True
-      elif changepts[0][1] == 1: # if loops OUT
-        if float(key) > changepts[0][0]:
-          if sholl[key][1].count(branch) <= 1:
-            return True
-    else: # multiple change pts
-      if sholl[key][1].count(branch) >= len(changepts) + 1:
-        return False # already used all its changepts
-      else:
-        # assume forward order
-        c = sholl[key][1].count(branch)
-        change_sholls = [i[0] for i in changepts]
-        if float(key) > min(change_sholls) and float(key) < max(change_sholls):
-          return
-    return
-          
-  
   def cross_node(geo, branch, nodeNum, sholl):
+    # Determine if a sholl line is crossed by this node->next node
     soma = geo.soma.nodeAt(0)
-    try:
-      next_dist = node3(branch.nodes[nodeNum+1], soma)
-    except:
-      next_dist = node3(branch.nodes[nodeNum], soma)
-    try:
-      prev_dist = node3(branch.nodes[nodeNum-1], soma)
-    except:
-      prev_dist = node3(branch.nodes[nodeNum], soma)
+    nebs = None
+    #try: # if there is a next node, add it
+    next_dist = node3(branch.nodes[nodeNum+1], soma)
+    #except: # if not, find a ('the'?) neighboring node
+    #  print('error!')
+    #  try:
+    #    nebs = [i[2] for i in branch.neighborLocations if i[0]==1]
+    #  except:
+    #    nebs = None
+    # if this is the last node and there and neighbors with this node,
+    # get the next node from the neighbors
+    #if nebs:
+    #  next_dist = get_neighbors(geo, branch, nebs)
+    #else:
+    #  return sholl
     node_dist = node3(branch.nodes[nodeNum], soma)
     for i in [float(k) for k in sholl.keys()]:
-      if i < max([next_dist, node_dist, prev_dist]) and \
-        i > min([next
+      if i < max([next_dist, node_dist]) and \
+        i > min([next_dist, node_dist]):
+          sholl[str(i)][0] = sholl[str(i)][0] + 1
+          sholl[str(i)][1].append(branch)
+    return sholl
       
-  soma = geo.soma.coordAt(0.5)
+  soma = geo.soma.nodeAt(0)
   sholl = {} # dictionary of crossings as keys, numcrossings as [0] (int)
              # and branches that cross (as objects? names?) as [1] (list)
   # integer mode
   if type(sholl_lines) is int:
+    dists = [node3(n,soma) for n in geo.nodes]
+    dists.sort()
+    d99 = dists[int(len(dists)*.99)] # get 99% of the nodes
+    lines = np.linspace(min(dists), d99, sholl_lines)
+    for l in lines:
+      sholl[str(l)] = [0,[]]
+  # list mode
+  elif type(sholl_lines) is list or type(sholl_lines) is np.ndarray:
+    for l in sholl_lines:
+      sholl[str(l)] = [0, []]
+  else:
+    print('sholl_lines input must be int or list or ndarray!')
+    print('instead got %s' %str(type(sholl_list)))
+    return None
+  # go through branches and nodes and tabulate crossings
+  for b in geo.branches:
+    for nodeNum in range(len(b.nodes)-1): # here was change -1
+      sholl = cross_node(geo, b, nodeNum, sholl)
+  sholl_keys = list(sholl.keys())
+  float_keys = [float(i) for i in sholl_keys]
+  float_keys.sort()
+  sholl_count = [sholl[str(i)][0] for i in float_keys]
+  
+  return [float_keys, sholl_count], sholl
     
   
-  
+
 
 
 
@@ -392,6 +459,16 @@ def tip_coords(geo, seg_tips):
     for t in seg_tips[k]:
       tip_coords[k].append(t.coordAt(1))
   return tip_coords
+
+
+def simplify_asymmetry(geo):
+  # simplification of asymmetry data
+  seg_lengths, seg_tips = tips_asymmetry(geo)
+  sumlengths = sum([seg_lengths[k] for k in seg_lengths.keys()])
+  sumtips = sum([len(seg_tips[k]) for k in seg_tips.keys()])
+  lengths = [seg_lengths[k]/(sumlengths-seg_lengths[k]) for k in seg_lengths.keys()]
+  tips = [float(len(seg_tips[k]))/float((sumtips-len(seg_tips[k]))) for k in seg_tips.keys()]
+  return lengths, tips
   
   
 
@@ -801,7 +878,6 @@ def branch_order(geo):
   return [b.branchOrder for b in geo.branches]
     
 
-def 
 
 
 
@@ -812,15 +888,17 @@ def tip_to_tip(geo):
   """
   Who knows -- this might be important some day.
   """  
-  tips, tipInds = geo.
+  tips, tipInds = geo.getTipIndices()
+  tip_dists = []
+  for t, tI in zip(
   
 
 
 
 
-
-
-  
+#######################################################################
+# partial deriv for x,y,z to show how often branch changes direction?
+# not sure what this provides that branch tortuosity doesn't??
 
 
 
