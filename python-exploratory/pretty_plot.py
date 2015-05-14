@@ -5,6 +5,8 @@ import matplotlib.patches as mpatches
 import numpy as np
 
 
+########################################################################
+# helper functions
 
 def lims(V):
   # get upper and lower bounds on a LIST OF LISTS (or matrix) D=2
@@ -19,8 +21,32 @@ def lims(V):
   return mi, ma
 
 
+def condition_by_name(labels, arr, arr2=None, arr3=None):
+  # sort by common labels in order so same types show up next to one another
+  unique_labels = np.unique([i for i in labels])
+  order = []
+  for i in unique_labels:
+    for x in range(len(labels)):
+      if labels[x] == i:
+        order.append(x)
+  new_labels = [labels[j] for j in order]
+  new_arr = [arr[j] for j in order]
+  if arr2:
+    new_arr2 = [arr2[j] for j in order]
+  if arr3:
+    new_arr3 = [arr3[j] for j in order]
+    return new_labels, new_arr, new_arr2, new_arr3
+  if arr2:
+    return new_labels, new_arr, new_arr2
+  return new_labels, new_arr
 
-def pretty_boxplot(V, labelsin, title=None, ticks=None):
+
+
+
+########################################################################
+# pretty plots
+
+def pretty_boxplot(V, labelsin, title=None, ticks=None, axes=None):
   """
   V is a matrix of arrays to be plotted; labels must be same length.
   labels = ['PD', 'LG' ...], ticks = ['791_233', ...]
@@ -40,7 +66,8 @@ def pretty_boxplot(V, labelsin, title=None, ticks=None):
     #ax.set_xticklabels(ticks, rotation=45) # rotate ticks
   elif ticks is None:
     box = ax.boxplot(V, labels=[' ' for i in range(len(labelsin))],
-                     showmeans=True, notch=True, patch_artist=True)
+                     showmeans=True, notch=True, patch_artist=True,
+                     showfliers=False)
   else:
     box = ax.boxplot(V, labels=labelsin, showmeans=True, notch=True, 
                      patch_artist=True, showfliers=False)
@@ -51,14 +78,17 @@ def pretty_boxplot(V, labelsin, title=None, ticks=None):
   # legend
   khaki_patch = mpatches.Patch(color='darkkhaki', 
                 label=labelsin[C.index(fcolors.index('darkkhaki'))])
-  royal_patch = mpatches.Patch(color='royalblue', 
+  royal_patch = mpatches.Patch(color='royalblue',   
                 label=labelsin[C.index(fcolors.index('royalblue'))])
   forest_patch = mpatches.Patch(color='forestgreen', 
                 label=labelsin[C.index(fcolors.index('forestgreen'))])
   lavender_patch = mpatches.Patch(color='lavenderblush', 
                 label=labelsin[C.index(fcolors.index('lavenderblush'))])
   plt.legend(handles=[khaki_patch, royal_patch, forest_patch, lavender_patch])
-  # title
+  # titles
+  if axes:
+    ax.set_xlabel(axes[0], fontsize=15)
+    ax.set_ylabel(axes[1], fontsize=15)
   ax.set_title(title, fontsize=20)
   
   plt.show()
@@ -170,7 +200,101 @@ def plot_cum_dist(V, labelsin, title=None):
     ax.set_title(title, fontsize=20)
   
   plt.show()
+
+
+
+# def regress_scatter(xdata, 
+
+def plot_hori_bullshit(xdata, labelsin, title=None, axes=None, norm=False):
+  # xdata is list of lists (distribution)
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  L = list(np.unique(labelsin))
+  C = [L.index(i) for i in labelsin]
+  # print(L,C)
+  fig = plt.figure()
+  plots = [fig.add_subplot(1,len(xdata),i) for i in range(len(xdata))]
+  if norm is True:
+    tdata = np.linspace(0,100,len(xdata[0]))
+  else:
+    minm, maxm = np.inf, 0 # condition the data
+    for x in xdata:
+      if np.mean(x)-np.std(x) < minm:
+        minm = np.mean(x)-np.std(x)
+      if np.mean(x)+np.std(x) > maxm:
+        maxm = np.mean(x)+np.std(x)
+    if minm < 0:
+      minm = 0.
+  for p in range(len(xdata)): # now plot
+    b_e = np.linspace(minm, maxm, int(len(xdata[p])/10)) # len/10 bins
+    hist, _ = np.histogram(xdata[p], bins=b_e)
+    plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
+    # area = [10*i for i in hist[0]]
+    if norm is True:
+      print('plotting normalized bars')
+      plots[p].barh(tdata, xdata[p], height=1, color=colors[C[p]],
+                    edgecolor=colors[C[p]])
+    else:
+      #print(b_e[:10], hist[:10])
+      plots[p].barh(plotbins, hist, height=1, color=colors[C[p]],
+                    edgecolor=colors[C[p]])
+    if p == 1: #if first plot
+      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+                           labelbottom='off')
+      if axes:
+        plots[p].set_ylabel(axes[1], fontsize=15)
+      plots[p].set_ylim([minm, maxm])
+    else:
+      #plots[p].axis('off')
+      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+                           labelbottom='off')
+      plots[p].get_yaxis().set_visible(False)
+      plots[p].set_ylim([minm,maxm])
+    #plots[p].set_title(titles[p])
+  if title:
+    plt.suptitle(title, fontsize=20)
+  plt.show()
+  return
+
+
+
+def plot_hori_bars(xdata, labelsin, title=None, axes=None, norm=False):
+  # xdata is list of lists (distribution)
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  L = list(np.unique(labelsin))
+  C = [L.index(i) for i in labelsin]
+  # print(L,C)
+  fig = plt.figure()
+  plots = [fig.add_subplot(1,len(xdata),i) for i in range(len(xdata))]
+  if norm:
+    tdata = np.linspace(0,100,len(xdata[0]))
+  for p in range(len(xdata)):
+    hist, b_e = np.histogram(xdata[p], bins=20)
+    plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
+    # area = [10*i for i in hist[0]]
+    if norm:
+      plots[p].barh(tdata, xdata[p], height=1, color=colors[C[p]],
+                    edgecolor=colors[C[p]])
+    else:
+      plots[p].barh(plotbins, xdata[p], height=1, color=colors[C[p]],
+                    edgecolor=colors[C[p]])
+    if p == 1: #if first plot
+      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+                           labelbottom='off')
+      plots[p].set_ylabel(axes[1], fontsize=15)
+      plots[p].set_ylim([0,100])
+    else:
+      #plots[p].axis('off')
+      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+                           labelbottom='off')
+      plots[p].get_yaxis().set_visible(False)
+      plots[p].set_ylim([0,100])
+    #plots[p].set_title(titles[p])
+  if title:
+    plt.suptitle(title, fontsize=20)
+  plt.show()
+  return
   
+
 
 
 def line_scatter(xdata, ydata, labelsin=None, title=None, 
@@ -182,7 +306,7 @@ def line_scatter(xdata, ydata, labelsin=None, title=None,
                 'deeppink','orchid']
   markerlist = ['v','o','*','s']
   fig = plt.figure()
-  ax = fig.add_subplot(222) # change this to 121 for legend outside fig
+  ax = fig.add_subplot(111) # change this to 121 for legend outside fig
   
   if groups is not None:
     L = len(groups)

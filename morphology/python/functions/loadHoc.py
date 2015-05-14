@@ -439,5 +439,37 @@ if __name__ == '__main__':
   else:
     geometry = HocGeometry(hocFile)
     
-        
+########################################################################
+def writeHoc(geo, fName):
+  """
+  Write a hoc file.
+  """
+  print('Writing output file %s ...' % fName)
+  with open(fName, 'w') as fOut:
+    
+    def createSection(geo, secNum):
+      fOut.write('create section_%i\n' %secNum)
+      fOut.write('section_%i {\n' %secNum)
+      fOut.write('pt3dclear()\n')
+      for node in range(len(geo.segments[secNum].nodes)):
+        fOut.write('pt3dadd(%.6f, %.6f, %.6f, %.6f)\n' \
+                   % (geo.segments[secNum].nodes[node].x,
+                      geo.segments[secNum].nodes[node].y,
+                      geo.segments[secNum].nodes[node].z,
+                      geo.segments[secNum].nodes[node].r1))
+      fOut.write('}\n')
+    
+    def createConnection(geo):
+      for c in range(len(geo.connections)):
+        con_list = [geo.connections[c]['filament1'],
+                    geo.connections[c]['location1'],
+                    geo.connections[c]['filament2'],
+                    geo.connections[c]['location2']]
+        fOut.write('connect %s(%.1f), %s(%.1f)\n' \
+                   % (con_list[0], con_list[1], con_list[2], con_list[3]))
+    
+    
+    for sec in range(len(geo.segments)):
+      createSection(geo, sec)
+    createConnection(geo)
 
