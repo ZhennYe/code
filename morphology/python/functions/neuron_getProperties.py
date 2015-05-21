@@ -22,6 +22,15 @@ def farthest_pt(pts):
   return dmax
 
 
+def farthest_pt2(pts):
+  sumpts = [sum(p) for p in pts]
+  minpt = pts.index(sumpts.index(min(sumpts)))
+  maxpt = pts.index(sumpts.index(max(sumpts)))
+  dmax = dist3(minpt, maxpt)
+  return dmax*1.5
+    
+
+
 def checko(obj):
   unique_files, unique_items, unique_cells = None, None, None
   if type(obj) is not dict:
@@ -427,6 +436,81 @@ def get_segment(geo, segname):
       return s
 
 
+def add_all_downstream(geo, seg, prev_seg):
+  # print('called add_all_downstream')
+  newsegs = [seg]
+  prevsegs = [prev_seg]
+  for n in prev_seg.neighbors:
+    if n != seg:
+      prevsegs.append(n)
+  go = True
+  same = 0
+  while go:
+    old_len = len(newsegs)
+    for n in newsegs:
+      for neb in n.neighbors:
+        if neb not in prevsegs:
+          newsegs.append(neb)
+      prevsegs.append(n)
+    if len(newsegs) == old_len: # if no change in newsegs, increment
+      same = same + 1
+    else:
+      same = 0
+    if same > 10: # after 10 no-changes, stop
+      go = False
+  # get tips and lengths
+  length = sum([s.length for s in newsegs])
+  tips, _ = geo.getTipIndices()
+  numtips = 0
+  for t in tips:
+    try:
+      if geo.segments[t] in newsegs:
+        numtips = numtips + 1
+    except:
+      continue
+  return length, numtips
+
+
+def somatofugal_length(geo):
+  print('Building lengths and tips...')
+  prev_segs = [geo.soma]
+  next_segs = [n for n in geo.soma.neighbors if n not in prev_segs]
+  seg_lengths, seg_tips = {}, {}
+  for n in next_segs:
+    nlen, ntip = add_all_downstream(geo, n, geo.soma)
+    seg_lengths[n.name] = nlen
+    seg_tips[n.name] = ntip
+  go, cnt = True, 0
+  while go:
+    old_len, new_next_segs = len(prev_segs), []
+    for n in next_segs:
+      for neb in n.neighbors:
+        if neb not in prev_segs and neb not in next_segs:
+          # now that have all the new segs, get their len & tips
+          nlen, ntip = add_all_downstream(geo, neb, n)
+          if neb.name in seg_lengths.keys() or neb.name in seg_tips.keys():
+            print('Tried to add %s but is already there' %neb.name)
+          else:
+            seg_lengths[neb.name], seg_tips[neb.name] = nlen, ntip
+          # add nebs to next_segs and n to prev_segs
+          new_next_segs.append(neb)
+      # put n into prev_segs
+      prev_segs.append(next_segs.pop(next_segs.index(n)))
+    # next_segs should be empty now
+    next_segs = [i for i in new_next_segs]
+    if len(prev_segs) == old_len:
+      cnt = cnt + 1
+    else:
+      cnt = 0
+    if cnt == 50 or len(prev_segs)==len(geo.segments):
+      go = False
+  print('Got %i (of %i) lengths and %i (of %i) tips)'
+        %(len(seg_lengths), len(geo.segments),
+          len(seg_tips), len(geo.segments)))
+  return seg_lengths, seg_tips
+
+
+
 def tips_asymmetry(geo):
   """
   Get the tip asymmetry of the neuron. Follow the soma's neighbors
@@ -434,47 +518,40 @@ def tips_asymmetry(geo):
   seg_lengths: dict with a section_name for keys and float as values
   seg_tips: dict with sec_name as key and list of segment objects as values
   """
-  def add_all_downstream(geo, seg, prev_seg):
-    print('called add_all_downstream')
-    newsegs = [seg]
-    prevsegs = [prev_seg]
-    go = True
-    same = 0
-    while go:
-      old_len = len(newsegs)
-      for n in newsegs:
-        for neb in n.neighbors:
-          if neb not in prevsegs:
-            newsegs.append(neb)
-        prevsegs.append(n)
-      if len(newsegs) == old_len: # if no change in newsegs, increment
-        same = same + 1
-      else:
-        same = 0
-      if same > 10: # after 10 no-changes, stop
-        go = False
-    # get tips and lengths
-    length = sum([s.length for s in newsegs])
-    tips, _ = geo.getTipIndices()
-    segtips = [geo.segments[t] for t in tips if geo.segments[t] in newsegs]
-    return length, float(len(segtips))
-  
-  def get_bif_info(geo, seg, prev_seg):
+  seg_lengths, seg_tips = somatofugal_length(geo) # this will get a lot of them
+  def get_bif_info(geo, seg, prev_seg, seg_lengths, seg_tips):
     # Given a branch and the previous branch (so we know the direction
-    # of movement), make a dictionary with the none-previous neighbors as
+    # of movement), make a dictionary with the non-previous neighbors as
     # keys and add all subsequent lengths and tips to the respective keys
-    print('called get_bif_info')
+    # print('called get_bif_info')
     forward_nebs = [n for n in seg.neighbors if n != prev_seg]
     neb_dict = {}
     lengths, tips = [], []
     for f in forward_nebs:
-      length, tip = add_all_downstream(geo, f, branch)
-      lengths.append(length)
-      tips.append(tip)
+      # if this seg isn't already part of seg_lengths/tips, add it
+      if f.name not in seg_lengths.keys():
+        length, tip = add_all_downstream(geo, f, seg)
+        seg_lengths[f.name] = length
+      if f.name not in seg_tips.keys():
+        seg_tips[f.name] = tip
+      # now it should be part, for future reference, too
+      lengths.append(seg_lengths[f.name])
+      tips.append(seg_tips[f.name])
       # neb_dict[f.name] = {'prevbranch': branch.name, 'length': 0, 'tips': 0}
-    length_asym = [i/(sum(lengths)-i) for i in lengths]
-    tip_asym = [i/(sum(tips)-i) for i in tips]
-    return length_asym, tip_asym
+    length_asym = []
+    for l in lengths:
+      try:
+        length_asym.append(l/(sum(lengths)-l))
+      except:
+        continue
+    #length_asym = [i/(sum(lengths)-i) for i in lengths]
+    tip_asym = [] # [i/(sum(tips)-i) for i in tips]
+    for t in tips:
+      try:
+        tip_asym.append(t/(sum(tips)-t))
+      except:
+        continue
+    return length_asym, tip_asym, seg_lengths, seg_tips
   
   # go through all branches in order
   master_lengths, master_tips = [], []
@@ -492,7 +569,7 @@ def tips_asymmetry(geo):
       if len(nebs) > 1: # now if there are > 1 neighbors (a branch)
         print('found a bifurcation!')
         for k in nebs:
-          lengths, tips = get_bif_info(geo, n, k)
+          lengths, tips, seg_lengths, seg_tips = get_bif_info(geo, n, k, seg_lengths, seg_tips)
           for i in lengths:
             master_lengths.append(i)
           for j in tips:
@@ -505,7 +582,7 @@ def tips_asymmetry(geo):
       same = same + 1
     else:
       same = 0
-    if same > 1000:
+    if same > 10:
       go = False
       return master_lengths, master_tips, prevsegs
     old_len = len(newsegs)
@@ -940,7 +1017,7 @@ def branch_order(geo):
   return [b.branchOrder for b in geo.branches]
     
 
-def 
+
 
 
 
@@ -976,6 +1053,7 @@ def tip_to_tip(geo):
 # helper functions
 def element_histogram(data, bins):
   # Also returns the actual data, list (of len(bins)-1) of lists
+  # This might be bottle neck -- omitted from function for now
   thing = [[] for i in bins]
   noplace = 0
   for d in data:
@@ -1004,10 +1082,16 @@ def pt8_slope(bins, masses, where=False):
   bins, masses = [np.log(i) for i in bins], [np.log(i) for i in masses]
   slopes = [(masses[i+1]-masses[i])/(bins[i+1]-bins[i]) for i in
                                                         range(len(bins)-1)]
-  delta = [slopes[i+1]-slopes[i] for i in range(len(slopes)-1)]
+  delta = [abs(slopes[i+1]-slopes[i]) for i in range(len(slopes)-1)]
   # find 8-pt min for delta in slope
-  mins = [sum([delta[i:i+7]]) for i in range(len(delta)-8)]
-  start_pt = mins.index(min(mins))
+  mins = [sum(delta[i:int(i)+7]) for i in range(len(delta)-8)]
+  possible_pts = [i for i in mins]
+  possible_pts.sort()
+  for p in possible_pts:
+    check = np.mean(slopes[mins.index(p):mins.index(p)+7])
+    if check > 0:
+      start_pt = mins.index(p)
+      break
   frac_dim = np.mean(slopes[start_pt:start_pt+7])
   if where == True:
     return frac_dim, start_pt+3
@@ -1020,8 +1104,9 @@ def fractal_dimension(geo, where=False):
   Calculate fractal dimension.
   """
   pts = [nodex(n) for n in geo.nodes]
-  div = int(len(pts)/10000)
-  pts = pts[::div] # downsample to ~ 10,000 pts for time
+  if len(pts) > 10000:
+    div = int(len(pts)/10000)
+    pts = pts[::div] # downsample to ~ 10,000 pts for time
   maxm = farthest_pt(pts)
   bin_e = np.linspace(0., maxm, 1001)
   dists = []
@@ -1032,25 +1117,31 @@ def fractal_dimension(geo, where=False):
       dists.append(dist3(i,j))
   # now all dists are calculated
   hist, bin_e = np.histogram(dists, bin_e)
-  spheres = element_histogram(dists, bin_e)
-  masses = [np.sqrt((sum([i**2 for i in D]))/np.sqrt(len(D))) for D in spheres] # radius of gyration
-  # should now be a mass for every bin radius
+  #spheres = element_histogram(dists, bin_e)
   bins = [(bin_e[i]+bin_e[i+1])/2 for i in range(len(bin_e)-1)]
+  masses = [np.sqrt((bins[i]**2 * hist[i]) / np.sqrt(hist[i])) 
+            for i in range(len(bins))] # radius of gyration
+  # if hist[i] == 0 this gives nan, clean these date
+  bad_inds = [i for i in range(len(masses)) if str(masses[i])=='nan']
+  masses = [masses[i] for i in range(len(masses)) if i not in bad_inds]
+  bins = [bins[i] for i in range(len(bins)) if i not in bad_inds]
+  # should now be a mass for every bin radius
   frac_dim = pt8_slope(bins, masses, where)
-  if len(frac_dim) > 1:
+  if type(frac_dim) is list:
     return frac_dim[0], bins, masses, frac_dim[1]
-  return frac_dim, bins, masses
+  return [frac_dim, bins, masses]
   
 
 # plot fit
-def showFractalDimension(frac_d, bins, masses):
+def showFractalDimension(frac_d, bins, masses, fname=None):
   # Show a plot of the fit to the constant slope
-  frac_dim, bins2, masses2, loc = pt8_slope(bins, masses, where=True)
-  if bins2 != bins or masses2 != masses:
-    print('Discrepency in new elements of bins or masses; using old values')
-  ptx, pty = [bins[loc], bins[0], bins[-1]], [masses[loc]]
-  pty.append((bins[0]-bins[loc])*frac_dim)
-  pty.append((bins[-1]-bins[loc])*frac_dim)
+  frac_dim, loc = pt8_slope(bins, masses, where=True)
+  #if bins2 != bins or masses2 != masses:
+  #  print('Discrepency in new elements of bins or masses; using old values')
+  ptx, pty = [np.log(bins[0]), np.log(bins[loc]), np.log(bins[-1])], []
+  pty.append(np.log(masses[loc])-(np.log(bins[loc])-np.log(bins[0]))*frac_dim)
+  pty.append(np.log(masses[loc]))
+  pty.append(np.log(masses[loc])+(np.log(bins[-1])-np.log(bins[loc]))*frac_dim)
   fig = plt.figure()
   ax = fig.add_subplot(111)
   ax.scatter(np.log(bins), np.log(masses), color='b', edgecolor='b',
@@ -1058,9 +1149,12 @@ def showFractalDimension(frac_d, bins, masses):
   ax.plot(ptx, pty, color='r', linewidth=3, alpha=0.5)
   ax.set_xlabel('Log radius um^x')
   ax.set_ylabel('Log mass')
-  ax.set_title('Fractal dimension fit for %.5f' %frac_dim)
+  if fname is not None:
+    ax.set_title('Fractal dimension for %s (%.2f)' %(fname, frac_dim))
+  else:
+    ax.set_title('Fractal dimension (%.2f)' %frac_dim)
   plt.show()
-  return
+  return 
   
 
 
