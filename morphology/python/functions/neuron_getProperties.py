@@ -5,6 +5,7 @@ import numpy as np
 import math, os
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.patches as mpatches
 
 
 
@@ -430,13 +431,56 @@ def hooser_sholl(geo, sholl_lines=1000):
 ######################################################################
 # partition asymmetry
 
+
+def path_asymmetry(geo ):
+  """
+  This version uses paths and sets to calculate the length asymmetry.
+  """
+  pDF = PathDistanceFinder(geo, geo.soma, 0) # initialize pDF
+  tipSegs, tipLocs = geo.getTipIndices()
+  paths = [] # get all the paths
+  for s in range(len(tipSegs)):
+    try:
+      paths.append(pDF.pathTo(geo.segments[tipSegs[s]],tipLocs[s]))
+    except:
+      continue
+  length_asymmetry = []
+  for p1 in paths:
+    if paths.index(p1) % 100 == 0:
+      print('completed %i (of %i) paths' %(paths.index(p1),len(paths)))
+    for p2 in paths:
+      if p1 != p2: # make sure not the same
+        p_root = [i for i in p1 if i in p2]
+        # make sure they share common segments, then do analysis
+        if len(p_root) > 0:
+          l_p1 = sum([s.length for s in p1])
+          l_p2 = sum([s.length for s in p2])
+          l_root = sum([s.length for s in p_root])
+          if l_p1 > l_p2: # always put greater in denominator (customary)
+            if l_p2 == 0:
+              print('missed one')
+              pass
+            else:
+              length_asymmetry.append((l_p2-l_root)/(l_p1-l_root))
+          else:
+            if l_p1 == 0:
+              print('missed one')
+            else:
+              length_asymmetry.append((l_p1-l_root)/(l_p2-l_root))
+  if len(length_asymmetry) > 1000:
+    return length_asymmetry[::int(len(length_asymmetry)/1000)]
+  else:
+    return length_asymmetry
+
+
+
 def get_segment(geo, segname):
   for s in geo.segments:
     if s.name == segname:
       return s
 
 
-def add_all_downstream(geo, seg, prev_seg):
+def add_all_downstream(geo, seg, prev_seg, tips):
   # print('called add_all_downstream')
   newsegs = [seg]
   prevsegs = [prev_seg]
@@ -459,16 +503,121 @@ def add_all_downstream(geo, seg, prev_seg):
     if same > 10: # after 10 no-changes, stop
       go = False
   # get tips and lengths
-  length = sum([s.length for s in newsegs])
-  tips, _ = geo.getTipIndices()
-  numtips = 0
+  pDF = PathDistanceFinder(geo, seg, 0)
+  numtips, length = 0, []
   for t in tips:
     try:
       if geo.segments[t] in newsegs:
         numtips = numtips + 1
+        add_segs = pDF.pathTo(t,1)
+        for a in add_segs:
+          if a not in length:
+            length.append(a)
     except:
       continue
+  length = sum([l.length for l in length])
   return length, numtips
+
+
+
+def tips_asymmetry(geo):
+  """
+  Get the tip asymmetry of the neuron. Follow the soma's neighbors
+  until there are more than 1, then start there.
+  seg_lengths: dict with a section_name for keys and float as values
+  seg_tips: dict with sec_name as key and list of segment objects as values
+  """
+  def get_bif_info(geo, seg, prev_seg, tips):
+    # Given a branch and the previous branch (so we know the direction
+    # of movement), make a dictionary with the non-previous neighbors as
+    # keys and add all subsequent lengths and tips to the respective keys
+    # print('called get_bif_info')
+    forward_nebs = [n for n in seg.neighbors if n != prev_seg]
+    neb_dict = {}
+    lengths, tips = [], []
+    for f in forward_nebs:
+      length, tip = add_all_downstream(geo, f, seg, tips)
+      # now it should be part, for future reference, too
+      lengths.append(length)
+      tips.append(tips)
+      # neb_dict[f.name] = {'prevbranch': branch.name, 'length': 0, 'tips': 0}
+    length_asym = []
+    for l in lengths:
+      try:
+        length_asym.append(l/(sum(lengths)-l))
+      except:
+        continue
+    #length_asym = [i/(sum(lengths)-i) for i in lengths]
+    tip_asym = [] # [i/(sum(tips)-i) for i in tips]
+    for t in tips:
+      try:
+        tip_asym.append(t/(sum(tips)-t))
+      except:
+        continue
+    return length_asym, tip_asym
+  
+  # go through all branches in order
+  tips, _ = geo.getTipIndices()
+  #print('got tips')
+  master_lengths, master_tips = [], []
+  prevsegs = [geo.soma]
+  newsegs = [i for i in geo.soma.neighbors if i not in prevsegs]
+  print(newsegs)
+  go, same = True, 0
+  while go:
+    old_len = len(newsegs)
+    for n in newsegs:
+      nebs = n.neighbors
+      for k in nebs: # remove repeated segs
+        if k in prevsegs:
+          nebs.pop(nebs.index(k))
+      if len(nebs) > 1: # now if there are > 1 neighbors (a branch)
+        print('found a bifurcation!')
+        for k in nebs:
+          lengths, tips = get_bif_info(geo, n, k, tips)
+          for i in lengths:
+            master_lengths.append(i)
+          for j in tips:
+            master_tips.append(j)
+          if k not in newsegs:
+            newsegs.append(k) # done with k-th neighbor
+      elif len(nebs) == 1:
+        # if it's not a bifurcation, add it to prevsegs
+        prevsegs.append(nebs[0])
+      if n not in prevsegs:
+        prevsegs.append(n) # done with n-th newseg
+    if len(newsegs) == old_len:
+      same = same + 1
+      #print(same)
+    else:
+      same = 0
+    if same > 1000:
+      go = False
+      return master_lengths, master_tips, prevsegs
+    old_len = len(newsegs)
+  # it should never get to this part, but in case it does
+  return master_lengths, master_tips, prevsegs
+
+
+def tip_coords(geo, seg_tips):
+  # return x-y-z tuples for each tip; just use the (1) position of each tip seg
+  tip_coords = {}
+  for k in seg_tips.keys():
+    tip_coords[k] = []
+    for t in seg_tips[k]:
+      tip_coords[k].append(t.coordAt(1))
+  return tip_coords
+
+
+def simplify_asymmetry(geo):
+  # simplification of asymmetry data
+  seg_lengths, seg_tips = tips_asymmetry(geo)
+  sumlengths = sum([seg_lengths[k] for k in seg_lengths.keys()])
+  sumtips = sum([len(seg_tips[k]) for k in seg_tips.keys()])
+  lengths = [seg_lengths[k]/(sumlengths-seg_lengths[k]) for k in seg_lengths.keys()]
+  tips = [float(len(seg_tips[k]))/float((sumtips-len(seg_tips[k]))) for k in seg_tips.keys()]
+  return lengths, tips
+
 
 
 def somatofugal_length(geo):
@@ -507,12 +656,13 @@ def somatofugal_length(geo):
   print('Got %i (of %i) lengths and %i (of %i) tips)'
         %(len(seg_lengths), len(geo.segments),
           len(seg_tips), len(geo.segments)))
-  return seg_lengths, seg_tips
+  return seg_lengths, seg_tips  
 
 
 
-def tips_asymmetry(geo):
+def tips_asymmetry_old(geo):
   """
+  ############## OLD VERSION!!! #####################
   Get the tip asymmetry of the neuron. Follow the soma's neighbors
   until there are more than 1, then start there.
   seg_lengths: dict with a section_name for keys and float as values
@@ -588,27 +738,6 @@ def tips_asymmetry(geo):
     old_len = len(newsegs)
   # it should never get to this part, but in case it does
   return master_lengths, master_tips, prevsegs
-
-
-def tip_coords(geo, seg_tips):
-  # return x-y-z tuples for each tip; just use the (1) position of each tip seg
-  tip_coords = {}
-  for k in seg_tips.keys():
-    tip_coords[k] = []
-    for t in seg_tips[k]:
-      tip_coords[k].append(t.coordAt(1))
-  return tip_coords
-
-
-def simplify_asymmetry(geo):
-  # simplification of asymmetry data
-  seg_lengths, seg_tips = tips_asymmetry(geo)
-  sumlengths = sum([seg_lengths[k] for k in seg_lengths.keys()])
-  sumtips = sum([len(seg_tips[k]) for k in seg_tips.keys()])
-  lengths = [seg_lengths[k]/(sumlengths-seg_lengths[k]) for k in seg_lengths.keys()]
-  tips = [float(len(seg_tips[k]))/float((sumtips-len(seg_tips[k]))) for k in seg_tips.keys()]
-  return lengths, tips
-  
   
 
 
@@ -1155,6 +1284,135 @@ def showFractalDimension(frac_d, bins, masses, fname=None):
     ax.set_title('Fractal dimension (%.2f)' %frac_dim)
   plt.show()
   return 
+  
+
+
+#######################################################################
+# soma position
+# this is kind of a bitch, only way I can think is the show the user
+# and let them decide; could automate and just take opposite of axon ,
+# but the program may find the axon wrong and then don't want to compound
+# mistakes; also, GM projects to aln and this won't work for that
+
+def display_simple_neuron(geo):
+  # default is to show lots of soma and axon but little of everything else
+  pts = [] # populate segments
+  for s in geo.segments:
+    pts.append(s.coordAt(0.5))
+  axons = geo.findAxons() # populate axon
+  axs = []
+  for a in axons:
+    for n in a.nodes:
+      axs.append([n.x,n.y,n.z])
+  sms = [] # populate soma
+  for n in geo.soma.nodes:
+    sms.append([n.x,n.y,n.z])
+  # plotting shit
+  fig = plt.figure()
+  ax = fig.add_subplot(111, projection='3d')
+  for p in pts:
+    ax.scatter(p[0],p[1],p[2], c='b',edgecolor='b', alpha=0.2)
+  for p in axs:
+    ax.scatter(p[0],p[1],p[2], c='r',edgecolor='r', alpha=0.5)
+  for p in sms:
+    ax.scatter(p[0],p[1],p[2], c='k', edgecolor='k', alpha=0.5)
+  ax.set_xlabel('x axis')
+  ax.set_ylabel('y axis')
+  ax.set_zlabel('z axis')
+  ax.set_aspect('equal')
+  plt.show()
+  return
+
+
+
+def place_soma(geo, stn_val):
+  """
+  Places the stn in 3-D to find the soma's position. stn_val should be
+  a 3-tuple where any None value becomes the mean for that coordinate;
+  i.e.: for 836_047 the y and z are none but the x is -100 to place the 
+  stn at the end of the neuropil, so stn_val = [-100, None, None]
+  This function also assumes an X-Y- major projection! Important for phi.
+  """
+  # These copied from branch_angles
+  def dist3(pt0, pt1):
+    if len(pt0) == len(pt1) and len(pt0) == 3:
+      return math.sqrt(sum([(pt0[i]-pt1[i])**2 for i in range(3)]))
+    else:
+      print('dimension mismatch')
+      print(pt0, pt1)
+  #
+  def get_angle(pt0, midpt, pt1):
+    if pt0 in [midpt, pt1] or pt1 in [midpt, pt0] or midpt in [pt0,pt1]:
+      print('Some points are the same!')
+      print(pt0, midpt, pt1)
+    PT0 = dist3(pt1, midpt)
+    PT1 = dist3(pt0, midpt)
+    MIDPT = dist3(pt0, pt1)
+    try:
+      ang = math.acos( (MIDPT**2 - PT1**2 - PT0**2) / (2*PT1*PT0) )
+      ang = ang*180/math.pi
+    except:
+      ang = 'nan'
+    return ang
+  #
+  pts = [s.coordAt(0) for s in geo.segments]
+  means = [np.mean([m[0] for m in pts]),
+           np.mean([m[1] for m in pts]),
+           np.mean([m[2] for m in pts])]
+  for s in range(len(stn_val)): # make sure stn_val is kosher
+    if stn_val[s] == None or stn_val[s] == 0:
+      stn_val[s] = means[s]
+  theta_val = stn_val
+  phi_val = [means[0],means[1],100] # doesn't really matter for z, just needs be positive
+  soma_val = geo.soma.coordAt(0)
+  theta = get_angle(theta_val, means, soma_val)
+  phi = abs(get_angle(phi_val, means, soma_val))-90. # from X-Y plane
+  r = dist3(means, soma_val)
+  return 180-theta, phi, r
+
+
+
+def plot_soma_positions(arr, types=None):
+  """
+  Input is a list of 3-tuples [theta (from stn in X-Y), phi (elevation
+  from X-Y plane at stn and center of neuropil), r (distance from center 
+  of neuropil].
+  """
+  def polar_to_rect(p):
+    x = p[2]*np.cos(p[0]/180*np.pi)
+    y = p[2]*np.sin(p[0]/180*np.pi)
+    z = p[2]*np.sin(p[1]/180*np.pi)
+    return [x,y,z]
+  pts = [polar_to_rect(p) for p in arr]
+  stn_length = max([p[2] for p in arr])
+  # get colors
+  colors = ['royalblue','forestgreen','darkkhaki','deeppink']
+  if types:
+    if type(types[0]) is not int:
+      names = list(set(types))
+      types = [names.index(i) for i in types]
+    cols = [colors[i] for i in types]
+    patches = []
+    for n in range(len(names)): # should not exceed 3 (4 cell types)
+      patches.append( mpatches.Patch(color=colors[n], label=names[n]) )
+  fig = plt.figure()
+  ax = fig.add_subplot(111, projection='3d')
+  # set up the axes
+  ax.plot([0,stn_length], [0,0],[0,0], linewidth=5, c='k')
+  ax.plot([0,-stn_length*.5],[0,0], [0,0], linewidth=1, c='k')
+  ax.plot([0,0],[stn_length*.5,-(stn_length*.5)],[0,0], linewidth=1,c='k')
+  # plot the soma
+  for p in pts:
+    if types:
+      ax.scatter(p[0],p[1],p[2],s=100,c=cols[pts.index(p)], 
+                 edgecolor=cols[pts.index(p)])
+    else:
+      ax.scatter(p[0],p[1],p[2],s=100)
+  if types:
+    plt.legend(handles=patches, loc='best')
+  ax.set_zlim([-stn_length*.5, stn_length*0.5])
+  plt.show()
+  return
   
 
 

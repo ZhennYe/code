@@ -259,7 +259,9 @@ def plot_cross_secs(cs):
 
 
 
-######## fake cross sections #######
+#########################################################################
+######################### fake cross sections ###########################
+"""
 def fake_cross_section(fake_filament='/home/alex/data/morphology/848/848_081/fake_filament/'):
   def dist(inds0, inds1):
     if len(inds0) != len(inds1): print('Dimension mismatch!')
@@ -320,7 +322,7 @@ def fake_cross_section(fake_filament='/home/alex/data/morphology/848/848_081/fak
     cross_secs.append(cs) # once the plane exceeds the cross section, append
     
   return cross_secs, carr
-
+"""
 
 def display_fake_filament(darr):
   rimgs = [Image.fromarray(darr[i]) for i in range(10)]
@@ -364,6 +366,39 @@ def gen_segment(fake_filament):
   #pool.close()
   #pool.join()
   return darr # return multi-dimensional array
+
+
+############### New fake segment creation with numpy ##################
+
+def create_segment(dims=[96,96,96]): # June 2015
+  # Create a fake segment with voxels
+  stack = [np.zeros([dims[0],dims[1]]) for i in range(dims[2])]
+  # process is an 8-by-8 square by default
+  for z in range(96):
+    for i in range(8):
+      for j in range(8):
+        try:
+          stack[z][z+i][z+j] = 1
+        except:
+          pass
+  # done with fake filament; now make fake skeleton
+  skel = []
+  for i in range(4,92):
+    skel.append([i,i,i])
+  return stack, skel
+
+
+def show_slice(stack, z=int(len(stack)/2)):
+  # Show a particular slice of interest
+  for i in range(len(stack)):
+    for j in range(len(stack[i])):
+      for k in range(len(stack[i][j])):
+        if stack[i][j][k] > 0:
+          stack[i][j][k] = 255
+  img = Image.fromarray(stack[z])
+  img.show()
+  return
+
 
 
 def plot_multi_coords(skelcoords, voxelcoords=None, plancoords=None, alfs=None):
@@ -536,36 +571,136 @@ def gen_plane(pt0, pt1, voxel, M=15, sshow=False):
   vec = gen_vec(pt0, pt1)
   if len(vec) != 3:
     print('Error: a vector is defined by 3 values: i,j,k')
+    return None
+  numpts = int(dist([0,0,0],vec)/dist([0,0,0],voxel))*M
+  # i also think this is automatically scaled to pt0
+  plancoords = []
+  xs = np.linspace(vec[0]-voxel[0]*numpts,vec[0]+voxel[0]*numpts, numpts*2) # default is + 10 voxels
+  ys = np.linspace(vec[1]-voxel[1]*numpts,vec[1]+voxel[1]*numpts, numpts*2)
+  def solve(vec, x, y):
+    return -((x*vec[0] + y*vec[1])/vec[2])
+  for m in xs: # Xs generated first
+    for n in ys: # Ys generated second
+      plancoords.append([m+voxel[0],n+voxel[1],solve(vec,m,n)+voxel[2]])
+      # this also scales it back to the original location
+  means = [np.mean([p[0] for p in plancoords]),
+           np.mean([p[1] for p in plancoords]),
+           np.mean([p[2] for p in plancoords])]
+  # subtract the means, add the first pt
+  for p in range(len(plancoords)):
+    plancoords[p][0] = plancoords[p][0] - means[0] + pt0[0]
+    plancoords[p][1] = plancoords[p][1] - means[1] + pt0[1]
+    plancoords[p][2] = plancoords[p][2] - means[2] + pt0[2]
+  lin = [[v*i for v in vec] for i in range(-10,10)] 
+  if sshow == True:
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    for p in plancoords:
+      ax.scatter(p[0],p[1],p[2], c='b', edgecolor='b', alpha=0.1)
+    for p in lin:
+      ax.scatter(p[0],p[1],p[2], c='r', edgecolor='r')
+    plt.show()
+  return plancoords, numpts # ALSO returns numpoints
+
+
+############################################## The good stuff #########
+
+def gen_vec(pt0, pt1):
+  if len(pt0) == len(pt1):
+    return [pt1[i]-pt0[i] for i in range(len(pt0))]
   else:
-    numpts = int(dist([0,0,0],vec)/dist([0,0,0],voxel))*M
-    # i also think this is automatically scaled to pt0
-    plancoords = []
-    xs = np.linspace(vec[0]-voxel[0]*numpts,vec[0]+voxel[0]*numpts, numpts*2) # default is + 10 voxels
-    ys = np.linspace(vec[1]-voxel[1]*numpts,vec[1]+voxel[1]*numpts, numpts*2)
-    def solve(vec, x, y):
-      return -((x*vec[0] + y*vec[1])/vec[2])
-    for m in xs: # Xs generated first
-      for n in ys: # Ys generated second
-        plancoords.append([m+voxel[0],n+voxel[1],solve(vec,m,n)+voxel[2]])
-        # this also scales it back to the original location
-    means = [np.mean([p[0] for p in plancoords]),
-             np.mean([p[1] for p in plancoords]),
-             np.mean([p[2] for p in plancoords])]
-    # subtract the means, add the first pt
-    for p in range(len(plancoords)):
-      plancoords[p][0] = plancoords[p][0] - means[0] + pt0[0]
-      plancoords[p][1] = plancoords[p][1] - means[1] + pt0[1]
-      plancoords[p][2] = plancoords[p][2] - means[2] + pt0[2]
-    lin = [[v*i for v in vec] for i in range(-10,10)] 
-    if sshow == True:
-      fig = plt.figure()
-      ax = fig.add_subplot(111, projection='3d')
-      for p in plancoords:
-        ax.scatter(p[0],p[1],p[2], c='b', edgecolor='b', alpha=0.1)
-      for p in lin:
-        ax.scatter(p[0],p[1],p[2], c='r', edgecolor='r')
-      plt.show()
-    return plancoords, numpts # ALSO returns numpoints
+    print('Dimension mismatch: %i and %i' %(len(pt0),len(pt1)))
+
+
+
+def gen_plane_index(sk0, sk1, M=15):
+  """
+  Same as above but uses indices instead of coordinates.
+  """
+  vec = gen_vec(sk0, sk1)
+  numpts = M
+  planinds = []
+  xs = [int(i) for i in np.linspace(vec[0]-numpts, vec[0]+numpts, numpts*2)]
+  ys = [int(i) for i in np.linspace(vec[1]-numpts, vec[1]+numpts, numpts*2)]
+  def solve(vec, x, y): # the plane equation
+    return -((x*vec[0] + y*vec[1])/vec[2])
+  for m in xs:
+    for n in ys:
+      planinds.append([m, n, int(solve(vec, m, n))])
+  means = [np.mean([p[0] for p in planinds]),
+           np.mean([p[1] for p in planinds]),
+           np.mean([p[2] for p in planinds])]
+  for p in range(len(planinds)):
+    planinds[p] = [planinds[p][i]+sk0[i] for i in range(3)]
+  return planinds, numpts
+
+
+
+def get_cross_sec(sk0, sk1, stack):
+  """
+  Returns a cross section of the intersection; tricky because the stack
+  is [z][x][y] but _everything_ else is [x][y][z].
+  """
+  # get plane
+  planinds, numpts = gen_plane_index(sk0, sk1, M=15)
+  dims = np.shape(stack)
+  def pt_ok(pt, dims):
+    # returns false if pt is outside shape of stack
+    if p[0] < 0 or p[0] > dims[1]-1:
+      return False
+    if p[1] < 0 or p[1] > dims[2]-1:
+      return False
+    if p[2] < 0 or p[2] > dims[0]-1:
+      return False
+    return True
+  #
+  cs = np.zeros([2*numpts, 2*numpts])
+  x_ind, y_ind, startpt = 0, 0, None
+  for p in planinds:
+    if y_ind >= 2*numpts:
+      y_ind = 0
+      x_ind = x_ind + 1
+    if pt_ok(p, dims): # if point inside stack
+      # print(x_ind, y_ind)
+      cs[x_ind][y_ind] = stack[p[2]][p[0]][p[1]]
+      if p == sk0:
+        startpt = [x_ind, y_ind]
+    # this should populate the cs with binary 1 for intersections and 0 otherwise
+    y_ind = y_ind + 1
+  # should now have the whole plane (cross section)
+  if startpt is not None:
+    print('Got the start point')
+  return cs, startpt
+
+
+
+def spiral_cross_sec(sk0, sk1, stack):
+  """
+  Apply spiral algo to the section.
+  """
+  cs, startpt = get_cross_sec(sk0, sk1, stack)
+  s = Spiral(cs, startpt)
+  area = s.area
+  rad = np.sqrt(area/np.pi)
+  return rad
+
+
+
+def get_skeleton_rads(skel, stack):
+  """
+  Get the radius of all cross-sections in the stack.
+  """
+  rads = [spiral_cross_sec(skel[s],skel[s+1], stack) for s in range(len(skel)-1)]
+  if len(rads) != len(skel)-1:
+    print('Did not get all the sections')
+  else:
+    print('got them all!')
+  return rads
+
+
+
+
+############################################## end of good stuffs ########
 
 
 def scale_plane(plancoords, pt0, voxel):

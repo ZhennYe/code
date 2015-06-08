@@ -104,7 +104,11 @@ def pretty_scatter(V, labelsin, title=None):
   
 
 
-def pretty_bar(v, labelsin, stderr=None, ticks=None, title=None):
+#def pretty_errbar(V, labelsin, std
+
+
+
+def pretty_bar(v, labelsin, stderr=None, ticks=None, title=None, axes=None):
   """
   
   """
@@ -126,7 +130,7 @@ def pretty_bar(v, labelsin, stderr=None, ticks=None, title=None):
   # plotting
   if stderr is not None:
     for e in range(num):
-      ax.bar(e,V[e], yerr=Vstd[e], color=fcolors[C[e]], ecolor='k')
+      ax.bar(e,V[e], yerr=Vstd[e], color=fcolors[C[e]], ecolor='k', width=0.5)
   else:
     for e in range(num):
       ax.bar(e,V[e], color=fcolors[C[e]], ecolor='k', width=0.5)
@@ -144,16 +148,18 @@ def pretty_bar(v, labelsin, stderr=None, ticks=None, title=None):
     lavender_patch = mpatches.Patch(color='lavenderblush', 
                   label=labelsin[C.index(fcolors.index('lavenderblush'))])
     patches.append(lavender_patch)
-  plt.legend(handles=patches)
+  plt.legend(handles=patches, loc='best')
   if stderr is not None:
-    ax.set_ylim([0, max(V)+np.mean(Vstd)])
+    ax.set_ylim([0, max(V)+10*np.mean(Vstd)])
   else:
     ax.set_ylim([0, max(V)+0.5*min(V)])
-    ax.set_xlim([-.5, len(V)])
+  ax.set_xlim([-.5, len(V)])
   # title
   if title:
     ax.set_title(title, fontsize=20)
-  
+  if axes is not None:
+    ax.set_xlabel(axes[0], fontsize=15)
+    ax.set_ylabel(axes[1], fontsize=15)
   plt.show(); return  
 
 
@@ -225,17 +231,18 @@ def plot_hori_bullshit(xdata, labelsin, title=None, axes=None, norm=False):
     if minm < 0:
       minm = 0.
   for p in range(len(xdata)): # now plot
-    b_e = np.linspace(minm, maxm, int(len(xdata[p])/10)) # len/10 bins
+    b_e = np.linspace(minm, maxm, int(len(xdata[p])/100)) # len/100 bins
     hist, _ = np.histogram(xdata[p], bins=b_e)
     plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
-    # area = [10*i for i in hist[0]]
+    # divine the appropriate bar width
+    hgt = (maxm-minm)/len(plotbins)
     if norm is True:
       print('plotting normalized bars')
       plots[p].barh(tdata, xdata[p], height=1, color=colors[C[p]],
                     edgecolor=colors[C[p]])
     else:
-      #print(b_e[:10], hist[:10])
-      plots[p].barh(plotbins, hist, height=1, color=colors[C[p]],
+      #print(b_e[:10], hist[:10]) # height is bar width !
+      plots[p].barh(plotbins, hist, height=hgt, color=colors[C[p]],
                     edgecolor=colors[C[p]])
     if p == 1: #if first plot
       plots[p].tick_params(axis='x',which='both',bottom='off',top='off',

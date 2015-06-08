@@ -1,7 +1,7 @@
 # spiral.py -- this spirals in a space-filling way
 
 import numpy as np
-from imageMatrix import *
+# from imageMatrix import *
 
 
 
@@ -135,6 +135,7 @@ class Spiral(): # cross-scetion
       # else it is automatically added to dead_pts
   
   
+  ## Not used!
   def retire_pts(self):
     # if a point is surrounded on all sides by active or dead points
     # (or both), make it dead
