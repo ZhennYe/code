@@ -23,10 +23,11 @@ typedef vector< tuple<int, int, int> > tuple_list;
 
 class IM {
   private:
+
+  public:
     vector<int> dims;
     const char* fileName;
     const char* skelfile;
-  public:
     // Public members
     array3d stack;
     tuple_list skeleton;

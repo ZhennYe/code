@@ -10,7 +10,7 @@
 #include "Spiral.h"
 
 
-using namespace std;
+// using namespace std;
 using boost::tuple;
 using namespace Eigen;
 
@@ -20,7 +20,7 @@ using namespace Eigen;
 //                       Loading the matrix
 
 
-IM:IM(const char* fname, const char* sfile, vector<int> ddims) {
+IM:IM(const char* fname, const char* sfile, std::vector<int> ddims) {
   fileName = fname;
   skelfile = sfile;
   dims = ddims;
@@ -31,7 +31,7 @@ IM:IM(const char* fname, const char* sfile, vector<int> ddims) {
 // Load the matrix
 // This method takes the specific image file name and the dims,
 // it returns the 2-D <int> array (which is then turned into an eigen matrix).
-int** get_matrix(const char* imname, vector<int> dims) {
+int** get_matrix(const char* imname, std::vector<int> dims) {
   ifstream file(fileName);
   int** data = 0;
   data = new int*[dims[0]];
@@ -49,7 +49,7 @@ int** get_matrix(const char* imname, vector<int> dims) {
 // Turn the matrix into an eigen matrix
 // This method is independent of IM objects *even though* it uses
 // dims objects; the dims vector must be passed explicitly.
-MatrixXi eigen_matrix(int** data, vector<int> dims) {
+MatrixXi eigen_matrix(int** data, std::vector<int> dims) {
   MatrixXi mat(dims[0], dims[1]);
   // Assume row-major order
   for (int i = 0; i < dims[0]; i++) {
@@ -65,7 +65,7 @@ MatrixXi eigen_matrix(int** data, vector<int> dims) {
 // Load the stack from the file-list (fileName)
 void IM::get_stack() {
   // Get the file list from fileName
-  vector<string> files;
+  std::vector<string> files;
   ifstream file(fileName);
   while (file) {
     string tmp;

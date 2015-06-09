@@ -38,20 +38,25 @@ class Spiral {
     int prev; // 0=right->down, 1=left->up, 2=up->right, 3=down->left
     int x, y;
     std::vector<int> prev_pt;
-    int tgt;
+    int tgt = 0;
     int area;
     // Spiral functions
     Spiral(MatrixXi array, std::vector<int> ddims, boost::tuple<int, int> spt);
     void default_dead_pts();
     void no_changes();
-    tuple<bool, tuple<int, int> > check_next();
+    boost::tuple<bool, int, int> check_next();
     bool check_live_pt(std::vector<int> potpt);
     void log_pt();
     bool retire_pts();
     void spiral();
 };
 
+void show_tup(boost::tuple<int, int> tup);
+void show_tup_list(tuple_list tlist);
+void show_vec(std::vector<int> vec);
 bool is_element(tuple_list list, boost::tuple<int, int> tup);
+int cycle(int p);
+
 inline std::vector<int> move_up(std::vector<int> prev_pt);
 inline std::vector<int> move_down(std::vector<int> prev_pt);
 inline std::vector<int> move_left(std::vector<int> prev_pt);
