@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from timeit import default_timer as timer
 from spiral import *
-#import pickle
+from neuron_readExportedGeometry import *
 
 
 # SIMPLE TOOLS
@@ -136,57 +136,6 @@ def coords2matrix(coords, voxel, i=1):
   return newmat
 
 
-def get_vector(pt0, pt1):
-  if len(pt0) == len(pt1):
-    return [x-y for x,y in zip(pt0,pt1)]
-
-
-
-def test_plane(plan, cross_sec, voxel):
-  # if plane isn't large enough (all outer 1's adjacent to 0's) it doubles the size
-  if len(plan[0]) != 3 or len(voxel) != 3 or len(cross_sec[0]) != 3:
-    print('Need 3 values (x,y,z) for plane, cross section and voxel args')
-    return False
-  
-  def distance(pt0,pt1):
-    return np.sqrt(sum([(pt0[i]-pt1[i])**2 for i in range(3)]))
-  
-  def plane_info(plan):
-    def farthest_pt(pt,pts):
-      long_dist = 0
-      for p in pts:
-        if distance(p,pt) > long_dist:
-          long_dist = distance(p,pt)
-      return long_dist
-      
-    # start here
-  
-  def check_cs(p_info, cs_info):
-    # if the span of plan <= span of cs, the plane needs to be extended
-    # so that it is larger than the cross-section
-    expand = 1
-    for i in range(3):
-      if p_info['M'][i] <= cs_info['M'][i]:
-        expand = expand*0 
-    return [False, True][expand]
-  # if even 1 dimension is identical the plane should be extended
-  
-  #def expand_plan(p_info, voxel):
-  #  minmax = [['xmin','xmax'],['ymin','ymax'],['zmin','zmax']]
-
-  p_info = plan_info(plan)
-  cs_info = plan_info(cross_sec)
-  expand = check_cs(p_info, cs_info)
-  return expand
-  #if expand:
-  #  new_plane = expand_plan(p_info, voxel)
-  #  return [expand, new_plane]
-  #else:
-  #  return [expand]
-
-
-
-
 
 def switch_binary(arr):
   zarr = np.zeros(np.shape(arr))
@@ -198,174 +147,6 @@ def switch_binary(arr):
         zarr[i,j] = 255
   return zarr
 
-
-def clean_filament(darr):
-  """ Prints the locations of the skelpoints in the fake filament. """
-  #carr = np.zeros(np.shape(darr))
-  skelpts = []
-  if len(np.shape(darr)) == 3:
-    for s in range(len(darr)): # for each slice
-      width, start, row  = 0, None, None
-      for r in range(len(darr[s])): # for each row
-        count = 0
-        for c in range(len(darr[s][r])):
-          if darr[s][r][c] > 0 and count == 0:
-            temp_start = c
-          if darr[s][r][c] > 0:
-            count = count + 1
-        # at the end of each row:
-        if count > width:
-          width = count
-          start = temp_start
-          row = r
-      # at the end of each slice:
-      # skelpoint location: (slice #, row #, start + k)
-      print(s, row, start, int(width/2))
-      skelpts.append([s, row, start+int(width/2)])
-      darr[s][row][start+int(width/2)] = 2
-  if len(np.shape(darr)) == 2:
-    width, start, row  = 0, None, None
-    for r in range(len(darr)): # for each row
-      count = 0
-      for c in range(len(darr[r])):
-        if darr[r][c] > 0 and count == 0:
-          temp_start = c
-        if darr[r][c] > 0:
-          count = count + 1
-      # at the end of each row:
-      if count > width:
-        width = count
-        start = temp_start
-        row = r
-    # at the end of each slice:
-    # skelpoint location: (slice #, row #, start + k)
-    print(row, start+ int(width/2)) 
-    skelpts.append([row, start+int(width/2)])
-    darr[row][start+int(width/2)] = 2
-  return darr, skelpts
-
-
-
-def plot_cross_secs(cs):
-  # assumes each element in cs is a cross section with a [x,y,z]
-  fig = plt.figure()
-  ax = fig.add_subplot(111, projection='3d')
-  cols = ['b','r','g','y','k']*int(len(cs)/5+1)
-  for c in range(len(cs)):
-    for i in range(len(cs[c])):
-      ax.scatter(cs[c][i][0],cs[c][i][1],cs[c][i][2], c=cols[c], 
-                 edgecolor = cols[c], alpha = 0.1)
-  plt.show()
-
-
-
-#########################################################################
-######################### fake cross sections ###########################
-"""
-def fake_cross_section(fake_filament='/home/alex/data/morphology/848/848_081/fake_filament/'):
-  def dist(inds0, inds1):
-    if len(inds0) != len(inds1): print('Dimension mismatch!')
-    else:
-      return sum([math.sqrt((x-y)**2) for x,y in zip(inds0, inds1)])
-  
-  def return_nearest_dist(pt, points):
-    mindist = np.inf
-    for p in points:
-      currdist = dist(pt, p)
-      if currdist < mindist:
-        mindist = currdist
-    return mindist
-  
-  def get_skelcoords(darr, voxel, skel=2):
-    skelcoords = []
-    for s in range(len(darr)):
-      for i in range(len(darr[s])):
-        for j in range(len(darr[s][i])):
-          if darr[s][i][j] == 2:
-            skelcoords.append([x*y for x,y in zip(voxel,[i,j,s])])
-    return skelcoords
-  
-  def return_cross_section(pt0, pt1, darr, voxel, M=10):
-    # so that the plane can be scaled, get two points and instead of vec
-    vec = get_vector(pt0, pt1)
-    plancoords = gen_plane(vec, voxel, M, False)
-    # scale the plancoords to match with pt0
-    for p in range(len(plancoords)):
-      for i in range(3):
-        plancoords[p][i] = plancoords[p][i] + pt0[i]
-    voxelcoords = matrix2coords(darr, voxel)
-    vdist = 2 * dist([0,0,0],voxel)
-    cross_sec = []
-    for p in plancoords:
-      if return_nearest_dist(p, voxelcoords) <= vdist:
-        cross_sec.append(p)
-        
-    return cross_sec, plancoords
-    # plan_mat = coords2matrix(plancoords, voxel)
-    # want to find overlap between plane and segment
-    
-  def get_vector(pt0, pt1):
-    if len(pt0) == len(pt1):
-      return [x-y for x,y in zip(pt0,pt1)]
-    
-  voxel = [0.0176,0.0176,0.38]
-  darr = gen_segment(fake_filament) # raw image
-  carr = clean_filament(darr)
-  skelcoords = get_skelcoords(carr, voxel)
-  cross_secs = []
-  
-  for s in range(len(skelcoords)-1):
-    pt0, pt1 = skelcoords[s],skelcoords[s+1]
-    M=100
-    cs, plancoords = return_cross_section(pt0, pt1, carr, voxel, M)
-    # notbigenough = test_plane(plancoords, cs, voxel)
-    cross_secs.append(cs) # once the plane exceeds the cross section, append
-    
-  return cross_secs, carr
-"""
-
-def display_fake_filament(darr):
-  rimgs = [Image.fromarray(darr[i]) for i in range(10)]
-  for k in range(10):
-    rimgs[k].show()
-  return
-
-
-def gen_segment(fake_filament):
-  # default value
-  
-  def make_1d(arr, invert=True, gray=False): # make 1-D and grayscale, invert
-    narr = np.zeros([len(arr), len(arr[0])])
-    if gray:
-      newscheme = [0, 125, 255] # gray skeleton on black neuron, background white
-    else:
-      newscheme = [0,2,1] # 'binary', not gray
-    for i in range(len(arr)):
-      for j in range(len(arr[0])):
-        if arr[i,j,0] == 255:
-          narr[i,j] = newscheme[0]
-        elif arr[i,j,0] == 0:
-          narr[i,j] = newscheme[2]
-        else:
-          narr[i,j] = newscheme[2]
-    return narr
-    
-  def load_fake_segment(imfile):
-    img = Image.open(imfile)
-    arr = np.array(img)
-    return make_1d(arr) # already been done!
-    
-  fils = os.listdir(fake_filament)
-  fils = [fake_filament+i for i in fils]
-  fils.sort()
-  darr = []
-  for f in fils:
-    darr.append(load_fake_segment(f))
-  #pool = Pool() # these calls were yielding a pickle error related to pool properties
-  #darr = pool.map(load_fake_segment, fils) # 
-  #pool.close()
-  #pool.join()
-  return darr # return multi-dimensional array
 
 
 ############### New fake segment creation with numpy ##################
@@ -401,99 +182,8 @@ def show_slice(stack, z=int(len(stack)/2)):
 
 
 
-def plot_multi_coords(skelcoords, voxelcoords=None, plancoords=None, alfs=None):
-  fig = plt.figure()
-  ax = fig.add_subplot(111, projection='3d')
-  colors = ['r','b','k']
-  if alfs is None:
-    alphas =  [0.1,0.01,0.01]
-  elif type(alfs) is int:
-    alphas=[alfs, alfs, alfs]
-  elif type(alfs) is list:
-    alphas = alfs
-  print('Starting plot...')
-  for s in skelcoords:
-    ax.scatter(s[0],s[1],s[2],c=colors[0],edgecolor=colors[0],alpha=alphas[0])
-  if voxelcoords is not None:
-    for v in voxelcoords:
-      ax.scatter(v[0],v[1],v[2],c=colors[1],edgecolor=colors[1],alpha=alphas[1])
-  if plancoords is not None:
-    for p in plancoords:
-      ax.scatter(p[0],p[1],p[2],c=colors[2],edgecolor=colors[2],alpha=alphas[2])
-  plt.show()
-  return
-  
-
-
-
 # BINARY OPTIONS 
 ########################################################################
-
-def make_binary(imFile):
-  # make a binary image with a moving average
-  # this version is currently not being used
-  arr = load_img_array(imFile)
-  zarr = np.zeros(np.shape(arr))
-  on = False
-  avg = None
-  firstcol, lastcol = 0, len(arr[0])-1
-  for row in range(len(arr)):
-    brightest = max(arr[row])
-    ind = list(arr[row]).index(brightest)
-    zarr[row,ind] = 1
-    
-    # proceed bidirectionally
-    if ind != firstcol and ind != lastcol:
-      # negative direction
-      prev = brightest
-      neg_ind = ind
-      while neg_ind > firstcol:
-        neg_ind = neg_ind - 1
-        if abs((arr[row, neg_ind]-arr[row, ind]) \
-          / max(arr[row,ind],arr[row,neg_ind])) < 0.1:
-            # include in binary array
-            zarr[row, neg_ind] = 1
-            prev = arr[row, neg_ind]
-      # positive direction
-      prev = brightest
-      pos_ind = ind
-      while pos_ind < lastcol:
-        pos_ind = pos_ind + 1
-        if abs((arr[row, pos_ind]-arr[row,ind]) \
-          / max(arr[row,ind], arr[row,pos_ind])) < 0.1:
-            # include in binary array
-            zarr[row, pos_ind] = 1
-            prev = arr[row, pos_ind]
-      # else they will be zero as pre-set
-    elif ind == firstcol:
-      # only need positive direction
-      prev = brightest
-      pos_ind = ind
-      while pos_ind < lastcol:
-        pos_ind = pos_ind + 1
-        if abs((arr[row, pos_ind]-arr[row,ind]) \
-          / max(arr[row,ind], arr[row,pos_ind])) < 0.1:
-            # include in binary array
-            zarr[row, pos_ind] = 1
-            prev = arr[row, pos_ind]
-    elif ind == lastcol:
-      # only need negative direction
-      prev = brightest
-      neg_ind = ind
-      while neg_ind > firstcol:
-        neg_ind = neg_ind - 1
-        if abs((arr[row, neg_ind]-arr[row, ind]) \
-          / max(arr[row,ind],arr[row,neg_ind])) < 0.1:
-            # include in binary array
-            zarr[row, neg_ind] = 1
-            prev = arr[row, neg_ind]
-    else:
-      print('Bad column found in row %i, col %i' %(row, ind))
-  # marks end of a row
-  
-  return zarr # binary array
-
-
 
 def make_binary_thresh(imfile, thresh=20):
   # uses a hard threshold to determine which pixels to include
@@ -523,85 +213,6 @@ def make_binary_thresh(imfile, thresh=20):
 
 
 
-def make_binary_fromhist(imfile,T=1.0, sshow=False):
-  img = Image.open(imfile)
-  arr = np.array(img)
-  # helper function
-  def betch(arr):
-    bets = []
-    for i in range(len(arr)):
-      for j in range(len(arr[0])):
-        bets.append(arr[i,j])
-    return bets
-  bins, edges = np.histogram(betch(arr), 255) # one bin for each intensity
-  edges = [(edges[i]+edges[i+1])/2 for i in range(len(edges)-1)]
-  target = bins[-1]*T # last bin should be 255, mult by the provided T val
-  curr, ind = np.inf, -1
-  while curr > target:
-    ind = ind+1
-    curr = bins[ind]
-  thresh = edges[ind-1]
-  # make binary image
-  zarr = np.zeros(np.shape(arr))
-  for i in range(len(arr)):
-    for j in range(len(arr[0])):
-      if arr[i,j] > thresh:
-        if sshow == True:
-          zarr[i,j] = 255
-        else:
-          zarr[i,j] = 1
-  if sshow == True:
-    zimg = Image.fromarray(zarr)
-    zimg.show()
-    
-  print('file %s done' %imfile)
-  return zarr
-
-
-
-# MEAT AND POTATOES
-########################################################################
-
-def gen_plane(pt0, pt1, voxel, M=15, sshow=False):
-  """
-  Assuming that the distance between skelpoints is somewhat related
-  to the width of the neurite and therefore the length of the normal 
-  vector will reflect this.
-  """
-  vec = gen_vec(pt0, pt1)
-  if len(vec) != 3:
-    print('Error: a vector is defined by 3 values: i,j,k')
-    return None
-  numpts = int(dist([0,0,0],vec)/dist([0,0,0],voxel))*M
-  # i also think this is automatically scaled to pt0
-  plancoords = []
-  xs = np.linspace(vec[0]-voxel[0]*numpts,vec[0]+voxel[0]*numpts, numpts*2) # default is + 10 voxels
-  ys = np.linspace(vec[1]-voxel[1]*numpts,vec[1]+voxel[1]*numpts, numpts*2)
-  def solve(vec, x, y):
-    return -((x*vec[0] + y*vec[1])/vec[2])
-  for m in xs: # Xs generated first
-    for n in ys: # Ys generated second
-      plancoords.append([m+voxel[0],n+voxel[1],solve(vec,m,n)+voxel[2]])
-      # this also scales it back to the original location
-  means = [np.mean([p[0] for p in plancoords]),
-           np.mean([p[1] for p in plancoords]),
-           np.mean([p[2] for p in plancoords])]
-  # subtract the means, add the first pt
-  for p in range(len(plancoords)):
-    plancoords[p][0] = plancoords[p][0] - means[0] + pt0[0]
-    plancoords[p][1] = plancoords[p][1] - means[1] + pt0[1]
-    plancoords[p][2] = plancoords[p][2] - means[2] + pt0[2]
-  lin = [[v*i for v in vec] for i in range(-10,10)] 
-  if sshow == True:
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    for p in plancoords:
-      ax.scatter(p[0],p[1],p[2], c='b', edgecolor='b', alpha=0.1)
-    for p in lin:
-      ax.scatter(p[0],p[1],p[2], c='r', edgecolor='r')
-    plt.show()
-  return plancoords, numpts # ALSO returns numpoints
-
 
 ############################################## The good stuff #########
 
@@ -623,6 +234,8 @@ def gen_plane_index(sk0, sk1, M=15):
   xs = [int(i) for i in np.linspace(vec[0]-numpts, vec[0]+numpts, numpts*2)]
   ys = [int(i) for i in np.linspace(vec[1]-numpts, vec[1]+numpts, numpts*2)]
   def solve(vec, x, y): # the plane equation
+    if vec[2]==0:
+      return -((x*vec[0] + y*vec[1])/0.1)
     return -((x*vec[0] + y*vec[1])/vec[2])
   for m in xs:
     for n in ys:
@@ -639,7 +252,7 @@ def gen_plane_index(sk0, sk1, M=15):
 def get_cross_sec(sk0, sk1, stack):
   """
   Returns a cross section of the intersection; tricky because the stack
-  is [z][x][y] but _everything_ else is [x][y][z].
+  is [z][x][y] but *everything* else is [x][y][z].
   """
   # get plane
   planinds, numpts = gen_plane_index(sk0, sk1, M=15)
@@ -686,6 +299,34 @@ def spiral_cross_sec(sk0, sk1, stack):
 
 
 
+def get_geo_rads(geo, stack, switchxy=True):
+  """
+  Get the radius of all skeleton points from a geo file.
+  """
+  rads = np.zeros(len(geo.nodes))
+  for b in geo.branches:
+    for n in range(len(b.nodes)-1):
+      # If this radius has already been retrieved, forget it
+      if rads[geo.nodes.index(b.nodes[n])] != 0:
+        r = rads[geo.nodes.index(b.nodes[n])]
+      else:
+        if switchxy:
+          sk0 = [int(i) for i in [b.nodes[n].y, b.nodes[n].x, b.nodes[n].z]]
+          sk1 = [int(i) for i in [b.nodes[n+1].y, b.nodes[n+1].x, b.nodes[n+1].z]]
+        else:
+          sk0 = [int(i) for i in [b.nodes[n].x, b.nodes[n].y, b.nodes[n].z]]
+          sk1 = [int(i) for i in [b.nodes[n+1].x, b.nodes[n+1].y, b.nodes[n+1].z]]
+        print(sk0, sk1)
+        r = spiral_cross_sec(sk0, sk1, stack)
+        print('Got radius: %.2f' %r)
+        rads[geo.nodes.index(b.nodes[n])] = r
+      # If it's the last node, give it the same radius as the prev one
+      if (n+1) == len(b.nodes)-1:
+        rads[geo.nodes.index(b.nodes[n+1])] = r
+  return rads
+
+
+
 def get_skeleton_rads(skel, stack):
   """
   Get the radius of all cross-sections in the stack.
@@ -699,182 +340,130 @@ def get_skeleton_rads(skel, stack):
 
 
 
-
-############################################## end of good stuffs ########
-
-
-def scale_plane(plancoords, pt0, voxel):
-  vcoords = [] # ints for indexing the 3-D array self.varr
-  for p in plancoords:
-    p = [p[i]+pt0[i] for i in range(3)]
-    vcoords.append([int(p[i]/voxel[i]) for i in range(3)])
-  return vcoords
-
-
-def plane_XY(plancoords, numpts):
-  xdiff = dist(plancoords[0], plancoords[1])
-  ydiff = dist(plancoords[0], plancoords[numpts])
-  return [xdiff, ydiff]
-
-
-def return_cross_sec_array(plane, varr, numpts, switch=False):
+def add_radius(hocFile, geo, rads, newHocFile='new_hoc_radius.hoc'):
   """
-  Plane is [i,j,k] triplets of the normal-plane, not [x,y,z] coordinates.
-  Varr is the gigantic 3-D array of the voxelized image. This function
-  returns a plane-sized 2-D array to be spiraled.
+  The hocFile should have already been loaded, but this is easier. This
+  function will match the loaded geo objects (especially nodes) to the
+  node list loaded previously. It uses the geo object to map the new radii
+  onto the new hocfile.
   """
-  # plane = [plane[len(plane)-i-1] for i in range(len(plane))]
-  sarr = np.zeros((numpts*2, numpts*2)) # get the whole plane, keep skelpoint at center
-  means = []
-  for i in range(3):
-    means.append(int(np.mean([p[i] for p in plane])))
-  log = []
-  #sarr[means[0]][means[
-  # SHOULD switch varr[z,x,y] to match plane[x,y,z], not sure why this works...
-  for m in range(len(sarr)): # 'i' values first
-    for n in range(len(sarr[m])): # 'j' values of new array
-      if switch:
-        vals = [int(i) for i in [plane[m*2*numpts+n][1],plane[m*2*numpts+n][0], plane[m*2*numpts+n][1]]]
-      else:                                            # vals = [z,x,y]
-        vals = [int(i) for i in plane[m*2*numpts + n]] # vals = [x,y,z]
-      
-      if vals[0] < 0 or vals[0] > np.shape(varr)[0]-1: # varr = [z,x,y]
-        sarr[m][n] = 0 # X
-      elif vals[1] < 0 or vals[1] > np.shape(varr)[1]-1:
-        sarr[m][n] = 0 # Y
-      elif vals[2] < 0 or vals[2] > np.shape(varr)[2]-1:
-        sarr[m][n] = 0 # Z
-      else: ####
-        if switch:
-          if varr[vals[2]][vals[0]][vals[1]] > 0:
-            sarr[m][n] = 1
-        elif not switch: ###
-          if varr[vals[0]][vals[1]][vals[2]] > 0:
-            sarr[m][n] = 1
-            log.append([dist(vals, means), m,n])
-
-    # done with cols
-  # done with rows
-  newlog = sorted(log)
-  print(newlog)
-  if len(newlog) > 0:
-    return sarr, [newlog[0][1],newlog[0][2]]
-  else:
-    return sarr, None
-  """
-  sarr = np.zeros([numpts, numpts])
-  for m in range(numpts):
-    for n in range(numpts):
-      # if the array == 1 at the plane voxel value, make a 1, else 0
-      shape = np.shape(varr)
-      # if the plane is past the reaches of the varr, make it zero
-      if plane[(m*numpts)+n][0] > shape[0]-1 or plane[(m*numpts)+n][1] > shape[1]-1 or plane[(m*numpts)+n][2] > shape[2]-1:
-        sarr[m][n] = 0
-      else:
-        try:
-          if varr[plane[(m*numpts)+n][0]][plane[(m*numpts)+n][1]][plane[(m*numpts)+n][2]] == 1:
-            sarr[m][n] = 1
+  geo2 = demoRead(hocFile)
+  # Populate the node dictionary with rads
+  raddict = {}
+  for n in geo.nodes:
+    nkey = [n.x, n.y, n.z]
+    raddict[nkey] = rads[geo.nodes.index(n)]
+  if len(raddict.keys()) != len(geo2.nodes):
+    print('Geo files are different!')
+    return
+  # Write the new hocfile; only change the pt3dadd rad values
+  with open(newHocFile, 'w') as fOut:
+    with open(hocFile, 'r') as fIn:
+      for line in fIn:
+        if line:
+          splitLine = line.split('(')
+          # If it's a line with a radius, write the new line
+          if splitLine[0] == 'pt3dadd':
+            x, y, z, rad = splitLine[1].split(',')
+            try:
+              rad = raddict[[float(x), float(y), float(z)]]
+            except:
+              print('No radius found!')
+              rad = np.mean(rads)
+            fOut.write('pt3dadd(%f, %f, %f, %f)\n' %(x, y, z, rad))
+          # Else, just write the original line
           else:
-            sarr[m][n] = 0
-        except:
-          sarr[m][n] = 0
-  # now 1s should be where the plane normal to the skelpoints vector
-  # intersects with supra-threshold image voxel values and 0 otherwise
-  return sarr
+            fOut.write(line)
+  return
+  
+
+
+
+######################### end of good stuffs #############################
+
+
+
+def suggest_thresh(imfile, th_range=None):
   """
-  
-
-
-# this mapping function will parallelize image loading and thresholding
-def import_images(folder, par=True, ttime=True):
   """
-  This function loads images from a folder as PIL Image files and
-  thresholds them, creating a list of z-slices to be turned into a matrix
-  This version is not currently used.
-  """
-  fils = [os.listdir(folder)]
-  def keep_tifs(rawlist):
-    tiflist = []
-    for f in rawlist:
-      if len(f.split('.'))>1:
-        if f.split('.')[1] == 'tif':
-          tiflist.append(f)
-    return tiflist
-  tiflist = keep_tifs(fils)
-  newtiflist = [folder+f for f in tiflist].sort() # alphabetize
-  tifobjs = [load_img_array(f) for f in tiflist]
-  
-  # here start parallel stuff
-  if par or ttime:
-    start_time_par = timer()
-    pool = Pool(8)
-    results_par = pool.map(show_at_thresh, tifobjs)
-    pool.close()
-    pool.join()
-    total_time_par = timer() - start_time_par
-  # or non-parallel stuff
-  elif par==False or ttime:
-    start_time_nopar = timer()
-    results_nopar = [show_at_thresh(f) for f in newtiflist]
-    total_time_nopar = timer() - start_time_nopar
-  print('Time for parallel: %.2f seconds' % total_time_par)
-  print('Time for non-parallel: %.2f seconds' % total_time_nopar)
-  
-  return results_par, results_nopar
-  
-  
-
-
-def save_coords(coords, fname='tempcoords.p'):
-  pickle.dump(coords, open(fname, 'wb'))
-  print('Coordinates written to %s as pickle' %fname)
+  # Helper function to show thresholded images
+  def show_t(arr, thresh):
+    t_arr = np.zeros(arr.shape)
+    for i in range(len(arr)):
+      for j in range(len(arr[i])):
+        if arr[i,j] > thresh:
+          t_arr[i,j] = 1
+    t_arr = make255(t_arr)
+    return Image.fromarray(t_arr)
+  arr = np.array(Image.open(imfile))
+  if len(arr.shape) > 2:
+    print('array has too many dimensions')
+    return None
+  if th_range is None:
+    minval, maxval = np.inf, 0
+    for i in arr:
+      for j in i:
+        if j < minval:
+          minval = j
+        if j > maxval:
+          maxval = j
+  elif len(th_range) == 2:
+    minval, maxval = min(th_range), max(th_range)
+  # linspace 9 thresholds through and find which is best
+  threshes = np.linspace(minval, maxval, 9)
+  fig = plt.figure()
+  for t in range(len(threshes)):
+    ax = fig.add_subplot(3, 3, t)
+    img = show_t(arr, threshes[t])
+    ax.imshow(img)
+    ax.set_title('Threshold of %.2f' %threshes[t])
+  plt.show()
   return
 
 
 
-def get_voxel_locations(folder, fname, voxel=[0.176,0.176,0.38], ssave=False):
-  # uses raw threshold function
-  # get images as list
-  fils = os.listdir(folder)
-  def keep_tifs(rawlist):
-    tiflist = []
-    for f in rawlist:
-      if len(f.split('.'))>1:
-        if f.split('.')[1] == 'tif':
-          tiflist.append(f)
-    return tiflist
-  tiflist = keep_tifs(fils) # this indexing may be removed if needed
-  newtiflist = [folder+f for f in tiflist]
-  newtiflist.sort() # alphabetize
-  # commandeer all cores
-  stime = timer()
-  # pool = Pool()
-  darr = [make_binary_thresh(i) for i in newtiflist] # adjust threshold in function
-  # pool.close()
-  # pool.join()
-  print('Time taken for retrieving coordinates: %.2f' %(timer()-stime))
-  # send to matrix2coords to get tuples back
-  coords = matrix2coords(darr, voxel)
-  if ssave:
-    # save this
-    save_coords(coords, fname)
+
+def import_images(folder, thresh, par=True):
+  """
+  This function loads images from a folder as PIL Image files and
+  thresholds them with the given scalar. Par parallelizes this, ttime does
+  both serial and parallel and times them. 
+  *Must be 'tif' extension!*
+  """
+  fils = [f for f in os.listdir(folder) if f.split('.')[-1]=='tif']
+  fils.sort()
+  if folder[-1] != '/':
+    folder = folder+'/'
+  newtiflist = [folder+f for f in fils] # alphabetize
+  # tifobjs = [load_img_array(f) for f in tiflist]
   
-  return coords, darr
+  def thresh_load(imfile):
+    im_arr = np.array(Image.open(imfile))
+    arr = np.zeros(im_arr.shape)
+    for i in range(len(im_arr)):
+      for j in range(len(im_arr[i])):
+        if im_arr[i,j] >= thresh:
+          arr[i,j] = 1
+    return arr
+    
+  # here start parallel stuff
+  if par:
+    start_time_par = timer()
+    pool = Pool(8)
+    results_par = pool.map(thresh_load, newtiflist)
+    pool.close()
+    pool.join()
+    total_time_par = timer() - start_time_par
+    print('Time for parallel: %.2f seconds' % total_time_par)
+    return results_par
+  # or non-parallel stuff
+  else:
+    start_time_nopar = timer()
+    results_nopar = [thresh_load(f) for f in newtiflist]
+    total_time_nopar = timer() - start_time_nopar
+    print('Time for non-parallel: %.2f seconds' % total_time_nopar)
+    return results_nopar
 
-
-
-
-### testing shit
-"""
-start = timer()
-zarr = [make255(i) for i in result]
-print('time taken: %.2f' %(timer()-start))
-
-start = timer()
-pool = Pool()
-zzarr = pool.map(make255, result)
-print('time taken: %.2f' %(timer()-start))
-"""
 
 
 ############################ CONTROL ##############################
@@ -884,10 +473,7 @@ if __name__ == '__main__':
   arguments = sys.argv
   directory = arguments[1]
   if len(arguments) > 2:
-    outfile = arguments[2]
-  else:
-    outfile = 'temp_coords.p'
-  get_voxel_locations(directory, outfile, [1,1,1], False)
+
  
 
 

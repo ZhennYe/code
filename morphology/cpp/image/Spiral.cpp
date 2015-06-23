@@ -16,10 +16,10 @@
                     // not all Spiral methods have been added to this yet.
 
 
-using boost::tuple;
+// using boost::tuple;
 using namespace Eigen;
 
-typedef std::vector< boost::tuple<int, int> > tuple_list;
+typedef std::vector< std::pair<int, int> > tuple_list;
 
 
 
@@ -29,15 +29,15 @@ typedef std::vector< boost::tuple<int, int> > tuple_list;
 
 
 // Constructor
-Spiral::Spiral(MatrixXi array, std::vector<int> ddims, boost::tuple<int, int> spt) {
+Spiral::Spiral(MatrixXi array, std::vector<int> ddims, std::pair<int, int> spt) {
   arr = array;
   for (auto i = ddims.begin(); i != ddims.end(); ++i) {
     int temp = *i;
     dims.push_back(temp);
   }
   int t_x, t_y;
-  t_x = boost::get<0>(spt);
-  t_y = boost::get<1>(spt);
+  t_x = std::get<0>(spt);
+  t_y = std::get<1>(spt);
   startpt = {t_x, t_y};
   x = t_x;
   y = t_y;
@@ -55,7 +55,7 @@ Spiral::Spiral(MatrixXi array, std::vector<int> ddims, boost::tuple<int, int> sp
   std::vector<int> prev_pt;
   int area = 0;
   std::cout << arr << std::endl;
-  std::cout << "(" << boost::get<0>(startpt) << "," <<
+  std::cout << "(" << std::get<0>(startpt) << "," <<
     boost::get<1>(startpt) << ")\n" << std::endl;
   return;
 }
@@ -89,11 +89,11 @@ void Spiral::no_changes() {
 
 
 
-bool is_element(tuple_list list, boost::tuple<int, int> tup) {
-  std::vector<int> test_vec = {boost::get<0>(tup), boost::get<1>(tup)};
+bool is_element(tuple_list list, std::tuple<int, int> tup) {
+  std::vector<int> test_vec = {std::get<0>(tup), std::get<1>(tup)};
   // Pull out the elements of the test tuple (operator==)
-  int tup_0 = boost::get<0>(tup);
-  int tup_1 = boost::get<1>(tup);
+  int tup_0 = std::get<0>(tup);
+  int tup_1 = std::get<1>(tup);
   for (tuple_list::const_iterator i = list.begin(); i != list.end(); ++i) {
     // Pull out the element of the possible tuple
     int elem_0 = i->get<0>();
@@ -107,9 +107,9 @@ bool is_element(tuple_list list, boost::tuple<int, int> tup) {
 
 
 
-void show_tup(boost::tuple<int, int> tup) {
+void show_pair(std::pair<int, int> par) {
   bool newline = false;
-  std::cout << "(" << tup.get<0>() << "," << tup.get<1>() <<")";
+  std::cout << "(" << par.get<0>() << "," << par.get<1>() <<")";
   if (newline) {std::cout << "\n";}
 }
 
@@ -119,13 +119,13 @@ void show_tup(boost::tuple<int, int> tup) {
 void show_tup_list(tuple_list tlist) {
   std::cout << "Summary of "<< tlist.size() << " elements: \n";
   for (tuple_list::const_iterator i = tlist.begin(); i != tlist.begin()+5; ++i) {
-    boost::tuple<int, int> temp_tup (i->get<0>(), i->get<1>());
-    show_tup(temp_tup);
+    std::pair<int, int> temp_tup (i->get<0>(), i->get<1>());
+    show_pair(temp_tup);
     std::cout << "\n";
   }
   std::cout << " ... \n";
   for (tuple_list::const_iterator i = tlist.end()-5; i != tlist.end(); ++i) {
-    boost::tuple<int, int> temp_tup (i->get<0>(), i->get<1>());
+    std::pair<int, int> temp_tup (i->get<0>(), i->get<1>());
     show_tup(temp_tup);
     std::cout << "\n";
   }
