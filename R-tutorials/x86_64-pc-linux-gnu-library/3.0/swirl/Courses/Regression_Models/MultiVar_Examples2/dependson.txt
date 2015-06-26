@@ -1,4 +1,0 @@
-UsingR
-datasets
-stats
-graphics

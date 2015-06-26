@@ -169,8 +169,10 @@ def create_segment(dims=[96,96,96]): # June 2015
   return stack, skel
 
 
-def show_slice(stack, z=int(len(stack)/2)):
+def show_slice(stack, z=None):
   # Show a particular slice of interest
+  if z is None:
+    z = int(len(stack)/2)
   for i in range(len(stack)):
     for j in range(len(stack[i])):
       for k in range(len(stack[i][j])):
@@ -224,7 +226,7 @@ def gen_vec(pt0, pt1):
 
 
 
-def gen_plane_index(sk0, sk1, M=15):
+def gen_plane_index(sk0, sk1, M=50):
   """
   Same as above but uses indices instead of coordinates.
   """
@@ -255,7 +257,7 @@ def get_cross_sec(sk0, sk1, stack):
   is [z][x][y] but *everything* else is [x][y][z].
   """
   # get plane
-  planinds, numpts = gen_plane_index(sk0, sk1, M=15)
+  planinds, numpts = gen_plane_index(sk0, sk1, M=50)
   dims = np.shape(stack)
   def pt_ok(pt, dims):
     # returns false if pt is outside shape of stack
@@ -347,15 +349,12 @@ def add_radius(hocFile, geo, rads, newHocFile='new_hoc_radius.hoc'):
   node list loaded previously. It uses the geo object to map the new radii
   onto the new hocfile.
   """
-  geo2 = demoRead(hocFile)
-  # Populate the node dictionary with rads
-  raddict = {}
-  for n in geo.nodes:
-    nkey = [n.x, n.y, n.z]
-    raddict[nkey] = rads[geo.nodes.index(n)]
-  if len(raddict.keys()) != len(geo2.nodes):
-    print('Geo files are different!')
-    return
+  geo2 = demoReadsilent(hocFile)
+  # Nodelist should be of same length and index as rads...
+  nodelist = [[n.x, n.y, n.z] for n in geo.nodes]
+  if len(nodelist) != len(geo2.nodes):
+    print('Some nodes are repeated!') # Not a big deal
+  rcount, norad, yesrad = -1, 0, 0
   # Write the new hocfile; only change the pt3dadd rad values
   with open(newHocFile, 'w') as fOut:
     with open(hocFile, 'r') as fIn:
@@ -363,17 +362,25 @@ def add_radius(hocFile, geo, rads, newHocFile='new_hoc_radius.hoc'):
         if line:
           splitLine = line.split('(')
           # If it's a line with a radius, write the new line
-          if splitLine[0] == 'pt3dadd':
-            x, y, z, rad = splitLine[1].split(',')
+          if splitLine[0] == 'pt3dadd' or splitLine[0] == '  pt3dadd':
+            rcount = rcount + 1
+            x, y, z, _ = splitLine[1].split(',')
+            x, y, z = float(x), float(y), float(z)
             try:
-              rad = raddict[[float(x), float(y), float(z)]]
+              rad = rads[nodelist.index([x, y, z])]
+              yesrad = yesrad + 1
             except:
-              print('No radius found!')
+              norad = norad + 1
               rad = np.mean(rads)
-            fOut.write('pt3dadd(%f, %f, %f, %f)\n' %(x, y, z, rad))
+            try:
+              fOut.write('pt3dadd(%f, %f, %f, %f)' 
+                         %(float(x), float(y), float(z), rad))
+            except:
+              print(x, y, z, rad)
           # Else, just write the original line
           else:
             fOut.write(line)
+  print('Missed %i nodes, got %i nodes' %(norad, yesrad))
   return
   
 
