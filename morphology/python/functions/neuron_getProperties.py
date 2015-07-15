@@ -61,6 +61,41 @@ def node3(n0, n1):
   return dist3(nodex(n0),nodex(n1))
 
 
+def union(list1, list2, rall=False):
+  """
+  Returns the common segment between two lists. Union assumes there is only
+  one common segment. First, it assumes the segment is not included in
+  the lists, so it crawls through the neighbors of elements of both lists. If
+  it finds more than 1 common segment, it assumes the segment is included
+  in one of the lists, and then returns the common segment found by neighbors.
+  Rall - returns list of common segments. 
+  """
+  def union1(list1, list2): 
+    for a in list1:
+      for n in a.neighbors:
+        if n in list2:
+          return a
+    return None
+  def union2(list1, list2, rall=False):
+    u = []
+    for a in list1:
+      for b in list2:
+        for n in a.neighbors:
+          if n in b.neighbors:
+            if n not in u:
+              u.append(n)
+    if rall is True and len(u) != 1:
+      # print('Found %i matches' %len(u))
+      return u
+    if len(u) > 1:
+      return union1(list1, list2)
+    elif len(u) == 1:
+      return u[0]
+    else:
+      return None
+  return union2(list1, list2, rall)
+
+
 
 #######################################################################
 # prepare for analysis -- load up hoc files
@@ -170,7 +205,6 @@ def find_points(seg0, seg1):
         pass
   if f == False:
     print('Tried to find new coordinates, but failed. Skipping')
-  
   if pt0 in [midpt, pt1] or pt1 in [midpt, pt0] or midpt in [pt0,pt1]:
     print(seg0list, seg1list)
   #print('pt0 at %i, pt1 at %i' %(pt0where, pt1where))
@@ -182,7 +216,7 @@ def find_points(seg0, seg1):
     return [False]
 
 
-def branch_angles(geo):
+def branch_angles(geo, outfile=None):
   angles = []
   for b in geo.branches:
     for n in b.neighbors:
@@ -191,11 +225,25 @@ def branch_angles(geo):
         pt0, midpt, pt1 = pts[0], pts[1], pts[2]
       angles.append(get_angle(pt0, midpt, pt1))
   angles = [a for a in angles if a!='nan']
-  with open('temp_angles.txt', 'w') as fOut:
-    for a in angles:
-      fOut.write('%.10f, \n' %a)
+  if outfile is not None:
+    with open('temp_angles.txt', 'w') as fOut:
+      for a in angles:
+        fOut.write('%.10f, \n' %a)
   return angles
 
+"""
+def get_subtrees(geo):
+  # Generate a main path, subtrees come off the main path
+  main = []
+  def add_main(seg):
+    maxn, candidate = 0, None
+    for n in seg.neighbors:
+      if len(n.neighbors) > maxn:
+        maxn = len(n.neighbors)
+
+
+def ordered_angles(geo):
+"""
 
 
 #######################################################################
@@ -220,7 +268,7 @@ def path_lengths2(geo):
     try:
       p, t = pDF.distanceTo(x,y), pDF.tortuosityTo(x,y)
       path.append(p)
-      tort.append(t)
+      #~ tort.append(t)
     except:
       continue
   return path, tort
@@ -421,10 +469,374 @@ def hooser_sholl(geo, sholl_lines=1000):
   sholl_count = [sholl[str(i)][0] for i in float_keys]
   
   return [float_keys, sholl_count], sholl
-    
+
+
+
+######################################################################    
+# sub-tree analysis
+
+
+def sholl_color(geo, outfile, interdist=1.):
+  # This color-codes hoc points based on sholl distances.
+  pDF = PathDistanceFinder(geo, geo.soma)
+  tips, tipPositions = geo.getTips()
+  paths, _ = path_lengths2(geo)
+  maxp = max(paths)
+  nodes, dists = [], []
+  for s in geo.segments:
+    if s.length > interdist:
+      x0, y0, z0 = s.coordAt(0)[0],s.coordAt(0)[1], s.coordAt(0)[2]
+      x1, y1, z1 = s.coordAt(1)[0],s.coordAt(1)[1], s.coordAt(1)[2]
+      temp_nodes = [np.linspace(x0, x1, int(s.length/interdist)),
+                    np.linspace(y0, y1, int(s.length/interdist)),
+                    np.linspace(z0, z1, int(s.length/interdist))]
+      #print(np.shape(temp_nodes))
+      for t in range(np.shape(temp_nodes)[1]):
+        nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
+        dists.append(pDF.distanceTo(s, 0.5)/maxp)
+    else: # Add at least one node per segment
+      nodes.append(s.coordAt(0.5))
+      dists.append(pDF.distanceTo(s, 0.5)/maxp)
+  if len(dists) != len(nodes):
+    print('Warning! No. nodes: %i, No. distances: %i' %(len(nodes), len(nodes)))
+  with open(outfile, 'w') as fOut:
+    for i in range(len(nodes)):
+      fOut.write('%.6f %.6f %.6f %.6f' %(nodes[i][0], nodes[i][1], 
+                                         nodes[i][2], dists[i]))
+      fOut.write('\n')
+  print('%s file written' %outfile)
+  return
   
 
+def axons_endpoints(geo, outfile=None, Format='matlab'):
+  # This prints possible axons and their start and end points. Feed
+  # the output into shollAxons.m to select only the "true" axon(s).
+  axons = []
+  for s in geo.branches: # Operates on BRANCHES!
+    if "Axon" in s.tags or "axon" in s.tags:
+      axons.append([geo.branches.index(s), s.coordAt(0), s.coordAt(1)])
+  if outfile is not None:
+    print('Found %i potential branch axons' %len(axons))
+    with open(outfile, 'w') as fOut:
+      for a in axons:
+        fOut.write('%i %.5f %.5f %.5f\n%i %.5f %.5f %.5f' 
+                   %(a[0], a[1][0], a[1][1], a[1][2],
+                     a[0], a[2][0], a[2][1], a[2][2]))
+    return
+  else:
+    for a in axons:
+      if Format == 'matlab':
+        print('%i %.5f %.5f %.5f\n%i %.5f %.5f %.5f' 
+              %(a[0], a[1][0], a[1][1], a[1][2],
+                a[0], a[2][0], a[2][1], a[2][2]))
+      else:
+        print(a[0], a[1], a[2])
+    print('Found %i potential branch axons' %len(axons))
+    return a
 
+
+
+def simple_axon(geo, axon, thing='branch'):
+  # Turn the axon into a NeuronGeometry.Segment (but NOT a branch!)
+  def mid_pt(geo):
+    midPt = [np.mean([s.coordAt(0)[0] for s in geo.segments]),
+             np.mean([s.coordAt(0)[1] for s in geo.segments]),
+             np.mean([s.coordAt(0)[2] for s in geo.segments])]
+    return midPt
+  #
+  def distal_seg(geo, axon, midPt): # If axon==branch, return the most distal segment
+    dists = [dist3([n.x,n.y,n.z], midPt) for n in axon.nodes]
+    node = [x for (y,x) in sorted(zip(dists, axon.nodes))][-1]
+    for s in geo.segments:
+      if node in s.nodes:
+        return s
+  #
+  midPt = mid_pt(geo)
+  if thing == 'branch':
+    return distal_seg(geo, geo.branches[axon], midPt)
+  elif thing == 'seg' or thing == 'segment':
+    return geo.segments[axon]
+
+
+
+def axon_path(geo, axons=None, things=None, outfile=None, branch=True, interdist=1.):
+  # Given a geofile and an axon (default axon if none provided), this
+  # returns the subtrees between the soma and that axon.
+  #
+  if axons is not None and things is not None:
+    if type(axons) is not list:
+      axons = [axons]
+    if type(things) is not list:
+      things = [things]
+    if len(axons) != len(things):
+      if len(things) == 1:
+        things = [things[0] for t in axons]
+      else:
+        print('Things should be len(axons) or length 1 (if all are same type)')
+        return
+    else:
+      beh = [simple_axon(geo, a, t) for a, t in zip(axons, things)]
+  pDF = PathDistanceFinder(geo, geo.soma)
+  print(beh)
+  paths = [pDF.pathTo(b) for b in beh]
+  # If no outfile, just return the path
+  if outfile is None:
+    return paths
+  else: # Else, write it to a file (with interpolation as before)
+    nodes, dists = [], []
+    for path in paths:
+      for p in path:
+        if p.length > interdist:
+          x0, y0, z0 = p.coordAt(0)[0],p.coordAt(0)[1], p.coordAt(0)[2]
+          x1, y1, z1 = p.coordAt(1)[0],p.coordAt(1)[1], p.coordAt(1)[2]
+          temp_nodes = [np.linspace(x0, x1, int(p.length/interdist)),
+                        np.linspace(y0, y1, int(p.length/interdist)),
+                        np.linspace(z0, z1, int(p.length/interdist))]
+          #print(np.shape(temp_nodes))
+          for t in range(np.shape(temp_nodes)[1]):
+            nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
+            #dists.append(pDF.distanceTo(s, 0.5)/maxp)
+        else: # Add at least one node per segment
+          nodes.append(s.coordAt(0.5))
+          #dists.append(pDF.distanceTo(s, 0.5)/maxp)
+    with open(outfile, 'w') as fOut:
+      for i in range(len(nodes)):
+        fOut.write('%.6f %.6f %.6f' %(nodes[i][0], nodes[i][1], 
+                                           nodes[i][2]))#, dists[i]))
+        fOut.write('\n')
+    print('%s file written' %outfile)
+  return
+
+
+
+def mainpath_color(geo, outfile, axon=None, interdist=1.):
+  # This will color segments based on their distance from the mainpath
+  print(axon)
+  paths = np.array(axon_path(geo, axon))
+  bpaths = []
+  for path in paths:
+    for p in path:
+      bpaths.append(p)
+  downpaths = bpaths[::20]
+  segdists = []
+  count = -1
+  for s in geo.segments:
+    count = count + 1
+    if s in paths:
+      segdists.append(0)
+    else:
+      pDF = PathDistanceFinder(geo, s)
+      segdists.append(min([pDF.distanceTo(p) for p in downpaths]))
+    if count % 10 == 0:
+      print('%i (of %i) segments processed' %(count, len(geo.segments)))
+  if len(segdists) != len(geo.segments):
+    print('Num segdists (%i) not equal to num segments (%i)'
+          %(len(segdists), len(geo.segments)))
+    return
+  pDF = PathDistanceFinder(geo, geo.soma)
+  maxp = max(segdists)
+  nodes, dists = [], []
+  for s in geo.segments:
+    if s.length > interdist:
+      x0, y0, z0 = s.coordAt(0)[0],s.coordAt(0)[1], s.coordAt(0)[2]
+      x1, y1, z1 = s.coordAt(1)[0],s.coordAt(1)[1], s.coordAt(1)[2]
+      temp_nodes = [np.linspace(x0, x1, int(s.length/interdist)),
+                    np.linspace(y0, y1, int(s.length/interdist)),
+                    np.linspace(z0, z1, int(s.length/interdist))]
+      #print(np.shape(temp_nodes))
+      for t in range(np.shape(temp_nodes)[1]):
+        nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
+        dists.append(segdists[geo.segments.index(s)])
+    else: # Add at least one node per segment
+      nodes.append(s.coordAt(0.5))
+      dists.append(segdists[geo.segments.index(s)])
+  with open(outfile, 'w') as fOut:
+    for n in range(len(nodes)):
+      fOut.write('%.6f %.6f %.6f %.6f\n' %(nodes[n][0], nodes[n][1], 
+                                         nodes[n][2], dists[n]))
+  print('File %s written with %i nodes' %(outfile, len(nodes)))
+  return
+
+
+
+
+# Helper function for get_subtrees
+def add_unidirect(geo, seg, prevseg, path):
+  # Add all neighbors in a unidirectional manner.
+  subtree = [] # This is a collection of segments in the subtree
+               # There is no inherent structure to the subtree
+  for n in seg.neighbors:
+    if n != seg and n != prevseg and n not in path:
+      subtree.append(n)
+  same = 0
+  while same < 5:
+    prevlength = len(subtree)
+    for s in subtree:
+      for n in s.neighbors:
+        if n != seg and n != prevseg and n not in subtree and n not in path:
+          subtree.append(n)
+    if len(subtree) == prevlength:
+      same = same + 1
+    else:
+      same = 0
+      print('subtree is length: %i' %len(subtree))
+  return subtree
+
+
+
+def get_subtrees(geo, axons, things=None):
+  # This returns the subtrees coming off the 'main' path (soma->axon)
+  # Should work with multiple axons.
+  def is_subtree_root(geo, seg, path):
+    subtree = []
+    for n in seg.neighbors:
+      if n not in np.array(path).flatten():
+        subtree.append(add_unidirect(geo, n, seg, path)) ## 
+    return subtree
+  # Condition axon input
+  if axons is not None and things is not None:
+    if type(axons) is not list:
+      axons = [axons]
+    if type(things) is not list:
+      things = [things]
+    if len(axons) != len(things):
+      if len(things) == 1:
+        things = [things[0] for t in axons]
+      else:
+        print('Things should be len(axons) or length 1 (if all are same type)')
+        return
+      axons = [simple_axon(geo, a, t) for a, t in zip(axons, things)]
+  elif type(axons) is list and things is None:
+    axons = axons
+  paths = axon_path(geo, axons)
+  flatpath = []
+  for path in paths:
+    for p in path:
+      flatpath.append(p)
+  # Assume path[0] == geo.soma
+  subtrees = []
+  for p in flatpath:
+    # Loop over the segments in the path to create the subtrees
+    subs = is_subtree_root(geo, p, flatpath)
+    for sub in subs:
+      if sub not in subtrees:
+        if len(sub) not in [len(i) for i in subtrees]:
+          subtrees.append(sub)
+  # Should have all unique subtrees now
+  return subtrees
+
+
+
+def show_subtrees(geo, outfile, axon=None, subtrees=None, interdist=1.):
+  # Make a txt file to plot individual subtrees in matlab
+  if subtrees is None:
+    subtrees = get_subtrees(geo, axon)
+  subtrees.append(path)
+  treenum = np.linspace(0,1,len(subtrees))
+  # Interpolate for plotting
+  nodes, dists = [], []
+  for tree in range(len(subtrees)):
+    for s in subtrees[tree]:
+      if s.length > interdist:
+        x0, y0, z0 = s.coordAt(0)[0],s.coordAt(0)[1], s.coordAt(0)[2]
+        x1, y1, z1 = s.coordAt(1)[0],s.coordAt(1)[1], s.coordAt(1)[2]
+        temp_nodes = [np.linspace(x0, x1, int(s.length/interdist)),
+                      np.linspace(y0, y1, int(s.length/interdist)),
+                      np.linspace(z0, z1, int(s.length/interdist))]
+        #print(np.shape(temp_nodes))
+        for t in range(np.shape(temp_nodes)[1]):
+          nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
+          dists.append(treenum[tree])
+      else: # Add at least one node per segment
+        nodes.append(s.coordAt(0.5))
+        dists.append(treenum[tree])
+  with open(outfile, 'w') as fOut:
+    for n in range(len(nodes)):
+      fOut.write('%.6f %.6f %.6f %.6f\n' %(nodes[n][0], nodes[n][1], 
+                                         nodes[n][2], dists[n]))
+  print('File %s written with %i nodes' %(outfile, len(nodes)))
+  return
+
+
+
+### Wiring
+def subtree_wiring(subtrees, path=None):
+  # Returns the percent of total wiring of each subtree (and the path)
+  if path is None:
+    ssubtrees = subtrees # Path already included or not relevant
+  else:
+    ssubtrees = [i for i in subtrees]
+    ssubtrees.append(path)
+  allsegs = []
+  for t in ssubtrees:
+    for s in t: # Add each segment
+      allsegs.append(s)
+  total = sum([s.length for s in np.array(allsegs)])
+  wiring = []
+  for t in ssubtrees:
+    wiring.append(sum([s.length for s in t])/total)
+  if path is not None:
+   print('Path wiring: %.5f' %(sum([s.length for s in path])/total))
+  return wiring
+
+
+
+### Subtree angles
+def subtree_angles(subtrees, path, keep=10):
+  # Returns the first N('keep') successive branch angles for each subtree.
+  angles = []
+  for t in subtrees:
+    root = union(t, path) # Find the first non-mainpath segment
+    count = 0
+    prev_segs = [p for p in path]
+    prev_segs.append(root)
+    currsegs = [root]
+    tree_angles = []
+    while count < keep: # Keep going until 'keep' or run out of segs
+      curr_angles = [] # Keep a list of angles for the current round
+      next_segs = []
+      for curr in currsegs:
+        for n in curr.neighbors:
+          if n not in prev_segs:
+            pts = find_points(n, curr)
+            curr_angles.append(get_angle(pts[0], pts[1], pts[2]))
+            next_segs.append(n)
+        prev_segs.append(curr)
+      curr_segs = next_segs
+      try:
+        tree_angles.append(np.mean(curr_angles))
+      except:
+        count = 10
+      count = count + 1
+    # curr_angles should have <= 10 lists of angles, now these are averaged
+    # angles.append([np.mean(o) for o in 
+  return
+
+
+
+
+## Still work in progress
+def dendrogram_subtrees(geo, paths, subtrees):
+  def plot_next(segs, prev_segs, x_range, prev_pts):
+    if len(segs) != len(prev_pts):
+      print('segs (%i) and prev_pts (%i) should be same length'
+            %(len(segs), len(prev_pts)))
+      return
+    
+  def subtree_pts(sub, x_range, paths):
+    for s in sub:
+      if s in np.array(paths).flatten():
+        root = s
+    
+    return
+    
+  if len(paths) > 10:
+    # There is only one path (one axon)
+    m = len(subtrees)
+  
+  return
+    
+  
 
 
 
@@ -1146,7 +1558,22 @@ def branch_order(geo):
   return [b.branchOrder for b in geo.branches]
     
 
-
+def length_vs_dist(geo=None, lengths=None, locations=None):
+  # Simple calculation of branch lengths
+  if lengths is None and locations is None and geo is not None:
+    lengths, locations = branch_lengths(geo, True)
+  midpt = [np.mean([i[0] for i in locations]),
+           np.mean([i[1] for i in locations]),
+           np.mean([i[2] for i in locations])]
+  print('Calculating distances....')
+  distances = [dist3(pt, midpt) for pt in locations]
+  return lengths, distances
+    
+  
+# Multiple-regress plot
+def multi_regress(lol):
+  # lol must be a list of lists (each item is a list of 2 lists)
+  return
 
 
 
@@ -1401,6 +1828,9 @@ def plot_soma_positions(arr, types=None):
   ax.plot([0,stn_length], [0,0],[0,0], linewidth=5, c='k')
   ax.plot([0,-stn_length*.5],[0,0], [0,0], linewidth=1, c='k')
   ax.plot([0,0],[stn_length*.5,-(stn_length*.5)],[0,0], linewidth=1,c='k')
+  ax.text(stn_length, 0, 0, r'stn', style='italic', fontsize=20)
+  stnlen = '%.0f um' %stn_length
+  ax.text(stn_length, -50, 0, stnlen, fontsize=15)
   # plot the soma
   for p in pts:
     if types:
@@ -1411,6 +1841,9 @@ def plot_soma_positions(arr, types=None):
   if types:
     plt.legend(handles=patches, loc='best')
   ax.set_zlim([-stn_length*.5, stn_length*0.5])
+  ax.set_xticks([])
+  ax.set_yticks([])
+  ax.set_zticks([])
   plt.show()
   return
   

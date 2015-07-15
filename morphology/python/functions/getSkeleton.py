@@ -3,7 +3,7 @@
 usage: $ python getSkeleton.py hocFile skeletonFile
 """
 
-def getSkeleton(hocFile, wwrite=0):
+def getSkeleton(hocFile, skeletonFile=None, wwrite=0):
   
   points = []
   
@@ -45,6 +45,7 @@ def getSkeleton(hocFile, wwrite=0):
           
           if wwrite == 1:
             # log new point
+            print(current_section)
             skel_line = [current_section, X, Y, Z, rad]
             skel_string = ['0','0','0','0','0']
             for c in range(len(skel_line)):
@@ -57,6 +58,24 @@ def getSkeleton(hocFile, wwrite=0):
 
 
 
+def simpleSkeleton(hocfile, skelfile):
+  # No section logging, just the pt3dadd points.
+  with open(skelfile, 'w') as fOut:
+    with open(hocfile, 'r') as fIn:
+      for line in fIn:
+        if line:
+          splitline = line.split(None)
+          if splitline:
+            if line.split('(')[0] == 'pt3dadd' or line.split('(')[0] == '  pt3dadd':
+              stuffs = line.split(',')
+              x = stuffs[0].split('(')[1]
+              y = stuffs[1]
+              z = stuffs[2]
+              rad = stuffs[3].split(')')[0]
+              fOut.write(' '.join([x, y, z, rad]))
+              fOut.write('\n')
+  return
+
   
 #########################################################
 if __name__ == '__main__':
@@ -67,4 +86,4 @@ if __name__ == '__main__':
   else:
     skeletonFile = 'skeleton_points.txt'
   
-  getSkeleton(hocFile)
+  getSkeleton(hocFile, skeletonFile, wwrite=1)

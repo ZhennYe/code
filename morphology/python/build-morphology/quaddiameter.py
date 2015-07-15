@@ -15,13 +15,14 @@ from read_exportedNeuronGeometry import *
 
 
 def load_hoc(hocFile):
-  return demoRead(hocFile)
+  return demoReadsilent(hocFile)
 
 
 
 def load_params():
   """
-  Load the parameters for the fits.
+  Load the parameters for the fits. These are derived in Cuntz... Segev 
+  (2007). 
   """
   P = []
   with open('P.txt','r') as fIn:

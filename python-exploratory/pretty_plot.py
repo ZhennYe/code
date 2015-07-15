@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 import networkx as nx
+import mpl_toolkits.axisartist.floating_axes as floating_axes
+from matplotlib.projections import PolarAxes
+
 
 
 ########################################################################
@@ -113,10 +116,12 @@ def pretty_boxplot(V, labelsin, title=None, ticks=None, axes=None):
 
 
 
-def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None, showleg=True):
+def mean_scatter(V, labelsin, title=None, ticks=None, axes=None, 
+                   showboth=True, showleg='best'):
   """
   """
-  V = [np.mean(i) for i in V] # Take the mean of each element (okay for lists and scalars)
+  Vmean = [np.mean(i) for i in V] # Take the mean of each element (okay for lists and scalars)
+  Vmed = [np.median(i) for i in V]
   L = list(np.unique(labelsin))
   C = [L.index(i) for i in labelsin]
   fcolors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
@@ -124,7 +129,11 @@ def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None, showleg=True)
   fig = plt.figure()
   ax = fig.add_subplot(111)
   for v in range(len(V)):
-    ax.scatter(L.index(labelsin[v]), V[v],  c=fcolors[C[v]], s=80, edgecolor=fcolors[C[v]])
+    ax.scatter(L.index(labelsin[v]), Vmean[v],  c=fcolors[C[v]], s=80, 
+               marker='o', edgecolor='k', alpha=0.6)#fcolors[C[v]])
+    if showboth:
+      ax.scatter(L.index(labelsin[v]), Vmed[v], c=fcolors[C[v]], s=80,
+                 marker='s', edgecolor='k', alpha=0.6)#fcolors[C[v]])
   # legend
   khaki_patch = mpatches.Patch(color='darkkhaki', 
                 label=labelsin[C.index(fcolors.index('darkkhaki'))])
@@ -139,8 +148,8 @@ def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None, showleg=True)
     tomato_patch = mpatches.Patch(color='tomato', 
                   label=labelsin[C.index(fcolors.index('tomato'))])
     patches.append(tomato_patch)
-  if showleg:
-    ax.legend(handles=patches, loc='best')
+  if showleg is not None:
+    ax.legend(handles=patches, loc=showleg) # I often mess with this
   if ticks is None:
     ax.tick_params(axis='x',which='both',bottom='off',top='off',
                          labelbottom='off')
@@ -154,8 +163,78 @@ def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None, showleg=True)
   
 
 
-#def pretty_errbar(V, labelsin, std
+def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None, 
+                   showleg='best'):
+  """
+  """
+  L = list(np.unique(labelsin))
+  C = [L.index(i) for i in labelsin]
+  fcolors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  # plotting
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  for v in range(len(V)):
+    ax.scatter(L.index(labelsin[v]), V[v],  c=fcolors[C[v]], s=80, 
+               marker='o', edgecolor='k', alpha=0.6)#fcolors[C[v]])
+  # legend
+  khaki_patch = mpatches.Patch(color='darkkhaki', 
+                label=labelsin[C.index(fcolors.index('darkkhaki'))])
+  royal_patch = mpatches.Patch(color='royalblue', 
+                label=labelsin[C.index(fcolors.index('royalblue'))])
+  patches = [khaki_patch, royal_patch]
+  if len(L) > 2:
+    forest_patch = mpatches.Patch(color='forestgreen', 
+                  label=labelsin[C.index(fcolors.index('forestgreen'))])
+    patches.append(forest_patch)
+  if len(L) > 3:
+    tomato_patch = mpatches.Patch(color='tomato', 
+                  label=labelsin[C.index(fcolors.index('tomato'))])
+    patches.append(tomato_patch)
+  if showleg is not None:
+    ax.legend(handles=patches, loc=showleg) # I often mess with this
+  if ticks is None:
+    ax.tick_params(axis='x',which='both',bottom='off',top='off',
+                         labelbottom='off')
+  # title
+  if title:
+    ax.set_title(title, fontsize=20)
+  if axes is not None:
+    ax.set_xlabel(axes[0], fontsize=15)
+    ax.set_ylabel(axes[1], fontsize=15)
+  plt.show(); return 
+  
 
+
+def simple_scatter(x, y, fit=False, title=None, axes=None):
+  """
+  """
+  import scipy.stats as stats
+  if type(x[0]) is list: # Multiple plots
+    if len(x) > 4:
+      print('Can only handle 4 plots!')
+  else:
+    x, y = [x], [y]
+  fcolors = ['darkkhaki', 'royalblue', 'forestgreen','deeppink']
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  for v in range(len(x)):
+    ax.scatter(x[v], y[v], c=fcolors[v], edgecolor=fcolors[v], alpha=0.5)
+    beta, alpha, r, p, _ = stats.linregress(x[v], y[v])
+    ax.plot([min(x[v]), max(x[v])], 
+            [min(x[v])*beta+alpha, max(x[v])*beta+alpha], c=fcolors[v],
+            linewidth=2.5)
+    print('Group %i fit: R=%.5f, P=%.5f (alpha=%.f5, beta=%.5f)'
+          %(v, r, p, alpha, beta))
+  if title is not None:
+    ax.set_title(title, fontsize=20)
+  if axes is not None:
+    ax.set_xlabel(axes[0], fontsize=15)
+    ax.set_ylabel(axes[1], fontsize=15)
+  ax.set_xlim([min([min(i) for i in x]), 0.7*max([max(i) for i in x])])
+  ax.set_ylim([min([min(i) for i in y]), max([max(i) for i in y])])
+  plt.show()
+  return
+              
 
 
 
@@ -256,7 +335,6 @@ def plot_cum_dist(V, labelsin, title=None):
   # title
   if title:
     ax.set_title(title, fontsize=20)
-  
   plt.show()
 
 
@@ -277,7 +355,12 @@ def plot_hori_bullshit(xdata, labelsin, title=None, axes=None, norm=False,
   fig = plt.figure()
   plots = [fig.add_subplot(1,len(xdata),i) for i in range(len(xdata))]
   if norm is True:
-    tdata = np.linspace(0,100,len(xdata[0]))
+    #tdata = np.linspace(0,100,len(xdata[0]))
+    X = []
+    for x in xdata:
+      X.append([i/max(x) for i in x])
+    xdata = X
+    minm, maxm = 0, 1.
   else:
     minm, maxm = np.inf, 0 # condition the data
     for x in xdata:
@@ -290,35 +373,32 @@ def plot_hori_bullshit(xdata, labelsin, title=None, axes=None, norm=False,
   for p in range(len(xdata)): # now plot
     b_e = np.linspace(minm, maxm, 100) #int(len(xdata[p])/nbins)) # len/100 bins
     hist, _ = np.histogram(xdata[p], bins=b_e)
-    #except:
-    #  b_e = np.linspace(minm, maxm, int(len(xdata[p])/10)) # len/100 bins
-    #  hist, _ = np.histogram(xdata[p], bins=b_e)
     plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
     # divine the appropriate bar width
-    hgt = (maxm-minm)/len(plotbins)
+    hgt = (maxm-minm)/len([i for i in hist if i != 0]) # as high as there are filled hist elements
     if norm is True:
-      print('plotting normalized bars')
-      plots[p].barh(tdata, xdata[p], height=1, color=colors[C[p]],
-                    edgecolor=colors[C[p]])
-    else:
-      #print(b_e[:10], hist[:10]) # height is bar width !
+      # print(plotbins, hist, len(plotbins), len(hist))
       plots[p].barh(plotbins, hist, height=hgt, color=colors[C[p]],
                     edgecolor=colors[C[p]])
-      # show the means:
-      if showmean:
-        def r_bin(bins, target): # always start from below
-          j = [i for i in bins]
-          #j.sort();
-          for i in j:
-            if i > target:
-              return i
-        plots[p].plot([0,max(hist)], [r_bin(plotbins, np.mean(xdata[p])),
-                      r_bin(plotbins,np.mean(xdata[p]))], '-', linewidth=3, c='k')
-        plots[p].plot([0,max(hist)], [r_bin(plotbins, np.median(xdata[p])),
-                      r_bin(plotbins, np.median(xdata[p]))],'--', linewidth=3, c='k', )
-        q25, q75 = np.percentile(xdata[p], [25, 75])
-        b25, b75 = r_bin(plotbins, q25), r_bin(plotbins, q75)
-        plots[p].axhspan(b25, b75, facecolor=colors[C[p]], alpha=0.2)
+    else:
+      print(b_e[:10], hist[:10]) # height is bar width !
+      plots[p].barh(plotbins, hist, height=hgt, color=colors[C[p]],
+                    edgecolor=colors[C[p]])
+    # show the means:
+    if showmean:
+      def r_bin(bins, target): # always start from below
+        j = [i for i in bins]
+        #j.sort();
+        for i in j:
+          if i > target:
+            return i
+      plots[p].plot([0,max(hist)], [r_bin(plotbins, np.mean(xdata[p])),
+                    r_bin(plotbins,np.mean(xdata[p]))], '-', linewidth=3, c='k')
+      plots[p].plot([0,max(hist)], [r_bin(plotbins, np.median(xdata[p])),
+                    r_bin(plotbins, np.median(xdata[p]))],'--', linewidth=3, c='k', )
+      q25, q75 = np.percentile(xdata[p], [25, 75])
+      b25, b75 = r_bin(plotbins, q25), r_bin(plotbins, q75)
+      plots[p].axhspan(b25, b75, facecolor=colors[C[p]], alpha=0.4)
     if p == 1: #if first plot, show the axes
       plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
                            labelbottom='off')
@@ -347,6 +427,150 @@ def hori_bars_legend():
   plt.tick_params(axis='x', which='both',bottom='off', top='off', labelbottom='off')
   plt.tick_params(axis='y', which='both',left='off', right='off', labelleft='off')
   plt.show()
+
+
+
+def circular_hist(angles, labelsin, title=None, same=None, leg=True,
+                  ninety=False):
+  """
+  # IMPORT DEPENDENCIES FROM TOP. Same indicates same group, should be int.
+  I.e.: GM same=0, LP same=1, etc.
+  ninety=True if only want x-ticks plotted to 90, else 180 is default
+  """
+  def to_radians(angs):
+    return [i*np.pi/180. for i in angs]
+  def r_bin(bins, target): # Return the target bin value, always start from below
+    j = [i for i in bins]
+    for i in j:
+      if i > target:
+        return i
+  def angulize(angs, nbins=100): # Do everything for the plotting except plot
+    if max(angs) > 2*np.pi:
+      angs = to_radians(angs)
+    rads, thetas_b = np.histogram(angs, bins=nbins)
+    width = np.pi/(nbins)
+    # Normalize hist height and center the bins
+    rads = [i/max(rads) for i in rads]
+    thetas = [(thetas_b[i]+thetas_b[i+1])/2. for i in range(len(thetas_b)-1)]
+    q25, q75 = np.percentile(angs, [25, 75])
+    b25, b75 = r_bin(thetas, q25), r_bin(thetas, q75)
+    return angs, rads, thetas, width, b25, b75
+  # If it's just one object, plot it simply; else nest the lists
+  if type(angles[0]) is not list:
+    angles = [angles]
+  # Else, create the nested plots
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  ax = plt.subplot(111, polar=True)
+  for A in range(len(angles)):
+    angs, rads, thetas, width, t25, t75 = angulize(angles[A])
+    bar = ax.bar(thetas, rads, width=width, bottom=2.+2*A)
+    if same is None:
+      s = A
+    else:
+      s = same
+    [b.set_facecolor(colors[s]) for b in bar.patches]
+    [b.set_edgecolor(colors[s]) for b in bar.patches]
+    iqr = ax.bar(np.linspace(t25, t75, 100), np.ones(100)*1.5, 
+                 width=np.pi/(200), bottom=2.+2*A)
+    [i.set_facecolor(colors[s]) for i in iqr.patches]
+    [i.set_alpha(0.3) for i in iqr.patches]
+    [i.set_linewidth(0.) for i in iqr.patches]
+    mean = ax.bar(np.mean(angs), 1.5, width=np.pi/400, bottom=2.+2*A)
+    med = ax.bar(np.median(angs), 1.25, width=np.pi/400, bottom=2.+2*A)
+    k=['k','orange']
+    for m in [med.patches[0], mean.patches[0]]:
+      m.set_facecolor(k[[med.patches[0], mean.patches[0]].index(m)])
+      m.set_linewidth(0.)
+  khaki_patch = mpatches.Patch(color='darkkhaki',   # Legend
+                label=labelsin[0])
+  patches = [khaki_patch]
+  if len(angles) > 1:
+    royal_patch = mpatches.Patch(color='royalblue', 
+                  label=labelsin[1])
+    patches.append(royal_patch)
+  if len(angles) > 2:
+    forest_patch = mpatches.Patch(color='forestgreen', 
+                  label=labelsin[2])
+    patches.append(forest_patch)
+  if len(angles) > 3:
+    lavender_patch = mpatches.Patch(color='tomato', 
+                  label=labelsin[3])
+    patches.append(lavender_patch)
+  if type(same) is int:
+    patches = [mpatches.Patch(color=colors[same], label=labelsin[0])]
+  if leg:
+    plt.legend(handles=patches, loc=4)
+  if title:                                          # Title
+    ax.set_title(title, fontsize=40)
+  ax.set_yticklabels([])
+  ax.set_yticks([])
+  if ninety:
+    ax.set_xticks([0,np.pi/6, 2*np.pi/6, np.pi/2])
+    ax.set_xticklabels([0,30, 60, 90], fontsize=20)
+  else:
+    ax.set_xticks([0,np.pi/3, 2*np.pi/3, np.pi])
+    ax.set_xticklabels([0,60,120,180], fontsize=20)
+  plt.show()
+  return
+
+
+
+def stats_plots(V, labelsin, title=None):
+  """
+  4 plots of basic statistical properties. IC = intraclass correlation, 
+  or the noise sources between the groups.
+  """
+  import scipy.stats as stats
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  var = [np.var(i) for i in V]
+  skew = [stats.skew(i) for i in V]
+  kurt = [stats.kurtosis(i) for i in V]
+  uniq = list(set(labelsin))
+  v_sort = [[] for u in uniq] # Make a blank list, preparing for IC
+  v_means = [[] for u in uniq] # v_means is a list of list of means for each cell of each type
+  v_var, v_skew, v_kurt = [[] for u in uniq], [[] for u in uniq], [[] for u in uniq]
+  for v in range(len(V)):
+    i = uniq.index(labelsin[v])
+    v_sort[i].append(V[v])
+    v_means[i].append(np.mean(V[v]))
+    v_var[i].append(np.var(V[v]))
+    v_skew[i].append(stats.skew(V[v]))
+    v_kurt[i].append(stats.kurtosis(V[v]))
+  # ic = var_between^2 / (var_between^2 + var_within^2)  
+  ic = []
+  for v in range(len(uniq)):
+    I = np.var(v_means[v])**2 / \
+        (np.var(v_means[v])**2 + sum([np.var(i) for i in v_sort[v]])**2)
+    ic.append([I])
+  print(ic)
+  group_means = [np.mean(k) for k in v_means] # group_means are the master means (only 4)
+  master_ic = np.var(group_means)**2 / \
+              (np.var(group_means)**2 + sum([np.var(i) for i in v_means])**2)
+  print('Master IC for this set: %.5f' %master_ic)
+  ## Plotting stuff
+  fig = plt.figure()
+  axs = [fig.add_subplot(221), fig.add_subplot(222), 
+         fig.add_subplot(223), fig.add_subplot(224)]
+  tits = ['Variance', 'Skew', 'Kurtosis', 'Intraclass correlation']
+  plot_vars = [v_var, v_skew, v_kurt, ic]
+  for a in axs: # For each plot
+    for u in range(len(uniq)): # For each cell type
+      a.scatter(np.ones(len(plot_vars[axs.index(a)][u]))*u, plot_vars[axs.index(a)][u], 
+                c=colors[u], s=80, edgecolor='k', alpha=0.6)
+      if axs.index(a) == 3:
+        a.set_yticks([0,0.12,0.24])
+      else:
+        a.locator_params(axis='y', nbins=4)
+      a.set_xticks([])
+      a.set_title(tits[axs.index(a)])
+  # Legend and title
+  #patches = [mpatches.Patch(color=colors[u], label=uniq[u]) for u in range(len(uniq))]
+  #plt.legend(handles=patches, loc=5)
+  if title is not None:
+    plt.suptitle(title, fontsize=20)
+  plt.show()
+  
+
 
 """
 def plot_hori_bars(xdata, labelsin, title=None, axes=None, norm=False):
@@ -583,7 +807,7 @@ def augmented_dendrogram(*args, **kwargs):
 
     return ddata
 
-
+"""
 def get_edges(geo):
   # geo is a hoc geometry object from neuron_readExportedGeometry.py
   nodes, edges = {}, []
@@ -591,8 +815,9 @@ def get_edges(geo):
   for s in range(len(geo.segments)):
     nodes[s] = [geo.segments[s].coordAt(0)[0], geo.segments[s].coordAt(0)[1]]
     for n in geo.segments[s].neighbors:
-      edges.append([s, geo.segments.index(n)])np.percentile(xdata[p], [25, 75])]
-        plots[p].axvspan(0,max(hist), b25, b75, facecolor=colors[C[p]], alpha=0.2)
+      edges.append([s, geo.segments.index(n)])
+      np.percentile(xdata[p], [25, 75])
+      plots[p].axvspan(0,max(hist), b25, b75, facecolor=colors[C[p]], alpha=0.2)
     if p == 1: #if first plot, show the axes
       plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
                            labelbottom='off')
@@ -610,7 +835,7 @@ def get_edges(geo):
     plt.suptitle(title, fontsize=20)
   plt.show()
   return
-
+"""
 
 
 """
@@ -650,12 +875,12 @@ def plot_hori_bars(xdata, labelsin, title=None, axes=None, norm=False):
     plt.suptitle(title, fontsize=20)
   plt.show()
   return
-"""
+
 
 
 
 def line_scatter(xdata, ydata, labelsin=None, title=None, 
-                 lines=True, groups=None, ax_titles=None):
+  lines=True, groups=None, ax_titles=None):
   # a scatter plot with lines through the data
   # groups are a list of listed indices for which ydata belong together
   # i.e.: groups=[[0,1],[2,3]]
@@ -680,7 +905,7 @@ def line_scatter(xdata, ydata, labelsin=None, title=None,
     marks = [markerlist[i] for i in range(L)]
     
   for i in range(len(ydata)):
-    ax.scatter(xdata, ydata[i], c=cols[i], edgecolor=cols[i],
+    ax.scatter(xdata, ydata[i], c=cols[i], edgecolor=cols[i], \
                marker=marks[i], s=40)
     ax.plot(xdata, ydata[i], c=cols[i], linewidth=3, alpha=0.2)
   
@@ -804,12 +1029,9 @@ def pretty_dendrogram(nodes):
   plt.clf()
   
   show_leaf_counts = True
-  ddata = augmented_dendrogram(linkage_matrix,
-                 color_threshold=1,
-                 p=600,
-                 truncate_mode='lastp',
-                 show_leaf_counts=show_leaf_counts,
-                 )
+  ddata = augmented_dendrogram(linkage_matrix,\
+                 color_threshold=1, p=600, truncate_mode='lastp', \
+                 show_leaf_counts=show_leaf_counts)
   plt.title("show_leaf_counts = %s" % show_leaf_counts)
 
   plt.show()
@@ -860,59 +1082,4 @@ def get_edges(geo):
   
   
   return nodes, edges
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
-  
-  return nodes, edges
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+"""

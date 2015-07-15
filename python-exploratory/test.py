@@ -22,3 +22,170 @@ def hangman(word):
           break
     show_guess(sofar)
   return
+
+
+
+#########################################################################
+
+
+def rad_vs_somadist(geo):
+  rad, dist = [], []
+  pDF = PathDistanceFinder(geo, geo.soma)
+  for s in geo.segments:
+    rad.append(s.avgRadius)
+    dist.append(pDF.distanceTo(s))
+  return rad, dist
+  
+
+#########################################################################
+
+
+
+def polar_bar():
+  N = 20
+  thetas = np.linspace(np.pi/2, np.pi, N)
+  rads = np.random.random(N)
+  width = np.pi/(2*N)
+  #
+  ax = plt.subplot(111, polar=True)
+  bar = ax.bar(thetas, rads, width=width, bottom=4.)
+  [b.set_facecolor('deeppink') for b in bar.patches]
+  #[b.set_alpha(0.5) for b in bar.patches]
+  [b.set_edgecolor('deeppink') for b in bar.patches]
+  print(len(bar.patches))
+  plt.show()
+  return
+
+
+
+def circular_hist(angles, labelsin, title=None):
+  """
+  # IMPORT DEPENDENCIES FROM TOP.
+  """
+  def to_radians(angs):
+    return [i*np.pi/180. for i in angs]
+  def r_bin(bins, target): # Return the target bin value, always start from below
+    j = [i for i in bins]
+    for i in j:
+      if i > target:
+        return i
+  def angulize(angs, nbins=100): # Do everything for the plotting except plot
+    if max(angs) > 2*np.pi:
+      angs = to_radians(angs)
+    rads, thetas_b = np.histogram(angs, bins=nbins)
+    width = np.pi/(4*nbins)
+    # Normalize hist height and center the bins
+    rads = [i/max(rads) for i in rads]
+    thetas = [(thetas_b[i]+thetas_b[i+1])/2. for i in range(len(thetas_b)-1)]
+    q25, q75 = np.percentile(angs, [25, 75])
+    b25, b75 = r_bin(thetas, q25), r_bin(thetas, q75)
+    return rads, thetas, width, b25, b75
+  # If it's just one object, plot it simply; else nest the lists
+  if type(angles[0]) is not list:
+    angles = [angles]
+  # Else, create the nested plots
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  ax = plt.subplot(111, polar=True)
+  for A in range(len(angles)):
+    rads, thetas, width, t25, t75 = angulize(angles[A])
+    bar = ax.bar(thetas, rads, width=width, bottom=2.+2*A)
+    [b.set_facecolor(colors[A]) for b in bar.patches]
+    [b.set_edgecolor(colors[A]) for b in bar.patches]
+    iqr = ax.bar(np.linspace(t25, t75, 100), np.ones(100)*1.5, 
+                 width=np.pi/(400), bottom=2.+2*A)
+    [i.set_facecolor(colors[A]) for i in iqr.patches]
+    [i.set_alpha(0.3) for i in iqr.patches]
+    [i.set_linewidth(0.) for i in iqr.patches]
+    mean = ax.bar(np.mean(angles), 1.5, width=np.pi/400, bottom=2.+2*A)
+    med = ax.bar(np.median(angles), 1.25, width=np.pi/400, bottom=2.+2*A)
+    k=['k','orange']
+    for m in [med.patches[0], mean.patches[0]]:
+      m.set_facecolor(k[[med.patches[0], mean.patches[0]].index(m)])
+      m.set_linewidth(0.)
+  # legend
+  khaki_patch = mpatches.Patch(color='darkkhaki', 
+                label=labelsin[0])
+  patches = [khaki_patch]
+  if len(angles) > 1:
+    royal_patch = mpatches.Patch(color='royalblue', 
+                  label=labelsin[1])
+    patches.append(royal_patch)
+  if len(angles) > 2:
+    forest_patch = mpatches.Patch(color='forestgreen', 
+                  label=labelsin[2])
+    patches.append(forest_patch)
+  if len(angles) > 3:
+    lavender_patch = mpatches.Patch(color='tomato', 
+                  label=labelsin[3])
+    patches.append(lavender_patch)
+  plt.legend(handles=patches, loc=4)
+  # title
+  if title:
+    ax.set_title(title, fontsize=20)
+  ax.set_yticklabels([])
+  plt.show()
+  return
+
+
+##################################################################################
+
+def fix_fuckup(infile, outfile):
+  with open(infile, 'r') as fIn:
+    for line in fIn: # assumes one long-ass line to be split into 4-col space-sep lines
+      sline = line.split(' ')
+      nline = []
+      for s in sline:
+        g = s.split('.')
+        if len(g) > 2: # has more than 1 number, do the work
+          dec0 = g[1][:6] # requires %.6f
+          num1 = g[1][6:]
+          nline.append(g[0]+'.'+dec0)
+          nline.append(num1+'.'+g[2])
+        else:
+          nline.append(s)
+      with open(outfile, 'w') as fOut:
+        for n in range(int(len(nline)/4)): # skip first
+          fOut.write('%f ' %float(nline[(n*4)]))
+          fOut.write('%f ' %float(nline[(n*4)+1])) # 
+          fOut.write('%f ' %float(nline[(n*4)+2]))
+          fOut.write('%f ' %float(nline[(n*4)+3]))
+          fOut.write('\n')
+  return
+  
+############################################################################
+
+edges, nodes = [], []
+with open('new_hoc.hoc', 'r') as fIn:
+  for line in fIn:
+    if line:
+      splitLine = line.split(None)
+      if type(splitLine) is list:
+        if splitLine[0] == 'connect':
+          e1 = splitLine[1].split('[')[1].split(']')[0]
+          if e1 not in nodes:
+            nodes.append(e1)
+          e1 = e1 + '.' + splitLine[1].split('(')[1].split(')')[0]
+          e2 = splitLine[2].split('[')[1].split(']')[0]
+          if e2 not in nodes:
+            nodes.append(e2)
+          e2 = e2 + '.' + splitLine[2].split('(')[1].split(')')[0]
+          edges.append([e1, e2])
+
+
+
+
+
+
+
+somapos = [[5.39,1.81,125.6], [157.82,0.9,130.9], [18.06,-6,30],
+[20.91,3.97,124.04], [136.28,-2.56,98.6], [135.97,5.21,94.05], 
+[141.5,2.72,3], [76.05,2.9,155], [82.21,-7.79,119],
+[142.92,-12.91,55.2], [113.39,9.32,45.25], [142.55,-2.93,101],
+[159.19,0.016,190], [60.77,-24.49,72.12], [161.54,0.065,203.52],
+[98.014,1.68,238.58]]
+
+
+
+
+
+

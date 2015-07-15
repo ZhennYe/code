@@ -10,7 +10,7 @@ url = 'http://developer.mbta.com/lib/RTCR/RailLine_9.csv'
 
 
 class getTrains:
-  def __init__(self, show=False):
+  def __init__(self, show=True):
     self.url = 'http://developer.mbta.com/lib/RTCR/RailLine_9.csv'
     self.data = pd.read_csv(self.url)
     self.stations = ['Brandeis/ Roberts', 'Belmont', 'Porter Square']

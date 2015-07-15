@@ -220,9 +220,10 @@ class SkelHoc():
             if first == second:
               keylist = [list(k.keys()) for k in connections]
               if [str(ss),str(s)] not in keylist and [str(s),str(ss)] not in keylist:
-                print('Found match')
+                #print('Found match')
                 connections.append({str(ss): m, 
                                     str(s): n})
+                print('A redundant connection has been skipped')
               # used_segs.append(self.segments[ss][m])
     # show connections
     newconns = []
