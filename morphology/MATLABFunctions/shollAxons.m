@@ -13,7 +13,7 @@ function shollAxons(shollfile, axonfile)
 
 
 % Inputs
-if isstr(shollfile) ~= 1
+if ischar(shollfile) ~= 1
   m = size(shollfile);
   if m(2) ~= 4
     disp('The sholl file must either be a string for a file (Nx4, txt)')
@@ -24,7 +24,7 @@ if isstr(shollfile) ~= 1
 else
   sholl = importdata(shollfile);
 end
-if isstr(axonfile) ~= 1
+if ischar(axonfile) ~= 1
   m = size(axonfile);
   if m(2) ~= 7
     disp('The axonfile must either be a string for a file (Nx4, txt)')
@@ -38,9 +38,10 @@ end
 
 
 % Plot 
+[m, ~] = size(axons);
 shollColor(sholl);
 hold on;
-for i = 1:length(axons)
+for i = 1:m
   str = int2str(axons(i,1));
   text(axons(i,2),axons(i,3), axons(i,4), str);
   text(axons(i,5),axons(i,6), axons(i,7), str);

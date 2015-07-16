@@ -275,6 +275,24 @@ def path_lengths2(geo):
 
 
 
+def wen_tortuosity(geo):
+  """
+  Returns pairs = [Euclidean, PathLengths] list, should be ~ 1, and 
+  normalized tortuosity index (T) ~ normalized path length (l), 
+  should be T = l/R -1. Inspired by figure 4E&F from Wen...Chklovskii, 2009
+  """
+  import scipy.stats as stats
+  tipsegs, tiplocs = geo.getTipIndices()
+  pDF = PathDistanceFinder(geo, geo.soma)
+  edists = [dist3(geo.soma.coordAt(0.5), geo.segments[t].coordAt(l))
+            for t, l in zip(tipsegs, tiplocs)]
+  pdists = [pDF.distanceTo(t, l) for t, l in zip(tipsegs, tiplocs)]
+  
+  
+
+
+
+
 #######################################################################
 # sholl stuff
 
@@ -559,23 +577,30 @@ def simple_axon(geo, axon, thing='branch'):
 
 
 
-def axon_path(geo, axons=None, things=None, outfile=None, branch=True, interdist=1.):
+def axon_path(geo, axons=None, things=None, outfile=None, interdist=1.):
   # Given a geofile and an axon (default axon if none provided), this
   # returns the subtrees between the soma and that axon.
   #
+  print(axons, things)
   if axons is not None and things is not None:
     if type(axons) is not list:
       axons = [axons]
-    if type(things) is not list:
-      things = [things]
+    if things is not None:
+      if type(things) is not list:
+        things = [things]
     if len(axons) != len(things):
       if len(things) == 1:
         things = [things[0] for t in axons]
       else:
         print('Things should be len(axons) or length 1 (if all are same type)')
         return
-    else:
-      beh = [simple_axon(geo, a, t) for a, t in zip(axons, things)]
+    beh = [simple_axon(geo, a, t) for a, t in zip(axons, things)]
+  elif axons is not None and things is None:
+    beh = [a for a in axons]
+  else:
+    print(axons, things)
+    return
+  #
   pDF = PathDistanceFinder(geo, geo.soma)
   print(beh)
   paths = [pDF.pathTo(b) for b in beh]
@@ -597,7 +622,7 @@ def axon_path(geo, axons=None, things=None, outfile=None, branch=True, interdist
             nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
             #dists.append(pDF.distanceTo(s, 0.5)/maxp)
         else: # Add at least one node per segment
-          nodes.append(s.coordAt(0.5))
+          nodes.append(p.coordAt(0.5))
           #dists.append(pDF.distanceTo(s, 0.5)/maxp)
     with open(outfile, 'w') as fOut:
       for i in range(len(nodes)):
@@ -609,10 +634,10 @@ def axon_path(geo, axons=None, things=None, outfile=None, branch=True, interdist
 
 
 
-def mainpath_color(geo, outfile, axon=None, interdist=1.):
+def mainpath_color(geo, outfile, axon=None, things=None, interdist=1.):
   # This will color segments based on their distance from the mainpath
   print(axon)
-  paths = np.array(axon_path(geo, axon))
+  paths = np.array(axon_path(geo, axon, things))
   bpaths = []
   for path in paths:
     for p in path:
@@ -694,21 +719,7 @@ def get_subtrees(geo, axons, things=None):
         subtree.append(add_unidirect(geo, n, seg, path)) ## 
     return subtree
   # Condition axon input
-  if axons is not None and things is not None:
-    if type(axons) is not list:
-      axons = [axons]
-    if type(things) is not list:
-      things = [things]
-    if len(axons) != len(things):
-      if len(things) == 1:
-        things = [things[0] for t in axons]
-      else:
-        print('Things should be len(axons) or length 1 (if all are same type)')
-        return
-      axons = [simple_axon(geo, a, t) for a, t in zip(axons, things)]
-  elif type(axons) is list and things is None:
-    axons = axons
-  paths = axon_path(geo, axons)
+  paths = axon_path(geo, axons, things)
   flatpath = []
   for path in paths:
     for p in path:
@@ -717,11 +728,12 @@ def get_subtrees(geo, axons, things=None):
   subtrees = []
   for p in flatpath:
     # Loop over the segments in the path to create the subtrees
-    subs = is_subtree_root(geo, p, flatpath)
-    for sub in subs:
-      if sub not in subtrees:
-        if len(sub) not in [len(i) for i in subtrees]:
-          subtrees.append(sub)
+    if len(p.neighbors) > 2:
+      subs = is_subtree_root(geo, p, flatpath)
+      for sub in subs:
+        if sub not in subtrees:
+          if len(sub) not in [len(i) for i in subtrees]:
+            subtrees.append(sub)
   # Should have all unique subtrees now
   return subtrees
 
@@ -760,24 +772,40 @@ def show_subtrees(geo, outfile, axon=None, subtrees=None, interdist=1.):
 
 
 ### Wiring
-def subtree_wiring(subtrees, path=None):
+def subtree_wiring(geo, subtrees=None, path=None, axons=None, things=None):
   # Returns the percent of total wiring of each subtree (and the path)
-  if path is None:
-    ssubtrees = subtrees # Path already included or not relevant
+  if subtrees is None:
+    ssubtrees = get_subtrees(geo, axons, things)
   else:
-    ssubtrees = [i for i in subtrees]
-    ssubtrees.append(path)
+    ssubtrees = subtrees
+  # Get rid of zero subtree
+  if len(min(ssubtrees)) == 0:
+    ssubtrees.pop(ssubtrees.index(min(ssubtrees)))
+  if path is None:
+    paths = axon_path(geo, axons, things)
+  else:
+    paths = path
+  pathwire = sum([sum([p.length for p in pa]) for pa in paths])
   allsegs = []
   for t in ssubtrees:
     for s in t: # Add each segment
       allsegs.append(s)
   total = sum([s.length for s in np.array(allsegs)])
-  wiring = []
+  total = total + pathwire
+  for p in paths:
+    ssubtrees.append(p)
+  subwiring = []
   for t in ssubtrees:
-    wiring.append(sum([s.length for s in t])/total)
-  if path is not None:
-   print('Path wiring: %.5f' %(sum([s.length for s in path])/total))
-  return wiring
+    subwiring.append(sum([s.length for s in t])/total)
+  print('Subtree length: %i' %len(ssubtrees))
+  print('Max: %.5f, Min: %.5f' %(max(subwiring), min(subwiring)))
+  print('Mean: %.5f, Min: %.5f' %(np.mean(subwiring), np.median(subwiring)))
+  print('Path wiring: %.5f, Path wiring percent: %.5f' %(pathwire, 
+                                                         pathwire/total))
+  print('Total tree wiring: %.5f' %total)
+  print('Axons: '); print(axons)
+
+  
 
 
 

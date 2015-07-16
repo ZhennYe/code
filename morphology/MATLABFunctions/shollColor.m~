@@ -34,7 +34,7 @@ scatter3(sholl(:,1), sholl(:,2), sholl(:,3), 1, sholl(:,4))
 hold on;
 % Soma
 [~, ind] = min(sholl(:,4));
-fprintf('soma: (%d, %d, %d)\n', sholl(ind,1), sholl(ind,2), sholl(ind,3))
+print(
 scatter3(sholl(ind,1), sholl(ind,2), sholl(ind,3), 300, 0, 'filled')
 axis('equal');
 %set(gca, 'xtick', []);
