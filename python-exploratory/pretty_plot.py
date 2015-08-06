@@ -6,6 +6,8 @@ import numpy as np
 import networkx as nx
 import mpl_toolkits.axisartist.floating_axes as floating_axes
 from matplotlib.projections import PolarAxes
+import seaborn as sns
+sns.set_style('white')
 
 
 
@@ -129,10 +131,61 @@ def mean_scatter(V, labelsin, title=None, ticks=None, axes=None,
   fig = plt.figure()
   ax = fig.add_subplot(111)
   for v in range(len(V)):
-    ax.scatter(L.index(labelsin[v]), Vmean[v],  c=fcolors[C[v]], s=80, 
+    meanline = ax.scatter(L.index(labelsin[v]), Vmean[v],  c=fcolors[C[v]], s=100, 
                marker='o', edgecolor='k', alpha=0.6)#fcolors[C[v]])
     if showboth:
-      ax.scatter(L.index(labelsin[v]), Vmed[v], c=fcolors[C[v]], s=80,
+      medline = ax.scatter(L.index(labelsin[v])+.2, Vmed[v], c=fcolors[C[v]], s=100,
+                 marker='s', edgecolor='k', alpha=0.6)#fcolors[C[v]])
+  # legend
+  khaki_patch = mpatches.Patch(color='darkkhaki', 
+                label=labelsin[C.index(fcolors.index('darkkhaki'))])
+  royal_patch = mpatches.Patch(color='royalblue', 
+                label=labelsin[C.index(fcolors.index('royalblue'))])
+  patches = [khaki_patch, royal_patch]
+  if len(L) > 2:
+    forest_patch = mpatches.Patch(color='forestgreen', 
+                  label=labelsin[C.index(fcolors.index('forestgreen'))])
+    patches.append(forest_patch)
+  if len(L) > 3:
+    tomato_patch = mpatches.Patch(color='tomato', 
+                  label=labelsin[C.index(fcolors.index('tomato'))])
+    patches.append(tomato_patch)
+  if showleg is not None:
+    ax.legend(handles=patches, loc=showleg) # I often mess with this
+  if ticks is None:
+    ax.tick_params(axis='x',which='both',bottom='off',top='off',
+                         labelbottom='off')
+  # title
+  if title:
+    ax.set_title(title, fontsize=20)
+  if axes is not None:
+    ax.set_xlabel(axes[0], fontsize=25)
+    ax.set_ylabel(axes[1], fontsize=25)
+  ax.tick_params(axis='y', which='major', labelsize=20) # Size of y ticks
+  ax.locator_params(nbins=4)  # Number of y-tick bins
+  plt.show(); return 
+  
+
+
+def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None, 
+                   showleg='best', moreD=None):
+  """
+  """
+  L = list(np.unique(labelsin))
+  C = [L.index(i) for i in labelsin]
+  fcolors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  # plotting
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  ax2 = None
+  if moreD is not None:
+    if len(moreD) == len(V):
+      ax2 = ax.twinx()
+  for v in range(len(V)):
+    ax.scatter(L.index(labelsin[v]), V[v],  c=fcolors[C[v]], s=80, 
+               marker='o', edgecolor='k', alpha=0.6)#fcolors[C[v]])
+    if ax2 is not None:
+      ax2.scatter(L.index(labelsin[v])+.1, moreD[v],  c=fcolors[C[v]], s=80, 
                  marker='s', edgecolor='k', alpha=0.6)#fcolors[C[v]])
   # legend
   khaki_patch = mpatches.Patch(color='darkkhaki', 
@@ -159,66 +212,28 @@ def mean_scatter(V, labelsin, title=None, ticks=None, axes=None,
   if axes is not None:
     ax.set_xlabel(axes[0], fontsize=15)
     ax.set_ylabel(axes[1], fontsize=15)
+    if ax2 is not None:
+      ax2.set_ylabel(axes[2], fontsize=15) # color='r'
   plt.show(); return 
   
 
 
-def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None, 
-                   showleg='best'):
-  """
-  """
-  L = list(np.unique(labelsin))
-  C = [L.index(i) for i in labelsin]
-  fcolors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
-  # plotting
-  fig = plt.figure()
-  ax = fig.add_subplot(111)
-  for v in range(len(V)):
-    ax.scatter(L.index(labelsin[v]), V[v],  c=fcolors[C[v]], s=80, 
-               marker='o', edgecolor='k', alpha=0.6)#fcolors[C[v]])
-  # legend
-  khaki_patch = mpatches.Patch(color='darkkhaki', 
-                label=labelsin[C.index(fcolors.index('darkkhaki'))])
-  royal_patch = mpatches.Patch(color='royalblue', 
-                label=labelsin[C.index(fcolors.index('royalblue'))])
-  patches = [khaki_patch, royal_patch]
-  if len(L) > 2:
-    forest_patch = mpatches.Patch(color='forestgreen', 
-                  label=labelsin[C.index(fcolors.index('forestgreen'))])
-    patches.append(forest_patch)
-  if len(L) > 3:
-    tomato_patch = mpatches.Patch(color='tomato', 
-                  label=labelsin[C.index(fcolors.index('tomato'))])
-    patches.append(tomato_patch)
-  if showleg is not None:
-    ax.legend(handles=patches, loc=showleg) # I often mess with this
-  if ticks is None:
-    ax.tick_params(axis='x',which='both',bottom='off',top='off',
-                         labelbottom='off')
-  # title
-  if title:
-    ax.set_title(title, fontsize=20)
-  if axes is not None:
-    ax.set_xlabel(axes[0], fontsize=15)
-    ax.set_ylabel(axes[1], fontsize=15)
-  plt.show(); return 
-  
-
-
-def simple_scatter(x, y, fit=False, title=None, axes=None):
+def simple_scatter(x, y, fit=False, title=None, axes=None, showtext=True):
   """
   """
   import scipy.stats as stats
   if type(x[0]) is list: # Multiple plots
+    fcolors = ['darkkhaki', 'royalblue', 'forestgreen','deeppink']
     if len(x) > 4:
       print('Can only handle 4 plots!')
   else:
     x, y = [x], [y]
-  fcolors = ['darkkhaki', 'royalblue', 'forestgreen','deeppink']
+    fcolors = ['steelblue']
   fig = plt.figure()
   ax = fig.add_subplot(111)
   for v in range(len(x)):
-    ax.scatter(x[v], y[v], c=fcolors[v], edgecolor=fcolors[v], alpha=0.5)
+    ax.scatter(x[v], y[v], c='ivory', edgecolor=fcolors[v], 
+               linewidth=2, s=50, alpha=0.5)
     beta, alpha, r, p, _ = stats.linregress(x[v], y[v])
     ax.plot([min(x[v]), max(x[v])], 
             [min(x[v])*beta+alpha, max(x[v])*beta+alpha], c=fcolors[v],
@@ -228,10 +243,13 @@ def simple_scatter(x, y, fit=False, title=None, axes=None):
   if title is not None:
     ax.set_title(title, fontsize=20)
   if axes is not None:
-    ax.set_xlabel(axes[0], fontsize=15)
-    ax.set_ylabel(axes[1], fontsize=15)
-  ax.set_xlim([min([min(i) for i in x]), 0.7*max([max(i) for i in x])])
-  ax.set_ylim([min([min(i) for i in y]), max([max(i) for i in y])])
+    ax.set_xlabel(axes[0], fontsize=25)
+    ax.set_ylabel(axes[1], fontsize=25)
+  #ax.set_xlim([min([min(i) for i in x]), 0.7*max([max(i) for i in x])])
+  #ax.set_ylim([min([min(i) for i in y]), max([max(i) for i in y])])
+  if showtext is True:
+    ax.text(min(x[0]), max(y[0])*.8, r'$r=%.3f$' %(r), 
+            fontsize=25) # Can also print P-value as well
   plt.show()
   return
               
@@ -339,10 +357,10 @@ def plot_cum_dist(V, labelsin, title=None):
 
 
 
-# def regress_scatter(xdata, 
 
+###########################################################################
 def plot_hori_bullshit(xdata, labelsin, title=None, axes=None, norm=False,
-                       showmean=True, switch=False):
+                       showmean=True, switch=False, llog=False):
   # xdata is list of lists (distribution)
   if switch:
     for i in range(len(xdata)-1):
@@ -376,12 +394,14 @@ def plot_hori_bullshit(xdata, labelsin, title=None, axes=None, norm=False,
     plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
     # divine the appropriate bar width
     hgt = (maxm-minm)/len([i for i in hist if i != 0]) # as high as there are filled hist elements
+    hgt = plotbins[2]-plotbins[1]
+    # print(hgt)
     if norm is True:
       # print(plotbins, hist, len(plotbins), len(hist))
       plots[p].barh(plotbins, hist, height=hgt, color=colors[C[p]],
                     edgecolor=colors[C[p]])
     else:
-      print(b_e[:10], hist[:10]) # height is bar width !
+      #print(b_e[:10], hist[:10]) # height is bar width !
       plots[p].barh(plotbins, hist, height=hgt, color=colors[C[p]],
                     edgecolor=colors[C[p]])
     # show the means:
@@ -398,18 +418,24 @@ def plot_hori_bullshit(xdata, labelsin, title=None, axes=None, norm=False,
                     r_bin(plotbins, np.median(xdata[p]))],'--', linewidth=3, c='k', )
       q25, q75 = np.percentile(xdata[p], [25, 75])
       b25, b75 = r_bin(plotbins, q25), r_bin(plotbins, q75)
-      plots[p].axhspan(b25, b75, facecolor=colors[C[p]], alpha=0.4)
+      # Plot IQR
+      plots[p].axhspan(b25, b75, edgecolor=colors[C[p]], 
+                       facecolor=colors[C[p]], alpha=0.4)
     if p == 1: #if first plot, show the axes
       plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
                            labelbottom='off')
       if axes:
         plots[p].set_ylabel(axes[1], fontsize=15)
       plots[p].set_ylim([minm, maxm])
+      if llog is True:
+        plots[p].set_yscale('log'); plots[p].set_ylim([0, maxm]) ## Log scale
     else:
       #plots[p].axis('off')
       plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
                            labelbottom='off')
       plots[p].get_yaxis().set_visible(False)
+      if llog is True:
+        plots[p].set_yscale('log') ## Log scale
       plots[p].set_ylim([minm,maxm])
     #plots[p].set_title(titles[p])
   if title:
@@ -430,6 +456,84 @@ def hori_bars_legend():
 
 
 
+def hori_scatter(xdata, labelsin, title=None, axes=None, norm=False,
+                       showmean=True, switch=False, llog=False, counts=False):
+  # xdata is list of lists (distribution)
+  if switch:
+    for i in range(len(xdata)-1):
+      xdata.append(xdata.pop(0))
+      labelsin.append(labelsin.pop(0))
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  L = list(np.unique(labelsin))
+  C = [L.index(i) for i in labelsin]
+  # print(L,C)
+  fig = plt.figure()
+  plots = [fig.add_subplot(1,len(xdata),i) for i in range(len(xdata))]
+  if norm is True:
+    #tdata = np.linspace(0,100,len(xdata[0]))
+    X = []
+    for x in xdata:
+      X.append([i/max(x) for i in x])
+    xdata = X
+    minm, maxm = 0, 1.
+  else:
+    minm, maxm = np.inf, 0 # condition the data
+    for x in xdata:
+      if np.mean(x)-np.std(x) < minm:
+        minm = np.mean(x)-np.std(x)
+      if np.mean(x)+np.std(x) > maxm:
+        maxm = np.mean(x)+np.std(x)
+    if minm < 0:
+      minm = 0.
+  for p in range(len(xdata)): # now plot
+    xd = np.random.random(len(xdata[p]))
+    plots[p].scatter(xd, xdata[p], color=colors[C[p]], edgecolor=colors[C[p]],
+                    alpha=0.6)
+    if showmean:
+      def r_bin(bins, target): # always start from below
+        j = [i for i in bins]
+        j.sort();
+        for i in j:
+          if i > target:
+            return i
+      plots[p].plot([0,1], [np.mean(xdata[p]), np.mean(xdata[p])],
+                    '-', linewidth=3, c='k')
+      plots[p].plot([0,1], [np.median(xdata[p]), np.median(xdata[p])],
+                    '--', linewidth=3, c='k', )
+      q25, q75 = np.percentile(xdata[p], [25, 75])
+      b25, b75 = r_bin(xdata[p], q25), r_bin(xdata[p], q75)
+      # Plot IQR
+      plots[p].axhspan(b25, b75, edgecolor=colors[C[p]], 
+                       facecolor=colors[C[p]], alpha=0.4)
+    if p == 1: #if first plot, show the axes
+      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+                           labelbottom='off')
+      if axes:
+        plots[p].set_ylabel(axes[1], fontsize=15)
+      plots[p].set_ylim([minm, maxm])
+      if llog is True:
+        plots[p].set_yscale('log'); plots[p].set_ylim([0, maxm]) ## Log scale
+    else:
+      #plots[p].axis('off')
+      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+                           labelbottom='off')
+      plots[p].get_yaxis().set_visible(False)
+      if llog is True:
+        plots[p].set_yscale('log') ## Log scale
+      plots[p].set_ylim([minm,maxm])
+      if counts is True:
+        plots[p].set_title('%i' %len(xdata[p]))
+    #plots[p].set_title(titles[p])
+  if title:
+    plt.suptitle(title, fontsize=20)
+  plt.show()
+  return
+      
+
+
+
+
+###########################################################################
 def circular_hist(angles, labelsin, title=None, same=None, leg=True,
                   ninety=False):
   """

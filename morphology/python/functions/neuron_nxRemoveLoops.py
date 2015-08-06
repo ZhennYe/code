@@ -1,11 +1,13 @@
 # neuron_nxRemoveLoops.py -- removes loops from hoc file based on 
 #                            a networkx object and methods
 # Much of this is in the ipython notebook networkx_loops.ipynb
+# usage: python neuron_nxRemoveLoops.py hocIn hocOut (optional)
 
 
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+import sys
 
 
 
@@ -18,7 +20,7 @@ def as_nx_object(infile):
     for line in fIn:
       if line:
         splitLine = line.split(None)
-        if type(splitLine) is list:
+        if type(splitLine) is list and len(splitLine) > 0:
           if splitLine[0] == 'connect':
             e1 = splitLine[1].split('[')[1].split(']')[0]
             if e1 not in nodes:
@@ -102,7 +104,7 @@ def rewrite_hoc(infile, outfile=None, G=None):
         for line in fIn:
           if line:
             splitLine = line.split(None)
-            if type(splitLine) is list:
+            if type(splitLine) is list and len(splitLine) > 0:
               if splitLine[0] == 'connect': # Ignore the connections
                 pass 
               else:
@@ -125,7 +127,7 @@ def rewrite_hoc(infile, outfile=None, G=None):
     outfile = infile.split('.')[-2]+'_NoLoops.hoc'
   connections = []
   gedges = G.edges()
-  print('Num nodes: %i , num edges: %i' %(len(gedges), 2*len(nodes)))
+  print('Num edges: %i' %(len(gedges)))
   for e in gedges:
     E = add_connection(e)
     if len(E) == 2:
@@ -136,7 +138,15 @@ def rewrite_hoc(infile, outfile=None, G=None):
         
   
 
-
+########################################################################
+if __name__ == "__main__":
+  args = sys.argv
+  hocIn = args[1]
+  if len(args) > 2:
+    hocOut = args[2]
+  else:
+    hocOut = None
+  rewrite_hoc(hocIn, hocOut)
 
 
 

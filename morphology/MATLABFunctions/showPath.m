@@ -1,4 +1,4 @@
-function showPath(shollfile, pathfile)
+function showPath(shollfile, pathfile, varargin)
 % Usage: showPath(shollfile, pathfile)
 %
 % Input:
@@ -36,12 +36,17 @@ else
   path = importdata(pathfile);
 end
 
+if nargin > 2
+  somapos = varargin{1};
+  shollColor(sholl, somapos);
+else
+  % Plotting
+  shollColor(sholl);
+end
 
 
-% Plotting
-shollColor(sholl);
 hold on;
-scatter3(path(:,1), path(:,2), path(:,3), 'ko', 'filled')
+scatter3(path(:,1), path(:,2), path(:,3), 20, 'ko', 'filled')
 axis('equal');
 set(gca, 'visible','off');
 

@@ -275,18 +275,38 @@ def path_lengths2(geo):
 
 
 
-def wen_tortuosity(geo):
+def wen_tortuosity(geolist):
   """
   Returns pairs = [Euclidean, PathLengths] list, should be ~ 1, and 
   normalized tortuosity index (T) ~ normalized path length (l), 
   should be T = l/R -1. Inspired by figure 4E&F from Wen...Chklovskii, 2009
   """
   import scipy.stats as stats
-  tipsegs, tiplocs = geo.getTipIndices()
-  pDF = PathDistanceFinder(geo, geo.soma)
-  edists = [dist3(geo.soma.coordAt(0.5), geo.segments[t].coordAt(l))
-            for t, l in zip(tipsegs, tiplocs)]
-  pdists = [pDF.distanceTo(t, l) for t, l in zip(tipsegs, tiplocs)]
+  def seg_int(name):
+    try:
+      beh = int(name.split('[')[1].split(']')[0])
+      return beh
+    except:
+      try:
+        beh = int(name.split('_')[-1])
+        return beh
+      except:
+        print(name)
+    return 
+  edists, plengths = [], []
+  for g in geolist:
+    tipsegs, tiplocs = g.getTipIndices()
+    pDF = PathDistanceFinder(g, g.soma)
+    tempedists, tempplengths = [], []
+    for seg in g.segments:
+      if seg_int(seg.name) in tipsegs:
+        tempedists.append(dist3(g.soma.coordAt(0.5), seg.coordAt(0.5)))
+        tempplengths.append(pDF.distanceTo(seg, 0.5))
+    edists.append(np.mean(tempedists))
+    plengths.append(np.mean(tempplengths))
+  return edists, plengths
+  
+    
   
   
 
@@ -519,7 +539,7 @@ def sholl_color(geo, outfile, interdist=1.):
     print('Warning! No. nodes: %i, No. distances: %i' %(len(nodes), len(nodes)))
   with open(outfile, 'w') as fOut:
     for i in range(len(nodes)):
-      fOut.write('%.6f %.6f %.6f %.6f' %(nodes[i][0], nodes[i][1], 
+      fOut.write('%.5f %.5f %.5f %.5f' %(nodes[i][0], nodes[i][1], 
                                          nodes[i][2], dists[i]))
       fOut.write('\n')
   print('%s file written' %outfile)
@@ -551,6 +571,20 @@ def axons_endpoints(geo, outfile=None, Format='matlab'):
         print(a[0], a[1], a[2])
     print('Found %i potential branch axons' %len(axons))
     return a
+
+
+
+def axon_help(geo, x=None, y=None, z=None):
+  for s in geo.segments:
+    for g in [0,1]:
+      if x is not None:
+        if int(s.coordAt(g)[0]) == x:
+          if y is not None:
+            if int(s.coordAt(g)[1]) == y:
+              print(geo.segments.index(s), s.coordAt(g))
+          else:
+            print(geo.segments.index(s), s.coordAt(g))
+  return
 
 
 
@@ -723,7 +757,8 @@ def get_subtrees(geo, axons, things=None):
   flatpath = []
   for path in paths:
     for p in path:
-      flatpath.append(p)
+      if p not in flatpath:
+        flatpath.append(p)
   # Assume path[0] == geo.soma
   subtrees = []
   for p in flatpath:
@@ -739,29 +774,47 @@ def get_subtrees(geo, axons, things=None):
 
 
 
-def show_subtrees(geo, outfile, axon=None, subtrees=None, interdist=1.):
+def show_subtrees(geo, outfile, axon=None, things=None, subtrees=None, interdist=1.):
   # Make a txt file to plot individual subtrees in matlab
   if subtrees is None:
-    subtrees = get_subtrees(geo, axon)
-  subtrees.append(path)
+    subtrees = get_subtrees(geo, axon, things)
+    path = axon_path(geo, axon, things)
+    subtrees.append(path)
   treenum = np.linspace(0,1,len(subtrees))
   # Interpolate for plotting
   nodes, dists = [], []
   for tree in range(len(subtrees)):
-    for s in subtrees[tree]:
-      if s.length > interdist:
-        x0, y0, z0 = s.coordAt(0)[0],s.coordAt(0)[1], s.coordAt(0)[2]
-        x1, y1, z1 = s.coordAt(1)[0],s.coordAt(1)[1], s.coordAt(1)[2]
-        temp_nodes = [np.linspace(x0, x1, int(s.length/interdist)),
-                      np.linspace(y0, y1, int(s.length/interdist)),
-                      np.linspace(z0, z1, int(s.length/interdist))]
-        #print(np.shape(temp_nodes))
-        for t in range(np.shape(temp_nodes)[1]):
-          nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
+    for seg in subtrees[tree]:
+      if type(seg) is list:
+        for s in seg:
+          if s.length > interdist:
+            x0, y0, z0 = s.coordAt(0)[0],s.coordAt(0)[1], s.coordAt(0)[2]
+            x1, y1, z1 = s.coordAt(1)[0],s.coordAt(1)[1], s.coordAt(1)[2]
+            temp_nodes = [np.linspace(x0, x1, int(s.length/interdist)),
+                          np.linspace(y0, y1, int(s.length/interdist)),
+                          np.linspace(z0, z1, int(s.length/interdist))]
+            #print(np.shape(temp_nodes))
+            for t in range(np.shape(temp_nodes)[1]):
+              nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
+              dists.append(treenum[tree])
+          else: # Add at least one node per segment
+            nodes.append(s.coordAt(0.5))
+            dists.append(treenum[tree])
+      else:
+        s = seg
+        if s.length > interdist:
+          x0, y0, z0 = s.coordAt(0)[0],s.coordAt(0)[1], s.coordAt(0)[2]
+          x1, y1, z1 = s.coordAt(1)[0],s.coordAt(1)[1], s.coordAt(1)[2]
+          temp_nodes = [np.linspace(x0, x1, int(s.length/interdist)),
+                        np.linspace(y0, y1, int(s.length/interdist)),
+                        np.linspace(z0, z1, int(s.length/interdist))]
+          #print(np.shape(temp_nodes))
+          for t in range(np.shape(temp_nodes)[1]):
+            nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
+            dists.append(treenum[tree])
+        else: # Add at least one node per segment
+          nodes.append(s.coordAt(0.5))
           dists.append(treenum[tree])
-      else: # Add at least one node per segment
-        nodes.append(s.coordAt(0.5))
-        dists.append(treenum[tree])
   with open(outfile, 'w') as fOut:
     for n in range(len(nodes)):
       fOut.write('%.6f %.6f %.6f %.6f\n' %(nodes[n][0], nodes[n][1], 
@@ -779,8 +832,9 @@ def subtree_wiring(geo, subtrees=None, path=None, axons=None, things=None):
   else:
     ssubtrees = subtrees
   # Get rid of zero subtree
-  if len(min(ssubtrees)) == 0:
-    ssubtrees.pop(ssubtrees.index(min(ssubtrees)))
+  pico = [len(t) for t in ssubtrees]
+  if min(pico) == 0:
+    ssubtrees.pop(pico.index(0))
   if path is None:
     paths = axon_path(geo, axons, things)
   else:
@@ -799,13 +853,15 @@ def subtree_wiring(geo, subtrees=None, path=None, axons=None, things=None):
     subwiring.append(sum([s.length for s in t])/total)
   print('Subtree length: %i' %len(ssubtrees))
   print('Max: %.5f, Min: %.5f' %(max(subwiring), min(subwiring)))
-  print('Mean: %.5f, Min: %.5f' %(np.mean(subwiring), np.median(subwiring)))
+  print('Mean: %.5f, Med: %.5f' %(np.mean(subwiring), np.median(subwiring)))
   print('Path wiring: %.5f, Path wiring percent: %.5f' %(pathwire, 
                                                          pathwire/total))
   print('Total tree wiring: %.5f' %total)
   print('Axons: '); print(axons)
 
   
+
+
 
 
 
@@ -1841,7 +1897,7 @@ def plot_soma_positions(arr, types=None):
   pts = [polar_to_rect(p) for p in arr]
   stn_length = max([p[2] for p in arr])
   # get colors
-  colors = ['royalblue','forestgreen','darkkhaki','deeppink']
+  colors = ['darkkhaki','royalblue','forestgreen','tomato']
   if types:
     if type(types[0]) is not int:
       names = list(set(types))
@@ -1856,9 +1912,9 @@ def plot_soma_positions(arr, types=None):
   ax.plot([0,stn_length], [0,0],[0,0], linewidth=5, c='k')
   ax.plot([0,-stn_length*.5],[0,0], [0,0], linewidth=1, c='k')
   ax.plot([0,0],[stn_length*.5,-(stn_length*.5)],[0,0], linewidth=1,c='k')
-  ax.text(stn_length, 0, 0, r'stn', style='italic', fontsize=20)
-  stnlen = '%.0f um' %stn_length
-  ax.text(stn_length, -50, 0, stnlen, fontsize=15)
+  ax.text(1.1*stn_length, 0, -20, r'stn', style='italic', fontsize=20)
+  stnlen = '%.0f um' %(stn_length)
+  ax.text(1.1*stn_length, 0, -50, stnlen, fontsize=15)
   # plot the soma
   for p in pts:
     if types:
