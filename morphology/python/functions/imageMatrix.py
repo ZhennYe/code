@@ -388,6 +388,7 @@ def add_radius(hocFile, geo, rads, newHocFile='new_hoc_radius.hoc'):
 
 ######################### end of good stuffs #############################
 
+######################### helper functions ###############################
 
 
 def suggest_thresh(imfile, th_range=None):
@@ -426,7 +427,6 @@ def suggest_thresh(imfile, th_range=None):
     ax.set_title('Threshold of %.2f' %threshes[t])
   plt.show()
   return
-
 
 
 
@@ -480,6 +480,9 @@ if __name__ == '__main__':
   arguments = sys.argv
   directory = arguments[1]
   if len(arguments) > 2:
+    outfile = arguments[2]
+    
+  print('command-line usage not finished yet!')
 
  
 
