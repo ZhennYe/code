@@ -61,9 +61,54 @@ def group_by_name(labels, arr, metric='mean'):
       vals[labels[l]].append(np.median(arr[l]))
   lab_data, arr_data = [k for k in vals.keys()], [np.mean(d) for d in vals.values()]
   return lab_data, arr_data, [np.std(d) for d in vals.values()]
+
+
+
+def dict_summary(obj):
+  """
+  Print a summary of the object values in a dictionary. Only works for
+  dicts of keys=['files','cellTypes','obj1, 'obj2', ...]
+  """
+  grouplist = list(set(obj['cellTypes']))
+  for k in obj.keys():
+    if k != 'files' and k != 'cellTypes': # Don't do this for files/types
+      print('Property: %s' %k)
+      groups = [[] for i in grouplist] # New group for each key
+      for samp in range(len(obj[k])):
+        groups[grouplist.index(obj['cellTypes'][samp])].append(obj[k][samp])
+      # Now print group stats for each group
+      ind_vars = []
+      for g in range(len(groups)):
+        ind_means = [np.mean(i) for i in groups[g]]
+        ind_meds = [np.median(i) for i in groups[g]]
+        ind_std = [np.std(i) for i in groups[g]]
+        for sub in groups[g]:
+          ind_vars.append(np.var(sub))
+        ind_qs = [[np.percentile(i,25), np.percentile(i,75)]
+                      for i in groups[g]]
+        ic = np.var(ind_means)**2 / \
+             (np.var(ind_means)**2 + sum([np.var(i) for i in groups[g]])**2)
+        print('For %i %s objects' %(len(groups[g]), grouplist[g]))
+        print('Mean: %.5f +/- %.5f, Median: %.5f' 
+              %(np.mean(ind_means), np.mean(ind_std), np.mean(ind_meds)))
+        print('Means +/- std            Median   IQR (25th - 75th):')
+        for u in range(len(groups[g])):
+          print('%.5f +/- %.5f        %.5f (%.5f - %.5f)'
+                %(ind_means[u], ind_std[u], ind_meds[u], ind_qs[u][0], ind_qs[u][1]))
+        print('Intraclass correlation: %.5f' %ic)
+      g_means = []
+      for g in groups:
+        g_means.append(np.mean([np.mean(i) for i in g]))
+      master_ic = np.var(g_means)**2 / \
+                  (np.var(g_means)**2 + sum(ind_vars)**2)
+      print('Master intraclass correlation: %.5f' %master_ic)
+  return
+  
   
 
-
+  group_means = [np.mean(k) for k in v_means] # group_means are the master means (only 4)
+  master_ic = np.var(group_means)**2 / \
+              (np.var(group_means)**2 + sum([np.var(i) for i in v_means])**2)
 
 ########################################################################
 # pretty plots
@@ -151,7 +196,7 @@ def mean_scatter(V, labelsin, title=None, ticks=None, axes=None,
                   label=labelsin[C.index(fcolors.index('tomato'))])
     patches.append(tomato_patch)
   if showleg is not None:
-    ax.legend(handles=patches, loc=showleg) # I often mess with this
+    ax.legend(handles=patches, loc=showleg, fontsize=15) # I often mess with this
   if ticks is None:
     ax.tick_params(axis='x',which='both',bottom='off',top='off',
                          labelbottom='off')
@@ -170,6 +215,7 @@ def mean_scatter(V, labelsin, title=None, ticks=None, axes=None,
 def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None, 
                    showleg='best', moreD=None):
   """
+  moreD = another set of type V to be plot on right axes, len(axes)=3
   """
   L = list(np.unique(labelsin))
   C = [L.index(i) for i in labelsin]
@@ -202,7 +248,7 @@ def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None,
                   label=labelsin[C.index(fcolors.index('tomato'))])
     patches.append(tomato_patch)
   if showleg is not None:
-    ax.legend(handles=patches, loc=showleg) # I often mess with this
+    ax.legend(handles=patches, loc=showleg, fontsize=15) # I often mess with this
   if ticks is None:
     ax.tick_params(axis='x',which='both',bottom='off',top='off',
                          labelbottom='off')
@@ -359,7 +405,7 @@ def plot_cum_dist(V, labelsin, title=None):
 
 
 ###########################################################################
-def plot_hori_bullshit(xdata, labelsin, title=None, axes=None, norm=False,
+def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
                        showmean=True, switch=False, llog=False):
   # xdata is list of lists (distribution)
   if switch:
@@ -488,7 +534,7 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, norm=False,
   for p in range(len(xdata)): # now plot
     xd = np.random.random(len(xdata[p]))
     plots[p].scatter(xd, xdata[p], color=colors[C[p]], edgecolor=colors[C[p]],
-                    alpha=0.6)
+                    alpha=0.6, s=20)
     if showmean:
       def r_bin(bins, target): # always start from below
         j = [i for i in bins]
@@ -513,6 +559,8 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, norm=False,
       plots[p].set_ylim([minm, maxm])
       if llog is True:
         plots[p].set_yscale('log'); plots[p].set_ylim([0, maxm]) ## Log scale
+      if counts is True:
+        plots[p].set_title('%i' %len(xdata[p]))
     else:
       #plots[p].axis('off')
       plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
@@ -538,7 +586,7 @@ def circular_hist(angles, labelsin, title=None, same=None, leg=True,
                   ninety=False):
   """
   # IMPORT DEPENDENCIES FROM TOP. Same indicates same group, should be int.
-  I.e.: GM same=0, LP same=1, etc.
+  I.e.: GM same=0, LG same=1, etc.
   ninety=True if only want x-ticks plotted to 90, else 180 is default
   """
   def to_radians(angs):
@@ -619,10 +667,10 @@ def circular_hist(angles, labelsin, title=None, same=None, leg=True,
 
 
 
-def stats_plots(V, labelsin, title=None):
+def stats_plots(V, labelsin, title=None, plotOne=None, axes=None):
   """
   4 plots of basic statistical properties. IC = intraclass correlation, 
-  or the noise sources between the groups.
+  or the noise sources between the groups. 
   """
   import scipy.stats as stats
   colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
@@ -653,14 +701,20 @@ def stats_plots(V, labelsin, title=None):
   print('Master IC for this set: %.5f' %master_ic)
   ## Plotting stuff
   fig = plt.figure()
-  axs = [fig.add_subplot(221), fig.add_subplot(222), 
-         fig.add_subplot(223), fig.add_subplot(224)]
-  tits = ['Variance', 'Skew', 'Kurtosis', 'Intraclass correlation']
-  plot_vars = [v_var, v_skew, v_kurt, ic]
+  if plotOne is None:
+    axs = [fig.add_subplot(221), fig.add_subplot(222), 
+           fig.add_subplot(223), fig.add_subplot(224)]
+    tits = ['Variance', 'Skew', 'Kurtosis', 'Intraclass correlation']
+    plot_vars = [v_var, v_skew, v_kurt, ic]
+  else:
+    axs = [fig.add_subplot(221)]
+    tits = ['']
+    plot_vars = {'kurt': [v_kurt], 'var': [v_var], 'skew': [v_skew], 'ic': [ic]}
+    plot_vars = plot_vars[plotOne]
   for a in axs: # For each plot
     for u in range(len(uniq)): # For each cell type
       a.scatter(np.ones(len(plot_vars[axs.index(a)][u]))*u, plot_vars[axs.index(a)][u], 
-                c=colors[u], s=80, edgecolor='k', alpha=0.6)
+                c=colors[u], s=100, edgecolor='k', alpha=0.6)
       if axs.index(a) == 3:
         a.set_yticks([0,0.12,0.24])
       else:
@@ -668,8 +722,11 @@ def stats_plots(V, labelsin, title=None):
       a.set_xticks([])
       a.set_title(tits[axs.index(a)])
   # Legend and title
-  #patches = [mpatches.Patch(color=colors[u], label=uniq[u]) for u in range(len(uniq))]
-  #plt.legend(handles=patches, loc=5)
+  if plotOne is not None and axes is not None:
+    if plotOne == 'ic':
+      axs[0].set_yticks([0,0.12,0.24])
+    axs[0].set_xlabel(axes[0], fontsize=15)
+    axs[0].set_ylabel(axes[1], fontsize=15)
   if title is not None:
     plt.suptitle(title, fontsize=20)
   plt.show()

@@ -216,20 +216,34 @@ def find_points(seg0, seg1):
     return [False]
 
 
-def branch_angles(geo, outfile=None):
-  angles = []
+def branch_angles(geo, outfile=None, pairedAngles=False):
+  f_angles, f_borders = [], []
+  geo.calcForewardBranchOrder()
   for b in geo.branches:
     for n in b.neighbors:
       pts = find_points(n, b)
       if len(pts) == 3:
         pt0, midpt, pt1 = pts[0], pts[1], pts[2]
-      angles.append(get_angle(pt0, midpt, pt1))
-  angles = [a for a in angles if a!='nan']
+      f_angles.append(get_angle(pt0, midpt, pt1))
+      f_borders.append(b.branchOrder)
+  angles, borders = [], []
+  # Purge the borders and angles of 'nan'
+  for a in range(len(f_angles)):
+    if str(f_angles[a]) == 'nan' or f_angles[a] == 'nan':
+      pass
+    else:
+      angles.append(f_angles[a])
+      borders.append(f_borders[a])
   if outfile is not None:
     with open('temp_angles.txt', 'w') as fOut:
       for a in angles:
         fOut.write('%.10f, \n' %a)
-  return angles
+  if pairedAngles is False:
+    return angles
+  else:
+    return angles, borders
+
+
 
 """
 def get_subtrees(geo):
@@ -268,7 +282,9 @@ def path_lengths2(geo):
     try:
       p, t = pDF.distanceTo(x,y), pDF.tortuosityTo(x,y)
       path.append(p)
-      #~ tort.append(t)
+      if t < 1: # Tortuosity cannot be < 1
+        t = 1
+      tort.append(t)
     except:
       continue
   return path, tort
@@ -515,7 +531,10 @@ def hooser_sholl(geo, sholl_lines=1000):
 
 
 def sholl_color(geo, outfile, interdist=1.):
-  # This color-codes hoc points based on sholl distances.
+  """
+  This color-codes hoc points based on sholl distances.
+  Pass interdist = np.inf to skip interpolation (large, detailed files)
+  """
   pDF = PathDistanceFinder(geo, geo.soma)
   tips, tipPositions = geo.getTips()
   paths, _ = path_lengths2(geo)
@@ -1923,7 +1942,7 @@ def plot_soma_positions(arr, types=None):
     else:
       ax.scatter(p[0],p[1],p[2],s=100)
   if types:
-    plt.legend(handles=patches, loc='best')
+    plt.legend(handles=patches, loc='best', fontsize=15)
   ax.set_zlim([-stn_length*.5, stn_length*0.5])
   ax.set_xticks([])
   ax.set_yticks([])
@@ -1932,7 +1951,9 @@ def plot_soma_positions(arr, types=None):
   return
   
 
-
+############
+if __name__ == "__main__":
+  print("bingo")
 
 
 

@@ -257,7 +257,7 @@ def get_cross_sec(sk0, sk1, stack):
   is [z][x][y] but *everything* else is [x][y][z].
   """
   # get plane
-  planinds, numpts = gen_plane_index(sk0, sk1, M=50)
+  planinds, numpts = gen_plane_index(sk0, sk1, M=100)
   dims = np.shape(stack)
   def pt_ok(pt, dims):
     # returns false if pt is outside shape of stack
@@ -277,7 +277,7 @@ def get_cross_sec(sk0, sk1, stack):
       x_ind = x_ind + 1
     if pt_ok(p, dims): # if point inside stack
       # print(x_ind, y_ind)
-      cs[x_ind][y_ind] = stack[p[2]][p[0]][p[1]]
+      cs[int(x_ind)][int(y_ind)] = stack[int(p[2])][int(p[0])][int(p[1])] # Rearrange for 3D
       if p == sk0:
         startpt = [x_ind, y_ind]
     # this should populate the cs with binary 1 for intersections and 0 otherwise
@@ -296,7 +296,7 @@ def spiral_cross_sec(sk0, sk1, stack):
   cs, startpt = get_cross_sec(sk0, sk1, stack)
   s = Spiral(cs, startpt)
   area = s.area
-  rad = np.sqrt(area/np.pi)
+  rad = np.sqrt(area/np.pi) # Assumes cylindrical cross-sec
   return rad
 
 
@@ -388,7 +388,8 @@ def add_radius(hocFile, geo, rads, newHocFile='new_hoc_radius.hoc'):
 
 ######################### end of good stuffs #############################
 
-######################### helper functions ###############################
+
+######################### threshold helpers ##############################
 
 
 def suggest_thresh(imfile, th_range=None):
@@ -430,7 +431,7 @@ def suggest_thresh(imfile, th_range=None):
 
 
 
-def import_images(folder, thresh, par=True):
+def import_images(folder, thresh=False, par=True):
   """
   This function loads images from a folder as PIL Image files and
   thresholds them with the given scalar. Par parallelizes this, ttime does
@@ -452,12 +453,18 @@ def import_images(folder, thresh, par=True):
         if im_arr[i,j] >= thresh:
           arr[i,j] = 1
     return arr
+  def no_thresh_load(imfile):
+    im_arr = np.array(Image.open(imfile))
+    return im_arr
     
   # here start parallel stuff
   if par:
     start_time_par = timer()
     pool = Pool(8)
-    results_par = pool.map(thresh_load, newtiflist)
+    if thresh is not False:
+      results_par = pool.map(thresh_load, newtiflist)
+    else:
+      results_par = pool.map(no_thresh_load, newtiflist)
     pool.close()
     pool.join()
     total_time_par = timer() - start_time_par
@@ -466,7 +473,10 @@ def import_images(folder, thresh, par=True):
   # or non-parallel stuff
   else:
     start_time_nopar = timer()
-    results_nopar = [thresh_load(f) for f in newtiflist]
+    if thresh is not False:
+      results_nopar = [thresh_load(f) for f in newtiflist]
+    else:
+      results_nopar = [no_thresh_load(f) for f in newtiflist]
     total_time_nopar = timer() - start_time_nopar
     print('Time for non-parallel: %.2f seconds' % total_time_nopar)
     return results_nopar

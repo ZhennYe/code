@@ -73,7 +73,7 @@ def many_skeletons(geofiles, labels=None):
 # 3-D skeleton plotting, plotting all the nodes
 
 def simple_skeleton(geo):
-  
+  return # Not finished
 
 
 

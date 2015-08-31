@@ -216,6 +216,33 @@ path_lengths = [1507,944.681,1105.2,6849,529.239,699.93,432.96,832.83,640.62,677
 path_percent = [0.0685,0.0359,0.0368,0.2448,0.10411,0.01685,0.0183,0.04747,0.02107,0.02602,0.04143,0.0566,0.006206,0.02358,0.02799]
 
 
+############################################################################
+
+# sholl dict contains cellTypes, files, sholl_distances, sholl_counts, sholl_prods
+def get_sholl_prods(sholl):
+  # This function returns the sholl products by reversing the binning process
+  for unit in range(len(sholl['files'])):
+    prods = []
+    for c in range(len(sholl['sholl_counts'][unit])):
+      # dists.append(
+      for mult in range(sholl['sholl_counts'][unit][c]):
+        # Add the distance for all the count values
+        prods.append(sholl['sholl_distances'][unit][c])
+    sholl['sholl_prods'][unit] = prods
+  return sholl
+  
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
