@@ -6,6 +6,8 @@ import math, os
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.patches as mpatches
+import networkx as nx
+import seaborn as sns
 
 
 
@@ -947,6 +949,7 @@ def dendrogram_subtrees(geo, paths, subtrees):
 # partition asymmetry
 
 
+# This version is CURRENTLY used.
 def path_asymmetry(geo ):
   """
   This version uses paths and sets to calculate the length asymmetry.
@@ -1334,6 +1337,111 @@ def get_torques(geo):
 ###############################################################################
 # Ellipse fitting, distance to nearest point stuff
 
+# Neuropil fitting has replaced ellipse fitting, included here for fun
+def neuropil_fit(geo):
+  """
+  Coarsely find which cubes the neuron contacts, then make finer cubes
+  to see how well it fills those finer cubes. The first method generally
+  finds where the neuron is, the second part tests how well it fills
+  that space.
+  """
+  minx, maxx, miny, maxy, minz, maxz = np.inf, 0, np.inf, 0, np.inf, 0
+  def check_pt(pt, refmin, refmax):
+    if pt < refmin:
+      refmin = pt
+    if pt > refmax:
+      refmax = pt
+    return refmin, refmax
+  for n in geo.nodes:
+    minx, maxx = check_pt(n.x, minx, maxx)
+    miny, maxy = check_pt(n.y, miny, maxy)
+    minz, maxz = check_pt(n.z, minz, maxz)
+  minmax = [[minx, maxx],[miny, maxy],[minz, maxz]]
+  # Create cubic grid, 10 um^3
+  biggrid = [np.linspace(h[0],h[1],int((h[1]-h[0])/10.)) for h in minmax]
+  # Determine whether a cube contains any nodes
+  n_cubes = len(biggrid[0])*len(biggrid[1])*len(biggrid[2])
+  cube_idx = {}
+  for i in biggrid[0]:
+    for j in biggrid[1]:
+      for k in biggrid[2]:
+        cube_idx[i,j,k] = 0
+  def in_cube(cube_idx, n, thresh=5.):
+    for k in cube_idx.keys():
+      if dist3(k, [n.x, n.y, n.z]) <= thresh: # 5 um
+        cube_idx[k] = 1
+      else:
+        cube_idx[k] = 0
+    return cube_idx
+  # For each filled cube, divide it into smaller cubes!
+  def new_cube(pt1):
+    pts = []
+    for i in np.linspace(pt1[0]-5,pt1[0]+5, 10):
+      for j in np.linspace(pt1[1]-5,pt1[1]+5, 10):
+        for k in np.linspace(pt1[2]-5,pt1[2]+5, 10):
+          pts.append([i,j,k])
+    return pts
+  micron_pts = []
+  for k in cube_idx.keys():
+    temp_pts = []
+    if cube_idx[k] == 1:
+      temp_pts.append(new_cube(k))
+      for t in temp_pts:
+        micron_pts.append(t)
+  # Now have all the points
+  pt_dists = [min([dist3(p,[n.x,n.y,n.z]) for n in geo.nodes])
+              for p in micron_pts]
+  return pt_dists
+
+#
+#
+# All ellipse stuff below this is OLD!
+def quad_fit(geo):
+  """
+  Get the bounds of the neuropil (from skeleton) and fit a simple quadratic.
+  Fits points at 20 um intervals.
+  """
+  minx, maxx, miny, maxy, minz, maxz = np.inf, 0, np.inf, 0, np.inf, 0
+  def check_pt(pt, refmin, refmax):
+    if pt < refmin:
+      refmin = pt
+    if pt > refmax:
+      refmax = pt
+    return refmin, refmax
+  for n in geo.nodes:
+    minx, maxx = check_pt(n.x, minx, maxx)
+    miny, maxy = check_pt(n.y, miny, maxy)
+    minz, maxz = check_pt(n.z, minz, maxz)
+  mid = [np.mean([n.x for n in geo.nodes]),
+         np.mean([n.y for n in geo.nodes]),
+         np.mean([n.z for n in geo.nodes])]
+  # Use mean-centered for quadratic fit (?)
+  minx, maxx = minx - mid[0], maxx - mid[0]
+  miny, maxy = miny - mid[1], maxy - mid[1]
+  minz, maxz = minz - mid[2], maxz - mid[2]
+  #
+  def get_XYgrid(xmin, xmax, ymin, ymax, zval):
+    gridpts = [] # Populate this with the grid 
+    # Fit XY (minx, 0), (0, maxy), (maxx, 0); & reflect for bottom part
+    coefXY = np.polyfit([xmin, 0, xmax], [0, ymax, 0], 2) # Force quad
+    numxsteps = int((xmax - xmin)/20.) # max - (-min) = max+abs(min)
+    xsteps = linspace(xmin, xmax, numxsteps)
+    ylims = [sum([coefXY[0]*x**2, coefXY[1]*x, coefXY[2]]) for x in xsteps]
+    for i in range(len(ylims)):
+      yvals = np.linspace(0, ylims[i], int(ylims[0]/20.)) # positive y
+      for j in yvals:
+        gridpts.append([xstep[i], j, zval])
+        gridpts.append([xstep[i], -j, zval])
+        gridpts.append([-xstep[i], j, zval])
+        gridpts.append([-xstep[i], -j, zval])
+    return gridpts # All grid points for this level of z
+  # Fit ZY and ZX to get the 
+  return
+  
+  
+
+
+# old ellipse stuff; nothing below this line is currently used for ellipse
 
 def getNoSomaPoints(geo):
   # get the downsampled nodes, but not the soma
@@ -1684,6 +1792,8 @@ def multi_regress(lol):
 #######################################################################
 # tip-to-tip distances
 
+
+# default
 def tip_to_tip(geo):
   """
   Who knows -- this might be important some day.
@@ -1698,13 +1808,63 @@ def tip_to_tip(geo):
     except:
       print('missed one')
   return tip_dists
+
+
+
+# tip dist matrix
+def tip_matrix(geo, show=True):
+  """
+  Returns a matrix of tip distances (i,i along diagonal).
+  """
+  filamentInds, tipLocs = geo.getTipIndices()
+  tipSegs = []
+  for f in filamentInds:
+    for seg in geo.segments:
+      if seg.filamentIndex == f:
+        tipSegs.append(seg)
+  dists = np.zeros([len(tipSegs), len(tipSegs)])
+  for t in range(len(tipSegs)):
+    pDF = PathDistanceFinder(geo, tipSegs[t])
+    for i in range(len(tipSegs)):
+      dists[t,i] = pDF.distanceTo(tipSegs[i])
+  if show is True:
+    print('Plotting ...')
+    showntips = int(len(tipSegs)/10)
+    mask = np.zeros_like(dists)
+    mask[np.triu_indices_from(mask)] = True
+    with sns.axes_style('white'):
+      ax = sns.heatmap(dists, mask=mask, xticklabels=showntips, 
+                       yticklabels=showntips, cmap='RdYlGn_r')
+                       # cmap: 'YlGnBu'
+    plt.show()
+  return dists
+
+
+
+def where_tips(geo, returnCoords=False):
+  """
+  This returns how far each tip is from the center of neuropil.
+  """
+  mid = [np.mean([n.x for n in geo.nodes]),
+         np.mean([n.y for n in geo.nodes]),
+         np.mean([n.z for n in geo.nodes])]
+  tipFils, tipLocs = geo.getTipIndices()
+  tipCoords = []
+  for s in geo.segments:
+    if s.filamentIndex in tipFils:
+      tipCoords.append(s.coordAt(tipLocs[tipFils.index(s.filamentIndex)]))
+  dists = [dist3(mid, t) for t in tipCoords]
+  if returnCoords is True:
+    return dists, tipCoords
+  else:
+    return dists
   
 
 
 
 
 #######################################################################
-# fractal dimension (as per Caserta et al., 1995)
+# fractal dimension                  (as per Caserta et al., 1995)
 # For every point in the (resampled/interpolated) neuron, basically do
 # a center of mass calculation for 'radius of gyration'
 #  (doesn't need to be interpolated -- sampled from every neuron point)
@@ -1732,6 +1892,7 @@ def element_histogram(data, bins):
   return thing[:-1]
 
 
+
 def pt8_slope(bins, masses, where=False):
   # Get the average constant 8-pt slope
   if len(bins) > len(masses):
@@ -1755,6 +1916,7 @@ def pt8_slope(bins, masses, where=False):
   if where == True:
     return frac_dim, start_pt+3
   return frac_dim
+
 
 
 # Fractal dimension
@@ -1791,6 +1953,7 @@ def fractal_dimension(geo, where=False):
   return [frac_dim, bins, masses]
   
 
+
 # plot fit
 def showFractalDimension(frac_d, bins, masses, fname=None):
   # Show a plot of the fit to the constant slope
@@ -1819,7 +1982,7 @@ def showFractalDimension(frac_d, bins, masses, fname=None):
 
 #######################################################################
 # soma position
-# this is kind of a bitch, only way I can think is the show the user
+# this is kind of a pain, only way I can think is to show the user
 # and let them decide; could automate and just take opposite of axon ,
 # but the program may find the axon wrong and then don't want to compound
 # mistakes; also, GM projects to aln and this won't work for that
@@ -1949,7 +2112,121 @@ def plot_soma_positions(arr, types=None):
   ax.set_zticks([])
   plt.show()
   return
+
+
+
+############################################################################
+
+# for radius stuff
+def single_ratios(rlist, skip=2):
+  """
+  Given a list, this assumes the format is parent1 daugh1a daught1b ...
+  parentn daughtna daughtnb and returns a list daught1a/parent1 ...
+  daughtnb/parentn. (Exactly 2/3 the size of input.)
+  skip = len(str fields) that being each object (file, celltype)
+  """
+  outlist, count = [], 0
+  if type(rlist[3]) is str: # First few items are usually str
+    nlist = []
+    for r in rlist:
+      try:
+        nlist.append(float(r))
+      except:
+        if str(r) == 'x':
+          pass
+        else:
+          nlist.append(r)
+    rlist = nlist
+  rlist = [n for n in rlist if n != 0]
+  for i in range(int((len(rlist)-skip)/3)):
+    outlist.append(rlist[i*3+1+skip]/rlist[i*3+skip])
+    outlist.append(rlist[i*3+2+skip]/rlist[i*3+skip])
+  return outlist
   
+  
+
+def combined_ratios(rlist, skip=2):
+  """
+  Same as single_ratios but sums daughters; returns (daughters1a+b)/parent1.
+  (Exactly 1/3 the size of input.)
+  """
+  outlist = []
+  if type(rlist[3]) is str:
+    nlist = []
+    for r in rlist:
+      try:
+        nlist.append(float(r))
+      except:
+        if str(r) == 'x':
+          pass
+        else:
+          nlist.append(r)
+    rlist = nlist
+  rlist = [n for n in rlist if n != 0]
+  for i in range(int((len(rlist)-skip)/3)):
+    outlist.append((rlist[i*3+1+skip]+rlist[i*3+2+skip])/rlist[i*3+skip])
+  return outlist
+
+
+
+def get_csv(csvfile):
+  # Return list of csv row elements
+  arr = []
+  with open(csvfile, 'r') as cfile: # Assumes text, not binary
+    creader = csv.reader(cfile) # Assumes csv
+    for row in creader:
+      nrow = []
+      for i in row:
+        try:
+          nrow.append(float(i))
+        except:
+          nrow.append(i)
+      arr.append(nrow)
+  return arr
+
+
+def pixel_div(x, y=None):
+  # Get the 'average' pixel size to divide out.
+  if y is None:
+    y = x
+  return 0.5*(np.mean([x,y]) + np.sqrt(2*x*y))
+
+
+def div_radius(tips, divs, hand=False):
+  # Divide non-string numbers by the divisor, len(tips)==len(divs)
+  for t in range(len(tips)):
+    for i in range(len(tips[t])):
+      if hand is True:
+        if type(tips[t][i]) is not str and tips[t][i] > 1: # Not binary
+          tips[t][i] = tips[t][i]/divs[t]
+      else: # Not hand
+        if type(tips[t][i]) is not str:
+          tips[t][i] = tips[t][i]/divs[t]
+  return tips
+
+
+def save_csv(tips, outfile, cols=None, rows=None):
+  # Save a tips-like list of lists as a .csv
+  if rows is not None:
+    if cols is None:
+      cols = range(max([len(t) for t in tips]))
+    get = [[i] for i in rows]
+    for k in cols:
+      get[0].append(k)
+    for t in range(len(tips)): # len(tips) = len(get)-1
+      for c in tips[t]:
+        get[t+1].append(c)
+  else:
+    get = tips
+  with open(outfile, 'w') as fOut:
+    for g in get:
+      fOut.write(','.join([str(i) for i in g]))
+      fOut.write('\n')
+  print('%s written.' %outfile)
+  return
+
+    
+
 
 ############
 if __name__ == "__main__":

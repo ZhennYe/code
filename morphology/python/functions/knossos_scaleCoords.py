@@ -61,6 +61,7 @@ def load_and_fix(hocfile, scales, outfile=None):
   if len(scales) != 3:
     print('scales must have 3 values: x, y, z voxel dims')
     return
+  scales = [float(i) for i in scales]
   if outfile is None:
     outfile = hocfile.split('.')[0] + '_scaled.hoc'
   #
@@ -71,6 +72,9 @@ def load_and_fix(hocfile, scales, outfile=None):
     pt2 = float(ll[1])
     pt3 = float(ll[2]) # Everything else is the same (rad1, rad2)
     rest = ll[3:]
+    #print(pt1, scales[0], pt2, scales[1], pt3, scales[2])
+    #print(type(pt1), type(scales[0]), type(pt2), type(scales[1]), 
+    #      type(pt3), type(scales[2]))
     pt1, pt2, pt3 = pt1*scales[0], pt2*scales[1], pt3*scales[2]
     thing = [pre + str(pt1), str(pt2), str(pt3)]
     for i in rest:

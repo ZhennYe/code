@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def hangman(word):
   alpha = 'abcdefghijklmnopqrstuvwxyz'
   sofar = '_'*len(word)
@@ -233,6 +236,145 @@ def get_sholl_prods(sholl):
   
 
 
+############################################################################
+
+# for radius stuff
+def single_ratios(rlist, skip=2):
+  """
+  Given a list, this assumes the format is parent1 daugh1a daught1b ...
+  parentn daughtna daughtnb and returns a list daught1a/parent1 ...
+  daughtnb/parentn. (Exactly 2/3 the size of input.)
+  skip = len(str fields) that being each object (file, celltype)
+  """
+  outlist, count = [], 0
+  if type(rlist[3]) is str: # First few items are usually str
+    nlist = []
+    for r in rlist:
+      try:
+        nlist.append(float(r))
+      except:
+        if str(r) == 'x':
+          pass
+        else:
+          nlist.append(r)
+    rlist = nlist
+  rlist = [n for n in rlist if n != 0]
+  for i in range(int((len(rlist)-skip)/3)):
+    outlist.append(rlist[i*3+1+skip]/rlist[i*3+skip])
+    outlist.append(rlist[i*3+2+skip]/rlist[i*3+skip])
+  return outlist
+  
+  
+
+def combined_ratios(rlist, skip=2):
+  """
+  Same as single_ratios but sums daughters; returns (daughters1a+b)/parent1.
+  (Exactly 1/3 the size of input.)
+  """
+  outlist = []
+  if type(rlist[3]) is str:
+    nlist = []
+    for r in rlist:
+      try:
+        nlist.append(float(r))
+      except:
+        if str(r) == 'x':
+          pass
+        else:
+          nlist.append(r)
+    rlist = nlist
+  rlist = [n for n in rlist if n != 0]
+  for i in range(int((len(rlist)-skip)/3)):
+    outlist.append((rlist[i*3+1+skip]+rlist[i*3+2+skip])/rlist[i*3+skip])
+  return outlist
+
+
+
+def get_csv(csvfile):
+  # Return list of csv row elements
+  arr = []
+  with open(csvfile, 'r') as cfile: # Assumes text, not binary
+    creader = csv.reader(cfile) # Assumes csv
+    for row in creader:
+      nrow = []
+      for i in row:
+        try:
+          nrow.append(float(i))
+        except:
+          nrow.append(i)
+      arr.append(nrow)
+  return arr
+
+
+def pixel_div(x, y=None):
+  # Get the 'average' pixel size to divide out.
+  if y is None:
+    y = x
+  return 0.5*(np.mean([x,y]) + np.sqrt(2*x*y))
+
+
+def div_radius(tips, divs, hand=False):
+  # Divide non-string numbers by the divisor, len(tips)==len(divs)
+  for t in range(len(tips)):
+    for i in range(len(tips[t])):
+      if hand is True:
+        if type(tips[t][i]) is not str and tips[t][i] > 1: # Not binary
+          tips[t][i] = tips[t][i]/divs[t]
+      else: # Not hand
+        if type(tips[t][i]) is not str:
+          tips[t][i] = tips[t][i]/divs[t]
+  return tips
+
+
+def save_csv(tips, outfile, cols=None, rows=None):
+  # Save a tips-like list of lists as a .csv
+  if rows is not None:
+    if cols is None:
+      cols = range(max([len(t) for t in tips]))
+    get = [[i] for i in rows]
+    for k in cols:
+      get[0].append(k)
+    for t in range(len(tips)): # len(tips) = len(get)-1
+      for c in tips[t]:
+        get[t+1].append(c)
+  else:
+    get = tips
+  with open(outfile, 'w') as fOut:
+    for g in get:
+      fOut.write(','.join([str(i) for i in g]))
+      fOut.write('\n')
+  print('%s written.' %outfile)
+  return
+
+    
+
+
+
+############################################################################
+
+# stochastic processes 
+def invariant_TM(P, N=10):
+  # Given a transition matrix P this calculates it's long-term behavior
+  if type(P) != np.ndarray:
+    try:
+      P = np.array(P)
+    except:
+      print('Input must be numpy array'); return None
+  B = P
+  for i in range(N):
+    P = P.dot(P)
+  return P
+  
+
+
+def invariant_lefteig(P):
+  """
+  Gives the invariant transition matrix for an 2x2 matrix by left eigenvector.
+  P = [[a, b],
+       [c, d]]
+  """
+  a, b, c, d = P[0,0], P[0,1], P[1,0], P[1,1]
+  return [c/(b+c), b/(b+c)]
 
 
 
