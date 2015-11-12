@@ -215,8 +215,10 @@ def make_binary_thresh(imfile, thresh=20):
 
 
 
-
+#######################################################################
 ############################################## The good stuff #########
+#######################################################################
+
 
 def gen_vec(pt0, pt1):
   if len(pt0) == len(pt1):
@@ -238,7 +240,7 @@ def gen_plane_index(sk0, sk1, M=50):
   def solve(vec, x, y): # the plane equation
     if vec[2]==0:
       return -((x*vec[0] + y*vec[1])/0.1)
-    return -((x*vec[0] + y*vec[1])/vec[2])
+    return -((x*vec[0] + y*vec[1])/vec[2]) # 
   for m in xs:
     for n in ys:
       planinds.append([m, n, int(solve(vec, m, n))])
@@ -257,7 +259,7 @@ def get_cross_sec(sk0, sk1, stack):
   is [z][x][y] but *everything* else is [x][y][z].
   """
   # get plane
-  planinds, numpts = gen_plane_index(sk0, sk1, M=100)
+  planinds, numpts = gen_plane_index(sk0, sk1, M=1000)
   dims = np.shape(stack)
   def pt_ok(pt, dims):
     # returns false if pt is outside shape of stack
@@ -385,8 +387,104 @@ def add_radius(hocFile, geo, rads, newHocFile='new_hoc_radius.hoc'):
   
 
 
+def get_branch_skelpts(geo, voxel=[1,1,1]):
+  """
+  Return skelpts organized by branches (list of lists). Voxel is the dims
+  of a voxel in the image (default is for indices).
+  """
+  if type(geo) is str:
+    try:
+      geo = demoReadsilent(geo)
+    except:
+      print('A string should point to the hocfile!')
+  skelpts = []
+  for b in geo.branches:
+    t = []
+    for n in b.nodes:
+      t.append([int(n.x/voxel[0]), int(n.y/voxel[1]), int(n.z/voxel[2])])
+    skelpts.append(t)
+  return skelpts
+
+
+########################## FAST ACCESS #################################
+
+def downsample(skelpts, by=3):
+  # Downsample the skeleton nodes by an integer, skips 2 nodes for every
+  # 2 nodes taken.
+  newskel  = [ [] for i in skelpts]
+  for s in range(len(skelpts)):
+    if len(skelpts[s]) <= by and len(skelpts[s]) >= 2:
+      newskel[s] = [skelpts[s][0], skelpts[s][1]]
+    elif len(skelpts[s]) < 2:
+      pass
+    elif len(skelpts[s]) > by and  len(skelpts[s]) <= by*2:
+      newskel[s] = [skelpts[s][0], skelpts[s][1]]
+    else: # More than 2*'by' nodes in this seg
+      for u in range(int(len(skelpts[s])/by)):
+        newskel[s].append(skelpts[s][u*by])
+  return newskel
+  
+
+
+def cross_sec_locs(sk0, sk1, dims):
+  """
+  Returns the locations/indices of a cross-section.
+  The output is an array (500+500) x (500+500) and each element of that
+  array is a 3-tuple that tells the location in the stack to get the 
+  value. 
+  """
+  # get plane
+  planinds, numpts = gen_plane_index(sk0, sk1, M=500)
+  def pt_ok(pt, dims):
+    # returns false if pt is outside shape of stack
+    if p[0] < 0 or p[0] > dims[1]-1:
+      return False
+    if p[1] < 0 or p[1] > dims[2]-1:
+      return False
+    if p[2] < 0 or p[2] > dims[0]-1:
+      return False
+    return True
+  #
+  cs = [ [ [] for i in range(numpts*2)] for j in numpts*2 ]
+  x_ind, y_ind, startpt = 0, 0, None
+  for p in planinds:
+    if y_ind >= 2*numpts:
+      y_ind = 0
+      x_ind = x_ind + 1
+    if pt_ok(p, dims): # if point inside stack
+      # print(x_ind, y_ind)
+      cs[int(x_ind)][int(y_ind)] = p
+      if p == sk0:
+        startpt = [x_ind, y_ind]
+    # this should populate the cs with 3-tuple location of data values
+    y_ind = y_ind + 1
+  # should now have the whole plane (cross section)
+  if startpt is not None:
+    print('Got the start point')
+  return cs, startpt
+
+
+
+def cs_from_skeleton(skelpts, dims):
+  # Get the cross-sec indices for all of the relevant skel points
+  cross_sections, center_pts = [], [] # Keep track of the center points
+  for s in skelpts:
+    for k in range(len(s)-1):
+      
+
+
+
+
 
 ######################### end of good stuffs #############################
+
+
+
+##########################################################################
+######################### for beta testing
+
+
+
 
 
 ######################### threshold helpers ##############################

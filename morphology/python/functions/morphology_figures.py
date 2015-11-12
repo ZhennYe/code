@@ -46,30 +46,50 @@ frac_dim = [fractal_dimension(g)[0][0] for g in geofiles]
 # For these, please see the IPython notebook "analysis" at
 # github.com/marderlab/QuantifyingMorphology
 
-
+figdir = '/home/alex/data/morphology/848/848_117b/images/'
 #########################################################################
 # Figure 3 - path lengths, tips stuff
-
-
-
+# Path lengths
+length_labs, length_vals = condition_by_name(props['cellTypes'], props['path_lengths'])
+plot_hori_hist(length_vals, length_labs, axes=['','Length (um)'], switch=True)
+# Tip to tip path distances
+tipp_labs, tipp_vals = condition_by_name(props['cellTypes'], props['tip_tip_path'])
+plot_hori_hist(tipp_vals, tipp_labs, axes=['','Distance (um)'], switch=True)
+# Tip to tip euclidean distances
+tipe_labs, tipe_vals = condition_by_name(props['cellTypes'], props['tip_tip_euclid'])
+plot_hori_hist(tipe_vals, tipe_labs, axes=['','Distance (um)'], switch=True)
+# Tip to center of neuropil distance
+tipc_labs, tipc_vals = condition_by_name(props['cellTypes'], props['tip_center_dists'])
+plot_hori_hist(tipc_vals, tipc_labs, axes=['','Distance from center (um)'], switch=True)
 
 #########################################################################
 # Figure 4 - path tortuosity, etc
-
+tort_labs, tort_vals = condition_by_name(props['cellTypes'], props['path_torts'])
+plot_hori_hist(tort_vals, tort_labs, axes=['','Tortuosity'], switch=True, rrange=[1,7])
 
 
 
 #########################################################################
 # Figure 5 - branch angles
-
-
-
+ang_labs, ang_vals = condition_by_name(props['cellTypes'], props['branch_angles'])
+fnames = ['GM_branch-angles.png', 'LG_branch-angles.png', 
+          'PD_branch-angles.png', 'LP_branch-angles.png']
+fnames = [figdir+f for f in fnames]
+for u in range(4):
+  circular_hist(ang_vals[u*4:(u+1)*4], ang_labs[u*4:(u+1)*4], same=u)
+# For an overview
+plot_hori_hist(ang_vals, ang_labs, axes=['','Branch angle (degrees)'], switch=True)
+# Gouped
+mean_scatter(props['branch_angles'], props['cellTypes'], axes=['','Angle (deg)'])
 
 #########################################################################
 # Figure 6 - torques
-
-
-
+torq_labs, torq_vals = condition_by_name(props['cellTypes'], props['torques'])
+for u in range(4):
+  circular_hist(torq_vals[u*4:(u+1)*4], torq_labs[u*4:(u+1)*4], same=u)
+# Grouped
+props['torques'] = [rm_nan(i) for i in props['torques']]
+mean_scatter(props['torques'], props['cellTypes'], axes=['','Angle (deg)'])
 
 #########################################################################
 # Figure 7 - length symmetry

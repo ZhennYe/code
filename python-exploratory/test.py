@@ -380,8 +380,247 @@ def invariant_lefteig(P):
 
 
 
+#########################################################################
+# fix torq histogram scaling
+
+def rescale(values, scale=0.2):
+  # Re-scale first bin just to show that the others aren't 0
+  hist, edges = np.histogram(values, bins=100)
+  hist[0] = hist[0]*scale
+  new_vals = []
+  centers = [(edges[i]+edges[i+1])/2. for i in range(len(edges)-1)]
+  for b in range(len(hist)):
+    for i in range(hist[b]):
+      new_vals.append(centers[b])
+  plt.hist(new_vals, bins=100)
+  plt.show()
+  return new_vals
 
 
+
+for k in props.keys():
+  print(k)
+  for i in range(16):
+    if k != 'files' and k != 'cellTypes':
+      print(np.mean(props[k][i]), i)
+
+
+
+
+
+############### congressional reporting ######################
+
+def load_all(fname):
+  """
+  Load the state, party, last name and voting record of the senator.
+  """
+  def sep_party_name(thing):
+    name = []
+    if int(thing[0]) == 1: # Democrat
+      party = 1
+    elif int(thing[0]) == 2: # Republican
+      party = 2
+    else:
+      party = 3 # Other
+    for i in thing:
+      try:
+        int(i)
+      except:
+        name.append(i) # Only appends characters
+    return ''.join(name), party
+  states, names, parties, records = [], [], [], []
+  with open(fname, 'r') as fIn:
+    for line in fIn:
+      if line:
+        splitLine = line.split(None)
+        if len(splitLine) < 4:
+          print(line)
+        else:
+          states.append(splitLine[1][1:])
+          n, p = sep_party_name(splitLine[2])
+          names.append(n)
+          parties.append(p)
+          records.append([int(i) for i in splitLine[3]])
+  return {'names': names, 'parties': parties, 'states': states, 'records': records}
+
+  
+def convert_record(record):
+  """
+  Pass the whole 100+ record list to this at once.
+  Convert a 0-9 list of records (a list of lists len(senators)) to 
+  yes(1)/no(0)/other(9).
+  """
+  newrec = [[] for i in record]
+  for r in range(len(record)):
+    temp = []
+    # print(record[r])
+    for i in record[r]:
+      if i == 1:
+        newrec[r].append(1)
+      elif i == 6:
+        newrec[r].append(0)
+      else:
+        newrec[r].append(9)
+        # newrec[r].append(np.random.random(1)) # Eliminate spurious correlations
+  return newrec
+
+
+def get_correlation(record):
+  """
+  Pass the whole 100+ record list to this at once, returns 
+  len(records) X len(records) correlation matrix.
+  """
+  corr = np.zeros([len(record), len(record)])
+  for r in range(len(record)):
+    for other in range(len(record)):
+      temp = [sum([record[r][i]+record[other][i]]) for i in range(len(record[r]))]
+      try:
+        value = (float(temp.count(0))+float(temp.count(2))) / \
+                (temp.count(0)+temp.count(2)+temp.count(1))
+      except:
+        value = 0
+      corr[r][other] = value
+  return corr
+
+
+def corr_by_party(congress, party=None):
+  """
+  If party=None, congress must be a dict with 'parties' as a key. 
+  Else, congress can be the record (list of lists) and party should
+  be the list of parties (len(party)==len(congress)).
+  1 = dem, 2 = repub, 3 = other
+  """
+  if party is None:
+    if 'parties' in congress.keys():
+      party = congress['parties']
+    elif 'party' in congress.keys():
+      party = congress['party']
+    else:
+      print('No party key found; pass the party list explicitly'); return None
+  if type(congress) is dict:
+    try:
+      records = congress['records']
+    except:
+      records = congress['record']
+  if len(records) != len(party):
+    print('Records (%i) and party (%i) lists should be same length, but are not'
+          %(len(records), len(party)))
+    return None
+  records_sorted = [x for (y,x) in sorted(zip(party, records))]
+  corr = get_correlation(records_sorted)
+  return corr
+
+
+def save_matrix(mat, fname):
+  """
+  Save the corr matrix for plotting into R
+  """
+  with open(fname, 'w') as fOut:
+    for row in mat:
+      fOut.write(' '.join([str(i) for i in row]))
+      fOut.write('\n')
+  print('%s written' %fname)
+  return
+  
+  
+
+##########################################################################
+# csv for wedding labels
+
+def get_adds(fname)
+  adds = []
+  with open(fname, 'r') as fIn:
+    for line in fIn:
+      if line:
+        adds.append(line.split(','))
+  return adds
+
+
+
+import string
+def format_adds(adds):
+  # Format the addresses
+  exclude = list(set(string.punctuation))
+  exclude.append(' ')
+  def include(line, exclude):
+    jine = [c for c in line if c not in exclude]
+    if len(jine) == 0:
+      return False
+    else:
+      return True
+  #
+  labels = []
+  for a in adds[1:]:
+    temp = []
+    line1 = str('%s %s %s' %(a[2], a[3], a[4]))
+    try:
+      line2 = [i for i in [a[16], a[20], a[22]] if i != '']
+    except:
+      print(len(a), a)
+      pass
+    if len(line2) > 0:
+      line2 = ' , '.join([str(i) for i in line2])
+      line2 = '  &  ' + line2
+    else:
+      line2 = ''
+    line3 = a[6]
+    line4 = str('%s, %s  %s' %(a[8], a[9], a[10]))
+    temp = [i for i in [line1, line2, line3, line4] if include(i, exclude)]
+    labels.append(temp)
+  return labels
+
+
+def print_labels(labs, outfile=None):
+  # Print the labels
+  if outfile is None:
+    print('Need an outfile name!')
+    return None
+  with open(outfile, 'w') as fOut:
+    for l in labs:
+      for i in l:
+        fOut.write(i)
+        fOut.write('\n')
+      fOut.write('\n')
+  print('%s written' %outfile)
+  return
+
+
+#############
+# shrink the length-asymmetry vectors
+def shrink_list(len_asym):
+  new_orders, new_asyms = [], []
+  for l in len_asym:
+    new_asyms.append(l[0][::int(len(l[0])/1000)])
+    new_orders.append(l[1][::int(len(l[1])/1000)])
+  return new_asyms, new_orders
+
+
+# somehow None order values are created (soma?); this cleans them
+def clean_asym(la1, la2):
+  for i in range(len(la1)):
+    if la1[i].count(None) == 1:
+      ind = la1[i].index(None)
+      la1[i].pop(ind)
+      la2[i].pop(ind)
+    elif la1[i].count(None) > 1:
+      for c in range(la1[i].count(None)):
+        ind = la1[i].index(None)
+        la1[i].pop(ind)
+        la2[i].pop(ind)
+  for i in range(len(la2)):
+    if la2[i].count(None) == 1:
+      ind = la2[i].index(None)
+      la2[i].pop(ind)
+      la1[i].pop(ind)
+    elif la2[i].count(None) > 1:
+      for c in range(la2[i].count(None)):
+        ind = la2[i].index(None)
+        la2[i].pop(ind)
+        la1[i].pop(ind)
+  return la1, la2
+        
+
+  
 
 
 

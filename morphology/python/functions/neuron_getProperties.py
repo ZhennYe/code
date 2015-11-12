@@ -70,7 +70,7 @@ def union(list1, list2, rall=False):
   the lists, so it crawls through the neighbors of elements of both lists. If
   it finds more than 1 common segment, it assumes the segment is included
   in one of the lists, and then returns the common segment found by neighbors.
-  Rall - returns list of common segments. 
+  rall - returns list of common segments (return all)
   """
   def union1(list1, list2): 
     for a in list1:
@@ -123,7 +123,7 @@ def get_geofiles(directory='/home/alex/data/morphology/morphology-hoc-files/morp
 
 
 #######################################################################
-# branch angles
+# Branch angles
 
 def dist3(pt0, pt1):
   if len(pt0) == len(pt1) and len(pt0) == 3:
@@ -247,23 +247,43 @@ def branch_angles(geo, outfile=None, pairedAngles=False):
 
 
 
-"""
-def get_subtrees(geo):
-  # Generate a main path, subtrees come off the main path
-  main = []
-  def add_main(seg):
-    maxn, candidate = 0, None
-    for n in seg.neighbors:
-      if len(n.neighbors) > maxn:
-        maxn = len(n.neighbors)
+##########################################################################
+# Branch degree
+# This gives two measures: (1) treating each branch as a node in
+#   graph theory terms, gives the degree (# of total neighbors) of that
+#   node; (2) how many branches arise from each branch point (not
+#   including parent branch), so a traditional bifurcation would be 2.
+
+def branch_degree(geo):
+  """
+  """
+  bnodes = [len(b.neighbors) for b in geo.branches]
+  return bnodes
 
 
-def ordered_angles(geo):
-"""
+def num_daughters(geo, branch=True):
+  """
+  Only take daughters from the 1th end to be consistent (could crawl
+  through whole tree structure but it's not clear that result would
+  differ from this approach.
+  """
+  branch_nodes = []
+  for b in geo.branches:
+    temp = []
+    temp = [i for i in b.neighborLocations if i[0] == 1]
+    branch_nodes.append(len(temp))
+  return branch_nodes
+
+
+
+  
+
+
+
 
 
 #######################################################################
-# path length and tortuosity
+# Path length and tortuosity
 
 def path_lengths(geo):
   tips, tipinds = geo.getTipIndices()
@@ -332,7 +352,9 @@ def wen_tortuosity(geolist):
 
 
 #######################################################################
-# sholl stuff
+# Sholl stuff
+
+# Currently, only Hooser Sholl is used, which gives the most accurate results
 
 def interpoint_dist(geo):
   # NOT CURRENTLY USED
@@ -529,7 +551,11 @@ def hooser_sholl(geo, sholl_lines=1000):
 
 
 ######################################################################    
-# sub-tree analysis
+# Sub-tree analysis
+
+# Note that sub-tree analysis works in tandem with Matlab for easier
+#   3-D plotting and is somewhat interactive (it requires actions from
+#   the user). The necessary Matlab scripts are ShollColor and ShollAxons.
 
 
 def sholl_color(geo, outfile, interdist=1.):
@@ -946,14 +972,15 @@ def dendrogram_subtrees(geo, paths, subtrees):
 
 
 ######################################################################
-# partition asymmetry
+# Partition asymmetry (symmetry)
 
 
 # This version is CURRENTLY used.
-def path_asymmetry(geo ):
+def path_asymmetry(geo, bOrder=True):
   """
   This version uses paths and sets to calculate the length asymmetry.
   """
+  geo.calcBranchOrder()
   pDF = PathDistanceFinder(geo, geo.soma, 0) # initialize pDF
   tipSegs, tipLocs = geo.getTipIndices()
   paths = [] # get all the paths
@@ -962,7 +989,7 @@ def path_asymmetry(geo ):
       paths.append(pDF.pathTo(geo.segments[tipSegs[s]],tipLocs[s]))
     except:
       continue
-  length_asymmetry = []
+  length_asymmetry, orders = [], []
   for p1 in paths:
     if paths.index(p1) % 100 == 0:
       print('completed %i (of %i) paths' %(paths.index(p1),len(paths)))
@@ -974,19 +1001,26 @@ def path_asymmetry(geo ):
           l_p1 = sum([s.length for s in p1])
           l_p2 = sum([s.length for s in p2])
           l_root = sum([s.length for s in p_root])
+          #
           if l_p1 > l_p2: # always put greater in denominator (customary)
             if l_p2 == 0:
               print('missed one')
               pass
             else:
               length_asymmetry.append((l_p2-l_root)/(l_p1-l_root))
+              if bOrder is True:
+                orders.append(path_branch_order(p1, p2))
           else:
             if l_p1 == 0:
               print('missed one')
             else:
               length_asymmetry.append((l_p1-l_root)/(l_p2-l_root))
-  if len(length_asymmetry) > 1000:
-    return length_asymmetry[::int(len(length_asymmetry)/1000)]
+              if bOrder is True:
+                orders.append(path_branch_order(p1, p2))
+  #if len(length_asymmetry) > 1000:
+  #  length_asymmetry = length_asymmetry[::int(len(length_asymmetry)/1000)]
+  if bOrder is True:
+    return length_asymmetry, orders
   else:
     return length_asymmetry
 
@@ -1038,6 +1072,18 @@ def add_all_downstream(geo, seg, prev_seg, tips):
 
 
 
+def path_branch_order(path1, path2):
+  # Find the order of the last common branch
+  # root = [i for i in path1 if i in path2]
+  if path1[0] == path2[0]: # Should be soma
+    # Get the first segment not in both (should be where they diverge)
+    for p in path1:
+      if p not in path2:
+        return p.branchOrder
+
+
+
+# OLD
 def tips_asymmetry(geo):
   """
   Get the tip asymmetry of the neuron. Follow the soma's neighbors
@@ -1260,7 +1306,7 @@ def tips_asymmetry_old(geo):
 
 
 ######################################################################
-# torques
+# Torques
 
 def getNormVector(points):
   #print(points, np.shape(points))
@@ -1288,12 +1334,12 @@ def get_torques(geo):
     Seg1s.append(c['filament1']) # here, location1 is always 0
     Seg2s.append(c['filament2']) # here, location2 is always 1
     #geometry.c['filament1'].coordAt(c['location1'])
-  
+  #
   tsegs = np.array([Seg1s,Seg2s]).T
   tsegs = tsegs.reshape(len(tsegs)*2)
   segs = set(tsegs)
   planCoords = {}
-  
+  #
   count = 0
   for seg in segs:
     friends, friendcoords = [], []
@@ -1305,7 +1351,7 @@ def get_torques(geo):
         if s.name in Seg2s:
           friends.append(Seg1s[Seg2s.index(s.name)])
     #print('friends compiled')
-      
+   #   
     for s in geo.segments:
       if s.name in friends:
         friendcoords.append([s.coordAt(1)])
@@ -1314,7 +1360,7 @@ def get_torques(geo):
     #  print('%i of %i segments done' %(count, len(segs)))
     if len(friendcoords) > 2: # need 3 points to define plane
       planCoords[seg]=friendcoords
-  
+  #
   planCoordskeys = []
   for s in geo.segments: # loop through segments to find plane-neighbors
     if s.name in planCoords.keys():
@@ -1325,12 +1371,13 @@ def get_torques(geo):
           for nn in n.neighbors:
             if nn.name in planCoords.keys():
               planCoordskeys.append([s.name, nn.name])
-  
+  #
   # get torques
   torques = []
   for P in planCoordskeys:
     torques.append(angleBetween(P[0],P[1],planCoords))
   return torques
+
 
 
 
@@ -1345,14 +1392,16 @@ def neuropil_fit(geo):
   finds where the neuron is, the second part tests how well it fills
   that space.
   """
+  nodes = geo.nodes[::100]
   minx, maxx, miny, maxy, minz, maxz = np.inf, 0, np.inf, 0, np.inf, 0
+  print('Retrieving the bounds for %s' %geo.name)
   def check_pt(pt, refmin, refmax):
     if pt < refmin:
       refmin = pt
     if pt > refmax:
       refmax = pt
     return refmin, refmax
-  for n in geo.nodes:
+  for n in nodes:
     minx, maxx = check_pt(n.x, minx, maxx)
     miny, maxy = check_pt(n.y, miny, maxy)
     minz, maxz = check_pt(n.z, minz, maxz)
@@ -1360,6 +1409,7 @@ def neuropil_fit(geo):
   # Create cubic grid, 10 um^3
   biggrid = [np.linspace(h[0],h[1],int((h[1]-h[0])/10.)) for h in minmax]
   # Determine whether a cube contains any nodes
+  print('Creating the large grid')
   n_cubes = len(biggrid[0])*len(biggrid[1])*len(biggrid[2])
   cube_idx = {}
   for i in biggrid[0]:
@@ -1370,27 +1420,35 @@ def neuropil_fit(geo):
     for k in cube_idx.keys():
       if dist3(k, [n.x, n.y, n.z]) <= thresh: # 5 um
         cube_idx[k] = 1
-      else:
-        cube_idx[k] = 0
     return cube_idx
+  # Populate the cubes
+  # nodes = geo.nodes[::10]
+  for n in nodes:
+    cube_idx = in_cube(cube_idx, n)
   # For each filled cube, divide it into smaller cubes!
-  def new_cube(pt1):
+  def three_randos(center):
     pts = []
-    for i in np.linspace(pt1[0]-5,pt1[0]+5, 10):
-      for j in np.linspace(pt1[1]-5,pt1[1]+5, 10):
-        for k in np.linspace(pt1[2]-5,pt1[2]+5, 10):
-          pts.append([i,j,k])
-    return pts
+    for p in range(10):
+      pts.append([np.random.random(1)*10. + center[0]-5., # x
+                  np.random.random(1)*10. + center[1]-5., # x
+                  np.random.random(1)*10. + center[2]-5.]) # z
+    return pts # Return the 10 random pts
+  print('Picking the random points')
   micron_pts = []
   for k in cube_idx.keys():
-    temp_pts = []
     if cube_idx[k] == 1:
-      temp_pts.append(new_cube(k))
+      temp_pts = three_randos(k)
       for t in temp_pts:
         micron_pts.append(t)
-  # Now have all the points
-  pt_dists = [min([dist3(p,[n.x,n.y,n.z]) for n in geo.nodes])
-              for p in micron_pts]
+  # Now have all the points, get a random smattering of 1000 pts and find their distances
+  r_pts = list(np.unique([int(np.random.random(1)*len(micron_pts)) for i in range(1000)]))
+  r_pts = [micron_pts[u] for u in r_pts]
+  pt_dists, count = [], 0
+  for p in r_pts:
+    pt_dists.append(min([dist3(p,[n.x,n.y,n.z]) for n in geo.nodes]))
+    if count%100 == 0:
+      print('%i/%i points processed so far' %(count, len(r_pts)))
+    count = count + 1
   return pt_dists
 
 #
@@ -1790,10 +1848,10 @@ def multi_regress(lol):
 
 
 #######################################################################
-# tip-to-tip distances
+# Tip-to-tip distances
 
 
-# default
+# This uses paths
 def tip_to_tip(geo):
   """
   Who knows -- this might be important some day.
@@ -1801,7 +1859,8 @@ def tip_to_tip(geo):
   tips, tipInds = geo.getTipIndices()
   tip_dists = []
   Tips = list(zip(tips, tipInds))
-  pDF = PathDistanceFinder(geo, geo.segments[tips[0]], tipInds[0])
+  randtip = int(np.random.random(1)*len(tips))
+  pDF = PathDistanceFinder(geo, geo.segments[tips[randtip]], tipInds[randtip])
   for t in range(len(Tips)):
     try:
       tip_dists.append(pDF.distanceTo(geo.segments[Tips[t][0]], Tips[t][1]))
@@ -1858,18 +1917,48 @@ def where_tips(geo, returnCoords=False):
     return dists, tipCoords
   else:
     return dists
+
+
+# Euclidean distance
+def tip_to_tip_euclid(geo):
+  """
+  This tells us how far in euclidean space a random tip is from other tips.
+  """
+  filamentInds, tipLocs = geo.getTipIndices()
+  tipSegs = []
+  for f in filamentInds:
+    for seg in geo.segments:
+      if seg.filamentIndex == f:
+        tipSegs.append(seg)
+  if len(tipSegs) != len(tipLocs):
+    print('Should be same number of tip segs (%i) and tip locs (%i):'
+          %(len(tipSegs),len(tipLocs)))
+    return None
+  # Get the reference segment at random
+  refNum = int(np.random.random(1)*len(tipSegs))
+  refPt = tipSegs[refNum].coordAt(tipLocs[refNum])
+  # Get the tip distances
+  tip_dists = [dist3([refPt[0], refPt[1], refPt[2]],
+                     [i for i in tipSegs[u].coordAt(tipLocs[u])]) 
+                     for u in range(len(tipSegs))]
+  return tip_dists
   
 
 
 
 
 #######################################################################
-# fractal dimension                  (as per Caserta et al., 1995)
-# For every point in the (resampled/interpolated) neuron, basically do
-# a center of mass calculation for 'radius of gyration'
-#  (doesn't need to be interpolated -- sampled from every neuron point)
+# Fractal dimension                  (as per Caserta et al., 1995)
 
-# helper functions
+# For every point in the (resampled/interpolated) neuron, basically do
+#   a center of mass calculation for 'radius of gyration'
+#   (doesn't need to be interpolated -- sampled from every neuron point)
+# If the result doesn't make sense, be sure to look at the log-log plot
+#   and make sure the slope is being taken from the correct location.
+#   Sometimes, especially near the higher end of the log x-axis, slope 
+#   changes are small and so you get a value near 1.0 (when it should be 1.3-1.6)
+
+# Helper functions
 def element_histogram(data, bins):
   # Also returns the actual data, list (of len(bins)-1) of lists
   # This might be bottle neck -- omitted from function for now
@@ -1981,8 +2070,9 @@ def showFractalDimension(frac_d, bins, masses, fname=None):
 
 
 #######################################################################
-# soma position
-# this is kind of a pain, only way I can think is to show the user
+# Soma position
+
+# This is kind of a pain, only way I can think is to show the user
 # and let them decide; could automate and just take opposite of axon ,
 # but the program may find the axon wrong and then don't want to compound
 # mistakes; also, GM projects to aln and this won't work for that
@@ -2107,17 +2197,20 @@ def plot_soma_positions(arr, types=None):
   if types:
     plt.legend(handles=patches, loc='best', fontsize=15)
   ax.set_zlim([-stn_length*.5, stn_length*0.5])
+  ax.set_xlim([-stn_length*.25, stn_length])
+  ax.set_ylim([-stn_length*.25, stn_length])
   ax.set_xticks([])
   ax.set_yticks([])
   ax.set_zticks([])
+  plt.axis('off')
   plt.show()
   return
 
 
 
 ############################################################################
+# Radius stuff (Figure 11)
 
-# for radius stuff
 def single_ratios(rlist, skip=2):
   """
   Given a list, this assumes the format is parent1 daugh1a daught1b ...
@@ -2230,7 +2323,7 @@ def save_csv(tips, outfile, cols=None, rows=None):
 
 ############
 if __name__ == "__main__":
-  print("bingo")
+  print("Module needs to be used interactively.")
 
 
 
