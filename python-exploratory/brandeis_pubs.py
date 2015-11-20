@@ -8,6 +8,7 @@ import sys
 import json
 import string
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 
@@ -16,7 +17,16 @@ def ignore_words(pubs, return_words=False):
   ignore = ['the', 'a', 'not', 'of', 'for', 'web', 'database', 'and',
             'but', 'that', 'single', 'few', 'several', 'has', 'have', 
             'is', 'was', 'on', 'off', 'to', 'its', 'using', 'with',
-            'optimal', 'optimized', 'optimum', 'time', ]
+            'optimal', 'optimized', 'optimum', 'time', 'in', 'out',
+            'at', 'by', 'via', 'formula', 'detector', 'health', 
+            'measure', 'measured', 'measurement', 'other', 'cell',
+            'cells', 'response', 'responses', 'respond', 'from', 'use',
+            'see', 'analysis', 'an', 'study', 'studies', 'novel', 
+            'molecule', 'molecular', 'control', 'between', 'analyses',
+            'are', 'rapid', 'or', 'case', 'review', 'associated',
+            'activity', 'what', 'identification', 'design', 'it',
+            'during', 'events', 'effects', 'service', 'services', 'can',
+            'new', 'role', 'roles', 'does', 'multiple', ]
   models = {'mouse': ['mouse', 'mice', 'mus', 'rodent'],
             'fly': ['drosophila', 'melanogaster', 'fly', 'fruit'],
             'ferret': ['ferret'],
@@ -27,9 +37,14 @@ def ignore_words(pubs, return_words=False):
     for k in p.keys():
       if type(p[k]) is list:
         p[k] = list(set(p[k]))
+        # Pop ignore words
         for i in ignore:
           if i in p[k]:
             p[k].pop(p[k].index(i))
+        # Pop single letter words
+        for w in p[k]:
+          if len(w) == 1:
+            p[k].pop(p[k].index(w))
   if return_words is False:
     return pubs
   else:
@@ -150,7 +165,7 @@ def trends(pubs):
         
   
 
-def show_trends(pubs, thresh=5):
+def show_trends(pubs, query=None, thresh=5):
   """
   Start to show some trends.
   """
@@ -159,7 +174,47 @@ def show_trends(pubs, thresh=5):
   words = list(all_words.keys())
   tren = list(all_words.values())
   pop_idx = [w for w in range(len(words)) if sum(tren[w]) > thresh]
-  
+  new_words = [words[p] for p in pop_idx]
+  new_tren = [tren[p] for p in pop_idx]
+  if query is None:
+    # Plot histogram
+    fig1 = plt.figure()
+    ax1 = fig1.add_subplot(111)
+    for p in pop_idx:
+      ax1.plot(years, tren[p], label=words[p])
+      ax1.text(years[-1]+abs(np.random.normal()*5), 
+               tren[p][-1]+np.random.normal()*5, words[p])
+    ax1.legend(loc='left')
+  elif type(query) is str:
+    query = [query]
+  if type(query) is not list:
+    print('Query must be string or list of strings.')
+    return
+  ix = []
+  for q in query:
+    if q in words:
+      ix.append(words.index(q))
+  # Show the query against benchmarks
+  t_sum = [sum(t) for t in new_tren]
+  top = t_sum.index(max(t_sum)) # Get locations of max and min
+  bottom = t_sum.index(min(t_sum)) # Hasn't been sorted yet
+  t_sum.sort()
+  # Get locations of IQR
+  upper, lower = t_sum[int(0.75*len(t_sum))], t_sum[int(0.25*len(t_sum))]
+  upper = [sum(t) for t in new_tren].index(upper)
+  lower = [sum(t) for t in new_tren].index(lower)
+  # Plot shit
+  fig2 = plt.figure()
+  ax2 = fig2.add_subplot(111)
+  ax2.plot(years, new_tren[top], '--', color='k')
+  ax2.plot(years, new_tren[bottom], '--', color='k')
+  ax2.fill_between(years, new_tren[upper], new_tren[lower], 
+                   facecolor='lightgray', alpha=0.5)
+  for i in ix:
+    ax2.plot(years, tren[i], linewidth=2.)
+    ax2.text(years[-1]+2, tren[i][-1], words[i])
+  plt.show()
+  return
   
 
 
