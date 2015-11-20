@@ -52,6 +52,28 @@ pairwise_t <- function (mat) {
   t
 }
 
+# Pie plots (individual)
+ggplot(data=df[df$gender=='Male',], 
+         aes(x=factor(1),
+         y=Summary,
+         fill = factor(response))) + 
+ geom_bar(width = 1) + 
+ coord_polar(theta="y") +
+ xlab('Males') +
+ ylab('') +
+ labs(fill='Response')
+
+ggplot(data=df[df$gender=='Female',], 
+         aes(x=factor(1),
+         y=Summary,
+         fill = factor(response))) + 
+ geom_bar(width = 1) + 
+ coord_polar(theta="y") +
+ xlab('Females') +
+ ylab('') +
+ labs(fill='Response')
+ 
+
 
 
 

@@ -618,9 +618,49 @@ def clean_asym(la1, la2):
         la2[i].pop(ind)
         la1[i].pop(ind)
   return la1, la2
-        
 
+
+# Simple timing function
+import datetime as dt
+def start_time():
+  return dt.datetime.now()
+def end_time(then):
+  print(dt.datetime.now() - then)
+  return
+
+
+# Simple attributes of an array
+def min_max(arr):
+  minn, maxx = np.inf, 0
+  for i in arr:
+    for j in i:
+      if j > maxx:
+        maxx = j
+      if j < minn:
+        minn = j
+  print('Max: %f, Min: %f' %(float(maxx), float(minn)))
+  return
+
+
+#Get number of triplet/tuples in array
+def num_of_triplets(arr):
+  cnt = 0
+  for i in arr:
+      for j in i:
+          if len(j) == 3:
+              cnt = cnt + 1
+  return cnt
   
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -228,9 +228,10 @@ def gen_vec(pt0, pt1):
 
 
 
-def gen_plane_index(sk0, sk1, M=50):
+def gen_plane_index(sk0, sk1, M=50, as_int=False):
   """
-  Same as above but uses indices instead of coordinates.
+  Same as above but uses indices instead of coordinates. X,Y are ints
+  because they refer to indices; Z can be float for interpolation.
   """
   vec = gen_vec(sk0, sk1)
   numpts = M
@@ -239,11 +240,14 @@ def gen_plane_index(sk0, sk1, M=50):
   ys = [int(i) for i in np.linspace(vec[1]-numpts, vec[1]+numpts, numpts*2)]
   def solve(vec, x, y): # the plane equation
     if vec[2]==0:
-      return -((x*vec[0] + y*vec[1])/0.1)
+      return -((x*vec[0] + y*vec[1])/0.01)
     return -((x*vec[0] + y*vec[1])/vec[2]) # 
   for m in xs:
     for n in ys:
-      planinds.append([m, n, int(solve(vec, m, n))])
+      if as_int is True:
+        planinds.append([m, n, int(solve(vec, m, n))])
+      elif as_int is False:
+        planinds.append([m, n, float(solve(vec, m, n))])
   means = [np.mean([p[0] for p in planinds]),
            np.mean([p[1] for p in planinds]),
            np.mean([p[2] for p in planinds])]
@@ -417,13 +421,13 @@ def downsample(skelpts, by=3):
       newskel[s] = [skelpts[s][0], skelpts[s][1]]
     elif len(skelpts[s]) < 2:
       pass
-    elif len(skelpts[s]) > by and  len(skelpts[s]) <= by*2:
+    elif len(skelpts[s]) > by and len(skelpts[s]) <= by*2:
       newskel[s] = [skelpts[s][0], skelpts[s][1]]
     else: # More than 2*'by' nodes in this seg
       for u in range(int(len(skelpts[s])/by)):
         newskel[s].append(skelpts[s][u*by])
   return newskel
-  
+
 
 
 def cross_sec_locs(sk0, sk1, dims):
@@ -431,24 +435,24 @@ def cross_sec_locs(sk0, sk1, dims):
   Returns the locations/indices of a cross-section.
   The output is an array (500+500) x (500+500) and each element of that
   array is a 3-tuple that tells the location in the stack to get the 
-  value. 
+  value. sk0 = [x,y,z], dims = [z,x,y]
   """
   # get plane
   planinds, numpts = gen_plane_index(sk0, sk1, M=500)
   def pt_ok(pt, dims):
     # returns false if pt is outside shape of stack
-    if p[0] < 0 or p[0] > dims[1]-1:
+    if pt[0] < 0 or pt[0] > dims[1]-1:
       return False
-    if p[1] < 0 or p[1] > dims[2]-1:
+    if pt[1] < 0 or pt[1] > dims[2]-1:
       return False
-    if p[2] < 0 or p[2] > dims[0]-1:
+    if pt[2] < 0 or pt[2] > dims[0]-1:
       return False
     return True
   #
-  cs = [ [ [] for i in range(numpts*2)] for j in numpts*2 ]
+  cs = [ [ [] for i in range(numpts*2)] for j in range(numpts*2) ]
   x_ind, y_ind, startpt = 0, 0, None
   for p in planinds:
-    if y_ind >= 2*numpts:
+    if y_ind >= 2*numpts: # Reset the counter
       y_ind = 0
       x_ind = x_ind + 1
     if pt_ok(p, dims): # if point inside stack
@@ -465,12 +469,177 @@ def cross_sec_locs(sk0, sk1, dims):
 
 
 
+
+############################################## INTEGER Zs
+
+def fill_cross_sec(cross_secs, root_dir): 
+  """
+  Pass all the cross-sections and the directory where the image stack
+  is contained. cross_secs is a list of 3-tuple arrays from 
+  cross_secs_locs.
+  """
+  def place_values(cs, zslice, slicenum):
+    # Populate as much of cross-sec as possible from the given zslice
+    for i in range(len(cs)):
+      for j in range(len(cs[i])):
+        try:
+          if cs[i][j][2] == slicenum:
+            cs[i][j] = zslice[ cs[i][j][0], cs[i][j][1] ] # ...[2] already used
+        except:
+          pass
+    return cs
+  #
+  print('Getting which slices are needed for each cross-section ...')
+  slices = []
+  for cs in cross_secs:
+    if cross_secs.index(cs) % 100 == 0:
+      print('%i / %i cross-secs examined so far.' %(cross_secs.index(cs), len(cross_secs)))
+      slices.append(which_slices(cs))
+  # Got all the slice info
+  print('Filling in the cross-sections ...')
+  fils = os.listdir(root_dir)
+  fils = [f for f in fils if f.split('.')[-1] == 'tif']
+  fils.sort()
+  fils = [root_dir + f for f in fils]
+  # For each z slice, find all the cross-secs that need data from it
+  for u in range(len(fils)):
+    arr = np.asarray(Image.open(fils[u]))
+    for which in range(len(slices)):
+      if u in slices[which]:
+        cross_secs[which] = place_values(cross_secs[which], arr, u)
+    if u % 10 == 0:
+      print('%i / %i slices processed so far ... ' %(u, len(fils)))
+  # Every cross-sec should now be populated
+  return cross_secs
+
+
+
+def which_slices(cs):
+  """
+  Determines which z slices are needed to reconstruct the cross-sec
+  Pass one cross_section at a time
+  """
+  wh = []
+  for i in cs:
+    for j in i:
+      try:
+        if len(j) == 3: # If the point is within bounds
+          wh.append(int(j[2])) # Add the z slice number
+      except:
+        pass
+  return list(set(wh))
+
+
+
+############################################## FLOAT Zs
+
+def interp_voxels(cs, slice1num, slice1, slice2num, slice2, voxel):
+  """
+  Interpolate between two slices to find the correct value.
+  Fill as much of the slice as possible.
+  """
+  num_interp = int(max([voxel[2]/voxel[0], voxel[2]/voxel[1]])) # Num of interp pts
+  for i in range(len(cs)):
+    for j in range(len(cs[i])):
+      if type(cs[i][j]) is list:
+        if len(cs[i][j]) == 3:
+          if cs[i][j][2] == slice1num: # If this Z is contained in current slice
+              column = np.linspace(slice1[cs[i][j][0]][cs[i][j][1]],
+                                   slice2[cs[i][j][0]][cs[i][j][1]],
+                                   num_interp)
+              cs[i][j] = column[int( (cs[i][j][2]%1)*num_interp )]
+  return cs
+  
+
+
+def float_cross_secs(cross_secs, root_dir, voxel):
+  """
+  This populates the cross-secs where x & y values are ints but z is float.
+  This is done by interpolating between the z slices.
+  """
+  w_slices = [] # Find which slices are necessary
+  for cs in cross_secs:
+    if cross_secs.index(cs) % 100 == 0:
+      print('%i / %i cross-secs examined so far.' %(cross_secs.index(cs), len(cross_secs)))
+      w_slices.append(which_slices(cs))
+  print('Filling and interpolating for cross-sections...')
+  fils = os.listdir(root_dir) # Get files from directory
+  fils = [f for f in fils if f.split('.')[-1] == 'tif']
+  fils.sort()
+  fils = [root_dir + f for f in fils]
+  #
+  # Iterate through the slices to get the Z-values
+  curr_slice = np.asarray(Image.open(fils[0]))
+  for s in range(1,len(fils)): # For each slice ...
+    next_slice = np.asarray(Image.open(fils[s])) # ... read the next slice ...
+    for which in range(len(w_slices)): 
+      if s-1 in w_slices[which]: # ... if this cross-sec requires the current slice ...
+        # Fill in the missing pieces for that slice
+        cross_secs[which] = interp_voxels(cross_secs[which], 
+                                          slice1num=s-1, slice1=curr_slice,
+                                          slice2num=s, slice2=next_slice,
+                                          voxel=voxel)
+    curr_slice = next_slice # Replace the current slice
+    if s % 10 == 0:
+      print('%i / %i slices examined ...' %(s, len(fils)))
+  #
+  # Once all slices have been filled in, replace any missing vals with 0s
+  for cs in cross_secs:
+    for i in cs:
+      for j in cs:
+        if type(j) is list:
+          j = 0
+  return cross_secs
+
+
+
+
+def integer_cross_sec(cross_sec):
+  """
+  If a cross-sec tuple pointed to a non-existent value (outside range),
+  it was left as an empty list ([]). This replaces those with zeros.
+  """
+  new_cs = []
+  for i in range(len(cross_sec)):
+    temp = [] # For each row
+    for j in cross_sec[i]:
+      try:
+        temp.append(int(j))
+      except:
+        temp.append(0)
+    new_cs.append(temp)
+  return new_cs
+
+  
+
+# Get number of triplet/tuples in array
+def num_of_triplets(arr):
+  cnt = 0
+  for i in arr:
+      for j in i:
+          if len(j) == 3:
+              cnt = cnt + 1
+  return cnt
+  
+
+
+
+
+
 def cs_from_skeleton(skelpts, dims):
-  # Get the cross-sec indices for all of the relevant skel points
+  """
+  Get the cross-sec indices for all of the relevant skel points
+  """
   cross_sections, center_pts = [], [] # Keep track of the center points
   for s in skelpts:
     for k in range(len(s)-1):
-      
+      pass #
+  #
+  return
+
+
+
+
 
 
 

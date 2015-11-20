@@ -7,10 +7,11 @@ from Bio import Entrez
 import sys
 import json
 import string
+import matplotlib.pyplot as plt
 
 
 
-def ignore_words():
+def ignore_words(pubs, return_words=False):
   # Return words we don't care about
   ignore = ['the', 'a', 'not', 'of', 'for', 'web', 'database', 'and',
             'but', 'that', 'single', 'few', 'several', 'has', 'have', 
@@ -22,7 +23,17 @@ def ignore_words():
             'crab': ['crustacean', 'crab', 'lobster', 'americanus',
                      'cancer', 'americanus', 'borealis', 'panilirus',
                      'interruptus', 'stg', 'stomatogastric']}
-  return {'ignore': ignore, 'models': models}
+  for p in pubs:
+    for k in p.keys():
+      if type(p[k]) is list:
+        p[k] = list(set(p[k]))
+        for i in ignore:
+          if i in p[k]:
+            p[k].pop(p[k].index(i))
+  if return_words is False:
+    return pubs
+  else:
+    return pubs, {'ignore': ignore, 'models': models}
   
 
 
@@ -94,7 +105,7 @@ def get_years(pubs):
 def words_by_year(pubs):
   """
   """
-  avoid = bad_words() # FIX THIS CALL
+  pubs = ignore_words(pubs)
   for p in pubs:
     if type(p['year']) is not int:
       try:
@@ -108,13 +119,48 @@ def words_by_year(pubs):
   words_year = [{} for i in years]
   for p in pubs:
     for w in p['words']:
-      if w not in avoid: # Make sure it's not some stupid obvious word
-        if w not in words_year[years.index(p['year'])].keys():
-          words_year[years.index(p['year'])][w] = 1
-        else:
-          words_year[years.index(p['year'])][w] += 1
+      #if w not in avoid: # Make sure it's not some stupid obvious word
+      if w not in words_year[years.index(p['year'])].keys():
+        words_year[years.index(p['year'])][w] = 1
+      else:
+        words_year[years.index(p['year'])][w] += 1
+  return words_year, years
 
 
+
+def trends(pubs):
+  """
+  This returns a dictionary of words as keys and years and 
+  word freq for each word.
+  """
+  w_year, years = words_by_year(pubs)
+  keyz = []
+  for w in w_year:
+    for k in w.keys():
+      keyz.append(k)
+  keyz = list(set(keyz))
+  all_words = {k: [] for k in keyz}
+  for w in w_year:
+    for word in all_words.keys():
+      if word in w.keys():
+        all_words[word].append(w[word])
+      else:
+        all_words[word].append(0)
+  return all_words, years
+        
+  
+
+def show_trends(pubs, thresh=5):
+  """
+  Start to show some trends.
+  """
+  all_words, years = trends(pubs)
+  # If a word once had > thresh usages, follow it's usage
+  words = list(all_words.keys())
+  tren = list(all_words.values())
+  pop_idx = [w for w in range(len(words)) if sum(tren[w]) > thresh]
+  
+  
 
 
 
@@ -127,7 +173,7 @@ def plot_authors(pubs):
 
 def topics(pubs):
   # Plot which subjects/topics receive the most pubs
-  
+  return None
          
     
   
