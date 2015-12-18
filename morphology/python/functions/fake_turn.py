@@ -20,7 +20,7 @@ def load_filament(img_dir, makebinary=False, keepfirst=True, switch=True):
   print('Loading images...')
   fils = os.listdir(img_dir)
   fils.sort()
-  fils = [img_dir+f for f in fils if f.split('.')[-1] == 'tif']
+  fils = [img_dir+f for f in fils if f.split('.')[-1].lower() == 'tif']
   arr = []
   for f in fils:
     if fils.index(f) % 20 == 0:

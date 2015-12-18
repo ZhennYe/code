@@ -1,0 +1,4 @@
+-Help added.
+-The removing function "double exponential fit" removed.
+-Session type information added.
+-Local polynomial fit fixed.(advenced optins added)

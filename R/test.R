@@ -52,6 +52,49 @@ pairwise_t <- function (mat) {
   t
 }
 
+######################################## PIES ######################
+library(ggplot2)
+# ggpie: draws a pie chart.
+# give it:
+# * `dat`: your dataframe
+# * `by` {character}: the name of the fill column (factor) (string)
+# * `totals` {character}: the name of the column that tracks (number)
+#    the time spent per level of `by` (percentages work too).
+# returns: a plot object.
+ggpie <- function (dat, by, totals, legname, legitems) {
+    ggplot(dat, aes_string(x=factor(1), y=totals, fill=by)) +
+        geom_bar(stat='identity', color='black') +
+        guides(fill=guide_legend(override.aes=list(colour=NA))) + # removes black borders from legend
+        scale_fill_discrete(name=legname, labels=legitems) + 
+        coord_polar(theta='y') +
+        theme(axis.ticks=element_blank(),
+            axis.text.y=element_blank(),
+            axis.text.x=element_text(colour='black'),
+            axis.title=element_blank()) +
+    scale_y_continuous(breaks=cumsum(dat[[totals]]) - dat[[totals]] / 2, labels=dat[[by]])
+}
+
+ggpie_orig <- function (dat, by, totals) {
+    ggplot(dat, aes_string(x=factor(1), y=totals, fill=by)) +
+        geom_bar(stat='identity', color='black') +
+        guides(fill=guide_legend(override.aes=list(colour=NA))) + # removes black borders from legend
+        coord_polar(theta='y') +
+        theme(axis.ticks=element_blank(),
+            axis.text.y=element_blank(),
+            axis.text.x=element_text(colour='black'),
+            axis.title=element_blank()) +
+    scale_y_continuous(breaks=cumsum(dat[[totals]]) - dat[[totals]] / 2, labels=dat[[by]])    
+}
+
+
+# attach(df)
+# ggpie(df, 'by', 'totals')
+
+
+# legits = c('BC: 17914','Brandeis: 7322','BU: 43395','Harvard: 25671','Industry: 60459','MIT: 12349','Northeastern: 21570','Tufts: 12024')
+
+
+# Use molten?
 # Pie plots (individual)
 ggplot(data=df[df$gender=='Male',], 
          aes(x=factor(1),
@@ -73,6 +116,27 @@ ggplot(data=df[df$gender=='Female',],
  ylab('') +
  labs(fill='Response')
  
+
+# stacked bars
+# data is already melted and is of format:
+# date, institution, num_talks
+# 11/9/15, mit_priv, 5
+# 11/10/15, mit_priv, 4 
+#       ...
+priv_melt = melt(priv)
+ggplot(priv_melt, aes(date, num_talks))
+  + geom_bar(aes(colour=institution, fill=institution), 
+             position='stack', stat="identity")
+  + theme(axis.text.x = element_text(angle=45), hjust=1) # 45 degrees rotation
+  + scale_x_discrete(breaks=NULL)
+  + scale_y_discrete(breaks=NULL)
+  + guide_legend(title='Institutions')
+  + scale_fill_discrete(guide = guide_legend(title='Institution'))
+  
+ggsave(filename='', width=, height=) # Reverts to most recent plot
+
+
+
 
 
 

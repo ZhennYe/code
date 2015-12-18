@@ -564,7 +564,7 @@ def float_cross_secs(cross_secs, root_dir, voxel):
       w_slices.append(which_slices(cs))
   print('Filling and interpolating for cross-sections...')
   fils = os.listdir(root_dir) # Get files from directory
-  fils = [f for f in fils if f.split('.')[-1] == 'tif']
+  fils = [f for f in fils if f.split('.')[-1].lower() == 'tif']
   fils.sort()
   fils = [root_dir + f for f in fils]
   #
@@ -584,14 +584,14 @@ def float_cross_secs(cross_secs, root_dir, voxel):
       print('%i / %i slices examined ...' %(s, len(fils)))
   #
   # Once all slices have been filled in, replace any missing vals with 0s
-  for cs in cross_secs:
-    for i in cs:
-      for j in cs:
-        if type(j) is list:
-          j = 0
+  for cs in range(len(cross_secs)):
+    for i in range(len(cross_secs[cs])):
+      for j in range(len(cross_secs[cs][i])):
+        if type(cross_secs[cs][i][j]) is list:
+          cross_secs[cs][i][j] = 0
   return cross_secs
 
-
+############################ end of float & int cross-sects
 
 
 def integer_cross_sec(cross_sec):

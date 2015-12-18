@@ -173,6 +173,7 @@ def pretty_boxplot(V, labelsin, title=None, ticks=None, axes=None):
 def mean_scatter(V, labelsin, title=None, ticks=None, axes=None, 
                    showboth=True, showleg='best'):
   """
+  One point per cell, plotted by type. showboth=Also show median.
   """
   Vmean = [np.mean(i) for i in V] # Take the mean of each element (okay for lists and scalars)
   Vmed = [np.median(i) for i in V]
@@ -309,8 +310,10 @@ def simple_scatter(x, y, fit=False, title=None, axes=None, showtext=True):
 
 
 
-def pretty_bar(v, labelsin, stderr=None, ticks=None, title=None, axes=None):
+def pretty_bar(v, labelsin, stderr=None, ticks=None, title=None, axes=None,
+               showleg='best', bounds=None):
   """
+  showleg can also be None or 'uppermiddle' etc.
   """
   #mi, ma = lims(v)
   L = list(np.unique(labelsin))
@@ -344,18 +347,23 @@ def pretty_bar(v, labelsin, stderr=None, ticks=None, title=None, axes=None):
                   label=labelsin[C.index(fcolors.index('forestgreen'))])
     patches.append(forest_patch)
   if len(L) > 3:
-    lavender_patch = mpatches.Patch(color='lavenderblush', 
-                  label=labelsin[C.index(fcolors.index('lavenderblush'))])
+    lavender_patch = mpatches.Patch(color='tomato', 
+                  label=labelsin[C.index(fcolors.index('tomato'))])
     patches.append(lavender_patch)
-  plt.legend(handles=patches, loc='best')
+  if showleg is not None:
+    plt.legend(handles=patches, loc=showleg)
   if stderr is not None:
     ax.set_ylim([0, 1.5*(max(V)+np.mean(Vstd))])
   else:
     ax.set_ylim([0, max(V)+0.5*min(V)])
   ax.set_xlim([-.5, len(V)])
+  if bounds is not None and type(bounds) is list:
+    ax.set_ylim([bounds[0], bounds[1]])
   if ticks is None:
     ax.tick_params(axis='x',which='both',bottom='off',top='off',
                          labelbottom='off')
+  for pos in ['bottom', 'left', 'top', 'right']:
+    ax.spines[pos].set_visible(False)
   # title
   if title:
     ax.set_title(title, fontsize=20)
@@ -515,9 +523,14 @@ def hori_bars_legend():
 
 
 
-def hori_scatter(xdata, labelsin, title=None, axes=None, norm=False,
-                       showmean=True, switch=False, llog=False, counts=False):
-  # xdata is list of lists (distribution)
+def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
+                 showmean=True, switch=False, llog=False, counts=False,
+                 jittery=False, shade=True, fill=False, bench=False):
+  """
+  xdata is list of lists (distribution); jittery = y jitter of +/-0.25 units
+  shade=IQR shading (bad for int data); bounds=number to normalize, False for 
+  no bounds, true for mean +/- std bounds
+  """
   if switch:
     for i in range(len(xdata)-1):
       xdata.append(xdata.pop(0))
@@ -528,14 +541,14 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, norm=False,
   # print(L,C)
   fig = plt.figure()
   plots = [fig.add_subplot(1,len(xdata),i) for i in range(len(xdata))]
-  if norm is True:
+  if bounds == 'norm':
     #tdata = np.linspace(0,100,len(xdata[0]))
     X = []
     for x in xdata:
       X.append([i/max(x) for i in x])
     xdata = X
     minm, maxm = 0, 1.
-  else:
+  elif bounds is True:
     minm, maxm = np.inf, 0 # condition the data
     for x in xdata:
       if np.mean(x)-np.std(x) < minm:
@@ -544,10 +557,20 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, norm=False,
         maxm = np.mean(x)+np.std(x)
     if minm < 0:
       minm = 0.
+  elif type(bounds) is list:
+    minm, maxm = bounds[0], bounds[1]
+    xdata = [[bounds[0] if i < bounds[0] else i for i in xdat ] for xdat in xdata]
+    xdata = [[bounds[1] if i > bounds[1] else i for i in xdat ] for xdat in xdata]
+  else:
+    minm, maxm = 1, max([max(u) for u in xdata])
   for p in range(len(xdata)): # now plot
     xd = np.random.random(len(xdata[p]))
-    plots[p].scatter(xd, xdata[p], color=colors[C[p]], edgecolor=colors[C[p]],
-                    alpha=0.6, s=20)
+    if jittery:
+      yd = np.random.randn(len(xdata[p]))/12.
+    else:
+      yd = np.zeros(len(xdata[p]))
+    plots[p].scatter(xd, xdata[p]+yd, color=['none' if not fill else colors[C[p]] for i in [1]][0],
+                     edgecolor=colors[C[p]], alpha=0.8, s=20) # linewidth=3) #colors[C[p]]
     if showmean:
       def r_bin(bins, target): # always start from below
         j = [i for i in bins]
@@ -560,11 +583,16 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, norm=False,
                     '-', linewidth=3, c='k')
       plots[p].plot([0,1], [np.median(xdata[p]), np.median(xdata[p])],
                     '--', linewidth=3, c='k', )
-      q25, q75 = np.percentile(xdata[p], [25, 75])
-      b25, b75 = r_bin(xdata[p], q25), r_bin(xdata[p], q75)
-      # Plot IQR
-      plots[p].axhspan(b25, b75, edgecolor=colors[C[p]], 
-                       facecolor=colors[C[p]], alpha=0.4)
+      if shade:
+        q25, q75 = np.percentile(xdata[p], [25, 75])
+        b25, b75 = r_bin(xdata[p], q25), r_bin(xdata[p], q75)
+        # Plot IQR
+        plots[p].axhspan(b25, b75, edgecolor=colors[C[p]], 
+                         facecolor=colors[C[p]], alpha=0.4)
+      for pos in ['left', 'top', 'right']: # Also hide these borders for all plots
+        plots[p].spines[pos].set_visible(False)
+    if bench:
+      plots[p].plot([0,1], [bench, bench], c='purple', linewidth=2, alpha=0.3)
     if p == 1: #if first plot, show the axes
       plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
                            labelbottom='off')
@@ -575,8 +603,9 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, norm=False,
         plots[p].set_yscale('log'); plots[p].set_ylim([0, maxm]) ## Log scale
       if counts is True:
         plots[p].set_title('%i' %len(xdata[p]))
+      for pos in ['top', 'right']: # Also hide these borders for all plots
+        plots[p].spines[pos].set_visible(False)
     else:
-      #plots[p].axis('off')
       plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
                            labelbottom='off')
       plots[p].get_yaxis().set_visible(False)
@@ -585,7 +614,8 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, norm=False,
       plots[p].set_ylim([minm,maxm])
       if counts is True:
         plots[p].set_title('%i' %len(xdata[p]))
-    #plots[p].set_title(titles[p])
+      for pos in ['left', 'top', 'right']: # Also hide these borders for all plots
+        plots[p].spines[pos].set_visible(False)
   if title:
     plt.suptitle(title, fontsize=20)
   plt.show()

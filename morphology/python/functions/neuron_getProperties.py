@@ -8,6 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.patches as mpatches
 import networkx as nx
 import seaborn as sns
+import csv
 
 
 
@@ -112,10 +113,30 @@ def get_hocfiles(directory='/home/alex/data/morphology/morphology-hoc-files/morp
   return hocfiles
   
 
-def get_geofiles(directory='/home/alex/data/morphology/morphology-hoc-files/morphology/analyze/'):
+def get_geofiles(directory='/home/alex/data/morphology/morphology-hoc-files/hocs/all/'):
   hocfiles = get_hocfiles(directory)
   geofiles = [demoReadsilent(g) for g in hocfiles]
   return geofiles, hocfiles
+
+
+def match_celltype(names):
+  celltype_dict = {'815_144_GM_scaled': 'GM',
+                   '785_040_63xgly_new_LG': 'LG',
+                   '798_007_63xgly_GM_knossos_scaled': 'GM',
+                   '798_002_NoLoops_scaled': 'GM',
+                   '836_047_63X_RH_199': 'LP',
+                   '803_155_63x_JL_03': 'PD',
+                   '836_095_63X_IM_34': 'LP',
+                   '803_151_63x_IM_69': 'PD',
+                   '791_076_63xgly_knossos_LG_soma-edit_scaled': 'LG',
+                   '837_123_63x_IM_79_radius_2': 'LP',
+                   '791_088_63xgly_knossos_LG_soma-edit_scaled': 'LG',
+                   '786_062_63xgly_LG_ACS_10_scaled': 'LG',
+                   '798_032_63x_NA_05': 'PD',
+                   '837_103_63x_DK_38': 'LP',
+                   '803_133_63x_NA_11': 'PD',
+                   '791_127_63x_GM_ACS_soma-edit_scaled': 'GM'}
+  return [celltype_dict[h] for h in names]
   
 
 
@@ -261,17 +282,33 @@ def branch_degree(geo):
   return bnodes
 
 
-def num_daughters(geo, branch=True):
+def num_daughters(geo, branch=False, clean=True):
   """
   Only take daughters from the 1th end to be consistent (could crawl
   through whole tree structure but it's not clear that result would
-  differ from this approach.
+  differ from this approach. clean=remove 0,1 nodes
   """
   branch_nodes = []
-  for b in geo.branches:
-    temp = []
-    temp = [i for i in b.neighborLocations if i[0] == 1]
-    branch_nodes.append(len(temp))
+  
+  if branch: # Use branches -- not such an excellent thingy
+    for b in geo.branches:
+      temp = []
+      temp = [i for i in b.neighborLocations if i[0] == 1]
+      branch_nodes.append(len(temp))
+  
+  else: # Use segments -- this is better (but much slower)
+    pDF = PathDistanceFinder(geo, geo.soma)
+    for seg in geo.segments:
+      # Add the number of daughters at the farther neighbor
+      if pDF.distanceTo(seg, 1) > pDF.distanceTo(seg, 0): # 1 is farther
+        temp = len(seg.neighborsAt(1))
+      else:
+        temp = len(seg.neighborsAt(0))
+      branch_nodes.append(temp)
+  
+  if clean:
+    branch_nodes = [i for i in branch_nodes if i != 0 and i != 1]
+    
   return branch_nodes
 
 
@@ -2206,6 +2243,36 @@ def plot_soma_positions(arr, types=None):
   plt.show()
   return
 
+###########################################################################
+# How 'branched' is the neuron -- get carrier points
+
+# Could just do tips, but that assumes the trajectory is insignificant
+
+
+def carrier_spacing(geo, step=50):
+  """
+  Create carrier points along every path at step-um intervals.
+  """
+  # Get the paths
+  pDF = PathDistanceFinder(geo, geo.soma)
+  tipInds, tipLocs = geo.getTipIndices()
+  pathsegs = [seg for seg in geo.segments if seg.filamentIndex in tipInds]
+  paths = [pDF.pathTo(pseg, 0.5) for pseg in pathsegs]
+  
+  # Find out may points and assign them
+  pathlengths = [sum([s.length for s in p]) for p in paths]
+  num_sp_pts = [int(s/float(step)) for s in pathlengths]
+  pts = []
+  for p in range(len(paths)):
+    path = paths[p]
+    dist = list(np.linspace(0,pathlengths[p], num_sp_pts[p]))
+    so_far = 0
+    
+    for seg in path:
+      if dist[0] > so_far and dist[0] < so_far+seg.length: # Put it in here
+        
+  
+
 
 
 ############################################################################
@@ -2262,6 +2329,95 @@ def combined_ratios(rlist, skip=2):
 
 
 
+def rall_analysis(lol):
+  """
+  Each list is [filename, celltype, p1, d1a, d1b, p2, d2a, d2b ... ]
+  """
+  ralls = []
+  for l in lol:
+    print('Calculating rall exponents for %s' %l[0])
+    ralls.append([l[0]]) # Add filename
+    idx = lol.index(l) # Current cell index
+    ralls[idx].append(l[1]) # Add celltype
+    startlist = [i*3+2 for i in list(range(int((len(l)-2)/3)))]
+  
+    for s in startlist:
+      for rad in [1,2]: # Two 
+        ralls[idx].append(fit_rall_exp(l[s], l[s+rad]))
+  ralls = [[i for i in k if i is not None] for k in ralls]
+  print('All rall exponents returned')
+  return ralls
+      
+  
+
+
+
+def fit_rall_exp_list(parlist, dauglist):
+  """
+  Given a list of ratios this fits the rall exponents (3/2 is 'ideal').
+  """
+  if type(parlist) is not list and type(dauglist) is not list:
+    return fit_rall_exp(parlist, dauglist)
+  assert len(parlist) == len(dauglist), "input1 (length: %i) and %input2 (length: %i)" \
+                                        %(len(parlist), len(dauglist))
+  return [math.log(parlist[i], dauglist[i]) for i in range(len(parlist))]
+  
+
+
+def fit_rall_exp(par, daug):
+  """
+  Given a list of ratios this fits the rall exponents (3/2 is 'ideal').
+  """
+  try:
+    return math.log(par, daug)
+  except:
+    print('Wrong type: par: %s, daug: %s' %(str(type(par)), str(type(daug))))
+    print(par, daug)
+    return
+
+
+
+def pixel_div(x, y=None):
+  # Get the 'average' pixel size to divide out.
+  if y is None:
+    y = x
+  return 0.5*(np.mean([x,y]) + np.sqrt(2*x*y))
+
+
+
+def div_radius(tips, divs, hand=False):
+  # Divide non-string numbers by the divisor, len(tips)==len(divs)
+  for t in range(len(tips)):
+    for i in range(len(tips[t])):
+      if hand is True:
+        if type(tips[t][i]) is not str and tips[t][i] > 1: # Not binary
+          tips[t][i] = tips[t][i]/divs[t]
+      else: # Not hand
+        if type(tips[t][i]) is not str:
+          tips[t][i] = tips[t][i]/divs[t]
+  return tips
+
+
+
+def collapse_list_to_dict(lols, keys):
+  """
+  #
+  """
+  newdict = {}
+  newdict['files'] = [g[0] for g in lols[0]]
+  newdict['cellTypes'] = [g[1] for g in lols[0]]
+  
+  for lol in lols: # For each list
+    # Assume file and celltype are first, and len(keys)==len(lols)
+    newdict[keys[lols.index(lol)]] = [[] for i in range(len(lol))]
+    for l in lol: # For each cell, match its placement
+      newdict[keys[lols.index(lol)]][newdict['files'].index(l[0])] = l[2:]
+  
+  return newdict
+  
+
+    
+
 def get_csv(csvfile):
   # Return list of csv row elements
   arr = []
@@ -2277,25 +2433,6 @@ def get_csv(csvfile):
       arr.append(nrow)
   return arr
 
-
-def pixel_div(x, y=None):
-  # Get the 'average' pixel size to divide out.
-  if y is None:
-    y = x
-  return 0.5*(np.mean([x,y]) + np.sqrt(2*x*y))
-
-
-def div_radius(tips, divs, hand=False):
-  # Divide non-string numbers by the divisor, len(tips)==len(divs)
-  for t in range(len(tips)):
-    for i in range(len(tips[t])):
-      if hand is True:
-        if type(tips[t][i]) is not str and tips[t][i] > 1: # Not binary
-          tips[t][i] = tips[t][i]/divs[t]
-      else: # Not hand
-        if type(tips[t][i]) is not str:
-          tips[t][i] = tips[t][i]/divs[t]
-  return tips
 
 
 def save_csv(tips, outfile, cols=None, rows=None):
@@ -2318,7 +2455,6 @@ def save_csv(tips, outfile, cols=None, rows=None):
   print('%s written.' %outfile)
   return
 
-    
 
 
 ############
