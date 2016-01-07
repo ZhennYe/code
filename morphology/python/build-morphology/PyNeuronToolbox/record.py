@@ -1,5 +1,8 @@
 import numpy as np
-from morphology import get_all_sections
+
+import sys
+sys.path.append('/home/alex/code/morphology/python/build-morphology/')
+from PyNeuronToolbox.morphology import get_all_sections
 
 def ez_record(h,var='v',sections=None,order=None,\
               targ_names=None,cust_labels=None):

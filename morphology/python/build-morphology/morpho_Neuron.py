@@ -3,8 +3,9 @@
 
 
 import sys, os
+sys.path.append('/home/alex/code/morphology/python/build-morphology/')
 import neuron, nrn
-from quaddiameter import *
+#from quaddiameter import *
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -32,6 +33,58 @@ def show_plot(quad):
   shapeplot(h,shapeax)
   plt.show()
   return
+
+
+
+def custom_cable(length=526., tiprad=1.4, somarad=15.4, inj=1.2, 
+                 tinj=1., injloc=1., Ra=35.4):
+  """
+  Simulate a simple passive current injection. Length=um, rads=um,
+  inj=nA, tinj=ms, injloc=1 (tip). 
+  Recorded from all 11 segments.
+  """
+  # Set up model
+  h.load_file('stdrun.hoc')
+  cell = h.Section()
+  cell.nseg = 11   # It is a good idea to have nseg be an odd number
+  cell.Ra = 35.4   # Ohm*cm
+  cell.insert('pas')
+  
+  # Create structure
+  h.pt3dadd(0,0,0,somarad,sec=cell)
+  h.pt3dadd(length,0,0,tiprad,sec=cell)
+  stim = h.IClamp(injloc, sec=cell)
+  stim.delay = 5 # ms
+  stim.dur = tinj # ms
+  stim.amp = inj # nA
+  print("Stim: %.2f nA, %.2f ms, at location %.2f" %(stim.amp, stim.dur,
+                                                     injloc))
+  
+  # Segment positions, equall spaced from 0 to 1
+  seg_positions = np.linspace(0,1,cell.nseg)
+  # Use toolbox to record v
+  # ez_record records v in all compartments by default
+  (v,v_labels) = ez_record(h)
+  # Manually record time and current
+  t, I = h.Vector(), h.Vector()
+  t.record(h._ref_t)
+  I.record(stim._ref_i)
+  
+  # Run the simulation 
+  h.init()
+  h.tstop = 30
+  h.run()
+  # Use toolbox convert v into a numpy 2D array
+  v = ez_convert(v) 
+  
+  # Plotting options
+  fig = plt.figure()
+  for i in range(cell.nseg):
+    t = [v[u][i] for u in range(len(v))]
+    ax = fig.add_subplot(cell.nseg, 1, i+1)
+    ax.plot(t)
+  plt.show()
+  return h, v
 
 
 

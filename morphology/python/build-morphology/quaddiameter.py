@@ -558,7 +558,63 @@ def get_ratios(quad, quadRads=None, geoRads=None):
 
 
 
-def 
+def load_params(addpath='/home/alex/code/morphology/python/build-morphology/'):
+  """
+  Load the parameters for the fits. These are derived in Cuntz... Segev 
+  (2007). For each segment of normalized length ldend[i], P[i] are the
+  parameters for  y = P[i,0]x^2 + P[i,1]x + P[i,2] = 
+  """
+  P = []
+  with open(addpath+'P.txt','r') as fIn:
+    for line in fIn:
+      if line:
+        splitLine = line.split(None)
+        P.append([float(i) for i in splitLine])
+  
+  # All ldend values are tab or space-separated on one line
+  ldend = []
+  with open(addpath+'ldend.txt', 'r') as fIn:
+    for line in fIn:
+      if line:
+        splitLine = line.split(None)
+        for s in splitLine:
+          ldend.append(float(s))
+  return P, ldend
+
+
+
+def get_quad_tips(geo, primNeurDiam=15.4, minTip=0.0001):
+  """
+  For a simpler analysis, this just fits the paths to a quad taper
+  and returns what the tip should be (cannot be less than minTip).
+  """
+  def solve(params, x):
+    return params[0]*x**2 + params[1]*x + params[2]
+  
+  # Get paths first
+  pDF = PathDistanceFinder(geo, geo.soma)
+  tipInds, tipLocs = geo.getTipIndices()
+  # Get the segments
+  tipSegs = []#[s for s in geo.segments if s.filamentIndex==ind] for ind in tipInds]
+  for i in tipInds:
+    tipSegs.append([s for s in geo.segments if s.filamentIndex==i][0])
+  paths = [pDF.distanceTo(tipSegs[u], tipLocs[u]) for u in range(len(tipInds))]
+  
+  # Fit longest path to longest taper and find the other fits
+  P, ldend = load_params() # Load parameters
+  norm_pathlengths = [(p/max(paths))*max(ldend) for p in paths]
+  inds = []
+  for p in norm_pathlengths:
+    for l in range(len(ldend)):
+      if ldend[l] > p: # If it just became greater than the path, use it
+        inds.append(l)
+        break
+  
+  # Get the 'fitted' tip diameters
+  tip_diams = [(solve(P[u], ldend[u])/solve(P[u],0))*primNeurDiam
+               for u in inds]
+  return tip_diams
+  
 
 
 

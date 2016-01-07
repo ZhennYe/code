@@ -2,6 +2,7 @@
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import networkx as nx
 import mpl_toolkits.axisartist.floating_axes as floating_axes
@@ -221,7 +222,7 @@ def mean_scatter(V, labelsin, title=None, ticks=None, axes=None,
 
 
 def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None, 
-                   showleg='best', moreD=None):
+                   showleg='best', moreD=None, bounds=None):
   """
   moreD = another set of type V to be plot on right axes, len(axes)=3
   """
@@ -229,7 +230,7 @@ def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None,
   C = [L.index(i) for i in labelsin]
   fcolors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
   # plotting
-  fig = plt.figure()
+  fig = plt.figure(figsize=(2,4))
   ax = fig.add_subplot(111)
   ax2 = None
   if moreD is not None:
@@ -237,7 +238,7 @@ def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None,
       ax2 = ax.twinx()
   for v in range(len(V)):
     ax.scatter(L.index(labelsin[v]), V[v],  c=fcolors[C[v]], s=80, 
-               marker='o', edgecolor='k', alpha=0.6)#fcolors[C[v]])
+               marker='o', edgecolor='k', alpha=0.6)#fcolors[C[v]]) 
     if ax2 is not None:
       ax2.scatter(L.index(labelsin[v])+.1, moreD[v],  c=fcolors[C[v]], s=80, 
                  marker='s', edgecolor='k', alpha=0.6)#fcolors[C[v]])
@@ -260,7 +261,12 @@ def pretty_scatter(V, labelsin, title=None, ticks=None, axes=None,
   if ticks is None:
     ax.tick_params(axis='x',which='both',bottom='off',top='off',
                          labelbottom='off')
+  # Get rid of side labels
+  for pos in ['top', 'right']:
+    ax.spines[pos].set_visible(False)
   # title
+  if bounds is not None:
+    ax.set_ylim([bounds[0], bounds[1]])
   if title:
     ax.set_title(title, fontsize=20)
   if axes is not None:
@@ -307,6 +313,153 @@ def simple_scatter(x, y, fit=False, title=None, axes=None, showtext=True):
   plt.show()
   return
               
+
+
+########################################################################
+# Pretty dimensional scatters -- colors are subjects but all axes are dimensions (not groups)
+# Data do not need to be conditioned for these
+
+def pretty_3d(v1, labelsin, v2, v3, shadows='z', title=None, axes=None,
+              showleg=None, lines=None, figsize=[5,5], ellipses=True):
+  """
+  A 3-D scatter plot of various features (must have 3). shadows='x', 'y', 'z' 
+  (points are projected onto the XY, XZ and YZ planes), len(axes)==3
+  """
+  # Set up colors, check data
+  if len(v1) == len(v2) and len(v2) == len(v3) and len(v3) == len(labelsin):
+    pass
+  else:
+    print('Data are of different lengths!'); return
+  L = list(np.unique(labelsin)) # Get color data
+  C = [L.index(i) for i in labelsin]
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  # 
+  fig = plt.figure(figsize=figsize, dpi=150)
+  ax = fig.add_subplot(111, projection='3d')
+  # For each data point plot it and its projection
+  for u in range(len(v1)):
+    ax.scatter(v1[u], v2[u], v3[u], color=colors[C[u]], edgecolor='k',
+               alpha=0.7, s=30) # Main scatter point
+    if shadows is not None:
+      if type(shadows) is not list:
+        shadows = list(shadows)
+      for sha in shadows:
+        shpts = {'x': v1[u], 'y': v2[u], 'z': v3[u]}
+        shpts[sha] = 0
+        ax.scatter(shpts['x'], shpts['y'], shpts['z'], color=colors[C[u]], 
+                   edgecolor='none', alpha=0.2, s=20) # XY plane (Z=0)
+    if lines is not None:
+      if type(lines) is not list:
+        lines = list(lines)
+      for la in lines:
+        lapts = {'x': v1[u], 'y': v2[u], 'z': v3[u]}
+        lapts[la] = 0
+        ax.plot([v1[u], lapts['x']], [v2[u],lapts['y']], [v3[u],lapts['z']],
+                color=colors[C[u]], alpha=0.2, linewidth=1.5) # XY plane (Z=0)
+  if ellipses:
+    from matplotlib.patches import Ellipse
+    for u in range(len(L)):
+      dat1 = [v1[j] for j in range(len(C)) if C[j]==u]
+      dat2 = [v2[j] for j in range(len(C)) if C[j]==u]
+      cov = np.cov(dat1, dat2)
+      lambda_, v = np.linalg.eig(cov)
+      lambda_ = np.sqrt(lambda_)
+      ell = Ellipse(xy=(np.mean(dat1), np.mean(dat2)), # Initial offset
+                    width=lambda_[0]*2, height=lambda_[1]*2,
+                    angle=np.rad2deg(np.arccos(v[0,0])), alpha=0.1)
+      ell.set_facecolor(colors[u])
+      ell.set_edgecolor(colors[u])
+      ell.set_linewidth(1)
+      # ell.set_linestyle('--')
+      ax.add_patch(ell)
+      pathpatch_2d_to_3d(ell, z=0, normal='z')
+      pathpatch_translate(ell, (0, 0, 0)) # Here can add _additional_ offset in x,y,z
+      #ax.add_artist(ell)
+  # Labels, legends
+  if axes is not None:
+    ax.set_xlabel(axes[0], fontsize=15)
+    ax.set_ylabel(axes[1], fontsize=15)
+    ax.set_zlabel(axes[2], fontsize=15)
+  if showleg is not None:
+    plt.legend(colors, L, loc=showleg)
+  ax.grid(False) # Remove the grids
+  ax.xaxis.pane.set_edgecolor('black')
+  ax.yaxis.pane.set_edgecolor('black')
+  ax.w_xaxis.set_pane_color((0.,0.,0.,0.1))
+  ax.w_yaxis.set_pane_color((0.,0.,0.,0.15))
+  ax.w_zaxis.set_pane_color((1.,1.,1.,0.))
+  for spax in ['x', 'y', 'z']:
+    plt.locator_params(axis=spax, nbins=3)
+  ax.set_zlim([0, (int(max(v3) / 10**int(math.log10(max(v3))))+1 ) * 10**int(math.log10(max(v3)))])
+  ax.set_zticks([0, (int(max(v3) / 10**int(math.log10(max(v3))))+1 ) * 10**int(math.log10(max(v3)))])
+  #ax.set_xlim([0,12000]) # Mess around with stuff as needed
+  plt.show()
+  return
+
+
+
+
+
+def pretty_2d(v1, labelsin, v2, title=None, axes=None, showleg=None,
+              ellipses=True, figsize=[5,4], alteig=[]):
+  """
+  A 2-D scatter plot of various features (must have 2). 
+  len(axes)==2. ellipses = 1 std dev. If any elipses look back, enter
+  that order into alteig (i.e.: alteig=[1,2] if the 2nd and 3rd ells look off).
+  """
+  # Set up colors, check data
+  if len(v1) == len(v2) and len(v2) == len(labelsin):
+    pass
+  else:
+    print('Data are of different lengths!'); return
+  L = list(np.unique(labelsin)) # Get color data
+  C = [L.index(i) for i in labelsin]
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  print('Order is: darkkhaki, royalblue, forestgreen, tomato') ## Tell user the order
+  fig = plt.figure(figsize=figsize, dpi=100)
+  ax = fig.add_subplot(111)
+  # For each data point plot it and its projection
+  for u in range(len(v1)):
+    ax.scatter(v1[u], v2[u], color=colors[C[u]], edgecolor='k',
+               alpha=1, s=40) # Main scatter point
+  # Add std ellipses via eigenvectors etc
+  if ellipses: 
+    from matplotlib.patches import Ellipse
+    for u in range(len(L)):
+      dat1 = [v1[j] for j in range(len(C)) if C[j]==u]
+      dat2 = [v2[j] for j in range(len(C)) if C[j]==u]
+      cov = np.cov(dat1, dat2)
+      if u in alteig:
+        vals, vecs = eigsorted(cov)
+        theta = np.degrees(np.arctan2(*vecs[:,0][::-1]))
+        w, h = np.sqrt(vals) * np.array([0.5,2])
+        ell = Ellipse(xy=(np.mean(dat1), np.mean(dat2)),
+                      width=2, height=h, angle=theta, alpha=0.1)
+      else:
+        lambda_, v = np.linalg.eig(cov)
+        lambda_ = np.sqrt(lambda_)
+        ell = Ellipse(xy=(np.mean(dat1), np.mean(dat2)),
+                      width=lambda_[0]*2, height=lambda_[1]*2,
+                      angle=np.rad2deg(np.arccos(v[0,0])), alpha=0.1)
+      ell.set_facecolor(colors[u])
+      ell.set_linewidth(1)
+      ell.set_edgecolor(colors[u])
+      ax.add_artist(ell)
+  # Labels, legends
+  if axes is not None:
+    ax.set_xlabel(axes[0], fontsize=15)
+    ax.set_ylabel(axes[1], fontsize=15)
+  if showleg is not None:
+    plt.legend(colors, L, loc=showleg)
+  ax.grid(False) # Remove the grids
+  plt.locator_params(axis='x', nbins=4)
+  plt.locator_params(axis='y', nbins=4)
+  for pos in ['top', 'right']:
+    ax.spines[pos].set_visible(False)
+  plt.tight_layout() # OR plt.gca().tight_layout() # gca = get current axes
+  plt.show()
+  return
+
 
 
 
@@ -432,7 +585,7 @@ def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
   L = list(np.unique(labelsin))
   C = [L.index(i) for i in labelsin]
   # print(L,C)
-  fig = plt.figure()
+  fig = plt.figure(dpi=200) # Give it pub-quality DPI
   plots = [fig.add_subplot(1,len(xdata),i) for i in range(len(xdata))]
   if norm is True:
     #tdata = np.linspace(0,100,len(xdata[0]))
@@ -480,9 +633,9 @@ def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
           if i > target:
             return i
       plots[p].plot([0,max(hist)], [r_bin(plotbins, np.mean(xdata[p])),
-                    r_bin(plotbins,np.mean(xdata[p]))], '-', linewidth=3, c='k')
+                    r_bin(plotbins,np.mean(xdata[p]))], '-', linewidth=1.5, c='purple')
       plots[p].plot([0,max(hist)], [r_bin(plotbins, np.median(xdata[p])),
-                    r_bin(plotbins, np.median(xdata[p]))],'--', linewidth=3, c='k', )
+                    r_bin(plotbins, np.median(xdata[p]))],'--', linewidth=1.5, c='purple', )
       q25, q75 = np.percentile(xdata[p], [25, 75])
       b25, b75 = r_bin(plotbins, q25), r_bin(plotbins, q75)
       # Plot IQR
@@ -496,6 +649,8 @@ def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
       plots[p].set_ylim([minm, maxm])
       if llog is True:
         plots[p].set_yscale('log'); plots[p].set_ylim([0, maxm]) ## Log scale
+      for pos in ['top', 'right']:
+        plots[p].spines[pos].set_visible(False)
     else:
       #plots[p].axis('off')
       plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
@@ -504,7 +659,8 @@ def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
       if llog is True:
         plots[p].set_yscale('log') ## Log scale
       plots[p].set_ylim([minm,maxm])
-    #plots[p].set_title(titles[p])
+      for pos in ['top', 'left', 'right']:
+        plots[p].spines[pos].set_visible(False)
   if title:
     plt.suptitle(title, fontsize=20)
   plt.show()
@@ -513,7 +669,7 @@ def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
 
 
 def hori_bars_legend():
-  plt.bar(range(100),np.random.random(100),facecolor='darkgray', edgecolor='darkgray')
+  plt.bar(range(100),np.random.normal(100),facecolor='darkgray', edgecolor='darkgray')
   plt.axvspan(25, 75, 0,1, color='gray', alpha=0.3)
   plt.plot([50,50],[0,1], '-', c='k', linewidth=3)
   plt.plot([55,55],[0,1], '--', c='k', linewidth=3)
@@ -521,6 +677,11 @@ def hori_bars_legend():
   plt.tick_params(axis='y', which='both',left='off', right='off', labelleft='off')
   plt.show()
 
+
+
+
+####################################################################
+# Horizontal scatters
 
 
 def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
@@ -620,7 +781,113 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
     plt.suptitle(title, fontsize=20)
   plt.show()
   return
-      
+
+
+
+
+def scatter_distribution(xdata, labelsin, moreD, title=None, axes=None, bounds=False,
+                 showmean=True, switch=False, llog=False, counts=False,
+                 jittery=False, shade=True, fill=False, bench=False, forcebins=100):
+  """
+  Plot a sample (see function below) to see what it looks like. Basically
+  same as above except plots two distributions -- one as dist, one scatter.
+  Good to compare against expected values.
+  """
+  if switch:
+    for i in range(len(xdata)-1):
+      xdata.append(xdata.pop(0))
+      labelsin.append(labelsin.pop(0))
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  L = list(np.unique(labelsin))
+  C = [L.index(i) for i in labelsin]
+  fig = plt.figure()
+  plots = [fig.add_subplot(1,len(xdata),i) for i in range(len(xdata))]
+  if bounds is True:
+    minm, maxm = np.inf, 0 # condition the data
+    for x in range(len(xdata)):
+      if min([min(xdata[x]), min(moreD[x])]) < minm:
+        minm = min([min(xdata[x]), min(moreD[x])])
+      if max([max(xdata[x]), max(moreD[x])]) > maxm:
+        maxm = max([max(xdata[x]), max(moreD[x])])
+    if minm < 0:
+      minm = 0.
+  elif type(bounds) is list:
+    minm, maxm = bounds[0], bounds[1]
+    xdata = [[bounds[0] if i < bounds[0] else i for i in xdat ] for xdat in xdata]
+    xdata = [[bounds[1] if i > bounds[1] else i for i in xdat ] for xdat in xdata]
+  else:
+    minm, maxm = 1, max([max(u) for u in xdata])
+  for p in range(len(xdata)): ########## Plotting details ###########
+    if type(forcebins) is list:
+      b_e = forcebins
+    else:
+      b_e = np.linspace(minm, maxm, forcebins) # len/100 bins
+    hist, _ = np.histogram(xdata[p], bins=b_e)
+    plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
+    # divine the appropriate bar width
+    hgt = (maxm-minm)/len([i for i in hist if i != 0]) # as high as there are filled hist elements
+    hgt = plotbins[2]-plotbins[1] ######### histogram #########
+    plots[p].barh(plotbins, [i/max(hist) for i in hist], height=hgt, color=colors[C[p]], 
+                  edgecolor=colors[C[p]], linewidth=0, alpha=0.45)
+    xxd = np.random.random(len(moreD[p]))+0 # Here can change to 1 to shift right
+    if jittery:
+      yyd = np.random.randn(len(moreD[p]))/12.
+    else:
+      yyd = np.zeros(len(moreD[p])) ####### scatter #########
+    moreD[p] = [maxm if y > maxm else y for y in moreD[p]]
+    plots[p].scatter(xxd, moreD[p]+yyd, color=['none' if not fill else colors[C[p]] for i in [1]][0],
+                     edgecolor=colors[C[p]], alpha=0.8, s=20) # linewidth=3) #colors[C[p]]
+    if showmean:
+      def r_bin(bins, target): # always start from below
+        j = [i for i in bins]
+        j.sort();
+        for i in j:
+          if i > target:
+            return i
+        return j[-1] # else just return the last bin; change this too!
+      plots[p].plot([0,1+0], [np.mean(xdata[p]), np.mean(xdata[p])],
+                    '-', linewidth=1.5, c='purple', alpha=0.6)
+      plots[p].plot([0,1+0], [np.median(xdata[p]), np.median(xdata[p])],
+                    '--', linewidth=1.5, c='purple', alpha=0.6)
+      if shade: ############## shade ################
+        q25, q75 = np.percentile(xdata[p], [25, 75])
+        b25, b75 = r_bin(xdata[p], q25), r_bin(xdata[p], q75)
+        plots[p].axhspan(b25, b75, edgecolor=colors[C[p]], 
+                         facecolor=colors[C[p]], alpha=0.3)
+      for pos in ['left', 'top', 'right']: # Also hide these borders for all plots
+        plots[p].spines[pos].set_visible(False)
+    if bench:
+      plots[p].plot([0,1], [bench, bench], c='purple', linewidth=2, alpha=0.3)
+    if p == 1: #if first plot, show the axes
+      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+                           labelbottom='off')
+      if axes:
+        plots[p].set_ylabel(axes[1], fontsize=15)
+      plots[p].set_ylim([minm, maxm+0.1])
+      if llog is True:
+        plots[p].set_yscale('log'); plots[p].set_ylim([0, maxm]) ## Log scale
+      if counts is True:
+        plots[p].set_title('%i' %len(xdata[p]))
+      for pos in ['top', 'right']: # Also hide these borders for all plots
+        plots[p].spines[pos].set_visible(False)
+    else:
+      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+                           labelbottom='off')
+      plots[p].get_yaxis().set_visible(False)
+      if llog is True:
+        plots[p].set_yscale('log') ## Log scale
+      plots[p].set_ylim([minm,maxm+0.1])
+      if counts is True:
+        plots[p].set_title('%i' %len(xdata[p]))
+      for pos in ['left', 'top', 'right']: # Also hide these borders for all plots
+        plots[p].spines[pos].set_visible(False)
+  if title:
+    plt.suptitle(title, fontsize=20)
+  plt.show()
+  return
+
+
+
 
 
 
@@ -1055,6 +1322,70 @@ def augmented_dendrogram(*args, **kwargs):
 
     return ddata
 
+
+## Ellipse helpers! ##
+
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d import art3d
+from mpl_toolkits.mplot3d import proj3d
+import numpy as np
+
+def rotation_matrix(v1,v2):
+  """
+  Calculates the rotation matrix that changes v1 into v2.
+  """
+  v1/=np.linalg.norm(v1)
+  v2/=np.linalg.norm(v2)
+  cos_angle=np.dot(v1,v2)
+  d=np.cross(v1,v2)
+  sin_angle=np.linalg.norm(d)
+  if sin_angle == 0:
+    M = np.identity(3) if cos_angle>0. else -np.identity(3)
+  else:
+    d/=sin_angle
+    eye = np.eye(3)
+    ddt = np.outer(d, d)
+    skew = np.array([[    0,  d[2],  -d[1]],
+                  [-d[2],     0,  d[0]],
+                  [d[1], -d[0],    0]], dtype=np.float64)
+    M = ddt + cos_angle * (eye - ddt) + sin_angle * skew
+  return M
+
+
+def pathpatch_2d_to_3d(pathpatch, z = 0, normal = 'z'):
+  """
+  Transforms a 2D Patch to a 3D patch using the given normal vector.
+  The patch is projected into they XY plane, rotated about the origin
+  and finally translated by z.
+  """
+  if type(normal) is str: #Translate strings to normal vectors
+    index = "xyz".index(normal)
+    normal = np.roll((1,0,0), index)
+  path = pathpatch.get_path() #Get the path and the associated transform
+  trans = pathpatch.get_patch_transform()
+  path = trans.transform_path(path) #Apply the transform
+  pathpatch.__class__ = art3d.PathPatch3D #Change the class
+  pathpatch._code3d = path.codes #Copy the codes
+  pathpatch._facecolor3d = pathpatch.get_facecolor #Get the face color    
+  verts = path.vertices #Get the vertices in 2D
+  M = rotation_matrix(normal,(0, 0, 1)) #Get the rotation matrix
+  pathpatch._segment3d = np.array([np.dot(M, (x, y, 0)) + (0, 0, z) for x, y in verts])
+
+
+def pathpatch_translate(pathpatch, delta):
+  """
+  Translates the 3D pathpatch by the amount delta.
+  """
+  pathpatch._segment3d += delta
+
+
+def eigsorted(cov):
+  """
+  Necessary for the 2d ellipses created in pretty_2d scatter plot.
+  """
+  vals, vecs = np.linalg.eigh(cov)
+  order = vals.argsort()[::-1]
+  return vals[order], vecs[:,order]
 
 
 """

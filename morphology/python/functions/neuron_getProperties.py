@@ -696,9 +696,10 @@ def simple_axon(geo, axon, thing='branch'):
 
 
 def axon_path(geo, axons=None, things=None, outfile=None, interdist=1.):
-  # Given a geofile and an axon (default axon if none provided), this
-  # returns the subtrees between the soma and that axon.
-  #
+  """
+  Given a geofile and an axon (default axon if none provided), this
+  returns the subtrees between the soma and that axon(s).
+  """
   print(axons, things)
   if axons is not None and things is not None:
     if type(axons) is not list:
@@ -710,17 +711,22 @@ def axon_path(geo, axons=None, things=None, outfile=None, interdist=1.):
       if len(things) == 1:
         things = [things[0] for t in axons]
       else:
-        print('Things should be len(axons) or length 1 (if all are same type)')
+        print('_Things_ should be len(axons) or length 1 (if all are same type)')
         return
     beh = [simple_axon(geo, a, t) for a, t in zip(axons, things)]
   elif axons is not None and things is None:
     beh = [a for a in axons]
   else:
     print(axons, things)
+    for ax in beh:
+      print(ax.filamentIndex)
     return
-  #
+  # Show the filamentIndex of the axons (for reference)
+  print('found %i axons' %len(beh))
+  for ax in beh:
+    print(ax.filamentIndex)
+  # Now get the main paths
   pDF = PathDistanceFinder(geo, geo.soma)
-  print(beh)
   paths = [pDF.pathTo(b) for b in beh]
   # If no outfile, just return the path
   if outfile is None:
@@ -836,6 +842,7 @@ def get_subtrees(geo, axons, things=None):
       if n not in np.array(path).flatten():
         subtree.append(add_unidirect(geo, n, seg, path)) ## 
     return subtree
+  
   # Condition axon input
   paths = axon_path(geo, axons, things)
   flatpath = []
@@ -844,6 +851,7 @@ def get_subtrees(geo, axons, things=None):
       if p not in flatpath:
         flatpath.append(p)
   # Assume path[0] == geo.soma
+  
   subtrees = []
   for p in flatpath:
     # Loop over the segments in the path to create the subtrees
@@ -945,7 +953,46 @@ def subtree_wiring(geo, subtrees=None, path=None, axons=None, things=None):
 
   
 
+### Get filamentInds for subtrees
+def subtree_filaments(geo, axons, things, retsegs=False):
+  """
+  This allows for rapid reconstruction of subtrees with subtree_fromfilaments.
+  """
+  subtrees = get_subtrees(geo, axons, things)
+  # Assume first segment in subtree is subtree root
+  # Get the filamentIndex for all segments and save by subtree
+  subtrees = [s for s in subtrees if len(s) > 0]
+  sub_dict = {s[0].filamentIndex: [seg.filamentIndex for seg in s]
+              for s in subtrees}
+  # return the NeuronGeometry segments?
+  if retsegs:
+    return sub_dict, {s[0].filamentIndex: s for s in subtrees}
+  return sub_dict
 
+
+
+def subtree_segments(geo, subtree_inds):
+  """
+  Return the subtrees as NeuronGeometry segments instead of filaments.
+  """
+  subtrees = {k: [seg for seg in geo.segments if seg.filamentIndex in
+                  subtree_inds[k]] for k in subtree_inds.keys()}
+  return subtrees
+  
+
+
+def subtree_tips(geo, subtrees, asindex=False):
+  """
+  Given the subtrees (either asindex=True (numbers only) or False 
+  (NeuronGeometry segment objects), get the tip clusters.
+  """
+  if asindex:
+    subtrees = subtree_segments(geo, subtrees)
+  
+  
+
+  
+  
 
 
 
@@ -2249,7 +2296,7 @@ def plot_soma_positions(arr, types=None):
 # Could just do tips, but that assumes the trajectory is insignificant
 
 
-def carrier_spacing(geo, step=50):
+def carrier_spacing(geo, step=20.):
   """
   Create carrier points along every path at step-um intervals.
   """
@@ -2264,14 +2311,221 @@ def carrier_spacing(geo, step=50):
   num_sp_pts = [int(s/float(step)) for s in pathlengths]
   pts = []
   for p in range(len(paths)):
+    if p%100 == 0:
+      print('%i / %i paths analyzed' %(p, len(paths)))
     path = paths[p]
-    dist = list(np.linspace(0,pathlengths[p], num_sp_pts[p]))
+    dist = list(np.linspace(0,pathlengths[p], num_sp_pts[p])) # pop(0) this as you go
+    dist.pop(0)
     so_far = 0
     
     for seg in path:
-      if dist[0] > so_far and dist[0] < so_far+seg.length: # Put it in here
-        
+      try: 
+        if dist[0] > so_far and dist[0] < so_far+seg.length: # Put it in here
+          remain = dist[0] - so_far
+          this_node = seg.nodes[int(remain/seg.length*len(seg.nodes))]
+          pts.append([this_node.x, this_node.y, this_node.z]) # Undershoots, but okay
+          dist.pop(0)
+        else: # Increment so_far because dist[0] wasn't within this seg
+          so_far = so_far + seg.length
+      except:
+        pass
+    
+    # Got all the dists for this path
+  # Got all the paths
+  # Now trim the pts array so it's not redundant
+  # return pts
+  print('Initially %i points. Removing redundant points...' %len(pts))
+  cnt = 0
+   
+  new_pts = [] # Remove redundant points
+  for p in pts:
+    if p not in new_pts:
+      new_pts.append(p)
+  pts = new_pts
   
+  while cnt < len(pts): # Remove nearby points
+    p = pts[cnt]
+    dists = [math.sqrt(sum([(p[i]-pt[i])**2 for i in range(3)]))
+                                        for pt in pts]
+    popit = [d for d in range(len(dists)) if dists[d] < step/2 and dists[d] != 0]
+    new_pts = [pts[i] for i in range(len(pts)) if i not in popit]
+    pts, cnt = new_pts, cnt + 1
+
+  print('Finally left with %i points.' %len(pts))
+  return pts
+
+
+
+def longest_shortest(geo, pts=None):
+  """
+  Given a geo file +/- carrier points, find the range of total wiring.
+  """
+  if pts is None:
+    pts = carrier_spacing(geo)
+  
+  gpt = geo.soma.coordAt(0)
+  # Longest distance
+  maxdist = sum([ math.sqrt(sum([(gpt[i]-pt[i])**2 for i in range(3)])) for pt in pts ])
+  
+  # Get shortest distance, use networkx minimum spanning tree
+  c_pts = {}
+  for p in range(len(pts)): # Make the dictionary 
+    c_pts[p] = pts[p]
+  G = nx.Graph()
+  G.add_nodes_from(c_pts)
+  
+  # Add the edges
+  edgelist = []
+  for n1 in range(len(pts)):
+    for n2 in [i for i in range(len(pts)) if i != n1]:
+      edgelist.append([n1, n2])
+  G.add_edges_from(edgelist)
+  
+  # Describe MST
+  MST = nx.minimum_spanning_tree(G)
+  mindist = 0.
+  for edge in MST.edges():
+    try:
+      mindist = mindist + math.sqrt(sum([(c_pts[edge[0]][i]-c_pts[edge[1]][i])**2 
+                                         for i in range(3)]))
+    except:
+      print(edge)
+  
+  # Get the current geo wiring
+  pDF = PathDistanceFinder(geo, geo.soma)
+  tipInds, tipLocs = geo.getTipIndices()
+  paths = [s for s in pDF.pathTo(tipInds[l], tipLocs[l]) for l in range(len(tipInds))]
+  wiring = sum([b.length for b in geo.branches])
+  print('Neuron %s is %.2f long, potential length ranges from %.2f - %.2f'
+        %(geo.name, wiring, mindist, maxdist))
+  
+  return wiring, mindist, maxdist
+
+  
+
+##########################################################################
+# geo stuff : tips are closer than expected by chance
+
+def ddist3(pt1, pt2, node1=False, node2=False):
+  # Euclidean distance to a point
+  if node1:
+    pt1 = [pt1.x, pt1.y, pt1.z]
+  if node2:
+    pt2 = [pt2.x, pt2.y, pt2.z]
+  return math.sqrt(sum([(pt2[i]-pt1[i])**2 for i in range(3)]))
+
+
+
+def getRank(tipInfo, nodePaths, distBounds):
+  """
+  This determines the rank of the actual tip compared to nodes of 
+  similar euclidean distance. Rank 1 = tip path is longer than all node paths,
+  rank 0 = tip path is super short
+  """
+  print('Calculating ranks ...')
+  t_ranks = []
+  
+  for t in tipInfo:
+    # Find the key for this tip and the node-paths; skips the longest tip
+    try:
+      # loc identifies which nodes to access (nodes with euc dist similar to tip value)
+      loc = len([i for i in distBounds if i < t[0]])-1
+      # Compare the tip path to the node-paths for that euc distance
+      if len(nodePaths[loc]) == 0:
+        print('No Nodes match euc tip dist of %.2f' %t[0])
+        print('Bounds are: %.4f - %.4f' %(distBounds[loc], distBounds[loc+1]))
+      else:
+        t_ranks.append(float(len([i for i in nodePaths[loc] if i < t[1]])) /
+                     float(len(nodePaths[loc])))
+    except:
+      print('Looking for %.4f, but no hits: range is %.4f - %.4f'
+            %(t[0], min(distBounds), max(distBounds)))
+  
+  print(' ... done.')
+  return t_ranks
+
+  
+
+def tips_path_points(geo):
+  """
+  This funciton compares tip (path) distances to path distances of points
+  at similar Euclidean distances from the soma. 
+  If tip paths are closer than test paths, tips are closer than expected
+  by chance. tolerance = 5um by default. (needed??)
+  """
+  # Get path lengths and the euc distances of the relevant tips
+  pDF = PathDistanceFinder(geo, geo.soma)
+  tipInds, tipLocs = geo.getTipIndices()
+  distBounds = []
+  # [ [eucDist, pathLength], [], ... ]
+  tipInfo = [[ddist3(geo.soma.nodeAt(0), 
+              seg.nodeAt(tipLocs[tipInds.index(seg.filamentIndex)]),True,True),
+              pDF.distanceTo(seg, tipLocs[tipInds.index(seg.filamentIndex)])]
+             for seg in geo.segments if seg.filamentIndex in tipInds]
+  
+  # Find nodes that match this euc distance and get their path lengths
+  _, distBounds = np.histogram([t[0] for t in tipInfo], bins=100)
+  nodePaths = {i: [] for i in range(len(distBounds)-1)}
+  print('Populating nodePaths dictionary...')
+  
+  for nod in geo.nodes:
+    if geo.nodes.index(nod)%1000==0:
+      print('%i / %i nodes examined' %(geo.nodes.index(nod), len(geo.nodes)))
+    D = ddist3(geo.soma.nodeAt(0), nod, True, True)
+    
+    if D > min(distBounds) and D < max(distBounds): # If node is within range, else skip
+      loc = len([i for i in distBounds if i < D])-1
+      # Append the 'path length' to relevant euc distance list 
+      nodePaths[loc].append(pDF.distanceTo(nod.segments[0], 0))
+  
+  # Now should have all the distances, calculate interval-wise non-parametric p-value
+  temp_ranks = getRank(tipInfo, nodePaths, distBounds)
+  print('Have %i / %i ranks.' %(len(temp_ranks), len(tipInfo)))
+  return temp_ranks
+  
+
+
+def show_tips(geofils, labelsin, plusone=0, switch=True):
+  """
+  Show the locations of the tips of each geofile.
+  """
+  if switch:
+    for i in range(len(geofils)-1):
+      geofils.append(geofils.pop(0))
+      labelsin.append(labelsin.pop(0))
+  
+  # Get the tip coords for each file first
+  tipCoords = []
+  for geo in geofils:
+    tipInds, tipLocs = geo.getTipIndices()
+    tNodes = [seg.nodeAt(tipLocs[tipInds.index(seg.filamentIndex)])
+              for seg in geo.segments if seg.filamentIndex in tipInds]
+    tCoords = [ [n.x, n.y] for n in tNodes ]
+    tipCoords.append(tCoords)
+  
+  # Condition the data
+  tipCoords = [t[::int(len(t)/min([len(i) for i in tipCoords])*5)]
+               for t in tipCoords]
+  
+  # Now plot these mofos
+  fig = plt.figure()
+  sq = int(np.sqrt(len(geofils)+plusone))
+  plots = [fig.add_subplot(sq, sq, i) for i in range(len(geofils))]
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  L = list(np.unique(labelsin))
+  C = [L.index(i) for i in labelsin]
+  
+  for p in range(len(plots)):
+    plots[p].scatter([i[0] for i in tipCoords[p]], 
+                     [i[1] for i in tipCoords[p]], color=colors[C[p]],
+                     s=10, alpha=0.6, edgecolor=colors[C[p]])
+  
+  plt.show()
+  return
+
+
+
+
 
 
 
@@ -2398,10 +2652,14 @@ def div_radius(tips, divs, hand=False):
   return tips
 
 
+#########################################################################
+# Quadratic taper by path for estimated tip 
+# See bottom of quaddiameter.py
+
 
 def collapse_list_to_dict(lols, keys):
   """
-  #
+  Keys should be 
   """
   newdict = {}
   newdict['files'] = [g[0] for g in lols[0]]
