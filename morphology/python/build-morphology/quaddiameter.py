@@ -583,7 +583,7 @@ def load_params(addpath='/home/alex/code/morphology/python/build-morphology/'):
 
 
 
-def get_quad_tips(geo, primNeurDiam=15.4, minTip=0.0001):
+def get_quad_tips(geo=None, primNeurDiam=15.4, minTip=0.0001, paths=None):
   """
   For a simpler analysis, this just fits the paths to a quad taper
   and returns what the tip should be (cannot be less than minTip).
@@ -592,13 +592,15 @@ def get_quad_tips(geo, primNeurDiam=15.4, minTip=0.0001):
     return params[0]*x**2 + params[1]*x + params[2]
   
   # Get paths first
-  pDF = PathDistanceFinder(geo, geo.soma)
-  tipInds, tipLocs = geo.getTipIndices()
-  # Get the segments
-  tipSegs = []#[s for s in geo.segments if s.filamentIndex==ind] for ind in tipInds]
-  for i in tipInds:
-    tipSegs.append([s for s in geo.segments if s.filamentIndex==i][0])
-  paths = [pDF.distanceTo(tipSegs[u], tipLocs[u]) for u in range(len(tipInds))]
+  if paths is None:
+    if geo is not None:
+      pDF = PathDistanceFinder(geo, geo.soma)
+      tipInds, tipLocs = geo.getTipIndices()
+      # Get the segments
+      tipSegs = []#[s for s in geo.segments if s.filamentIndex==ind] for ind in tipInds]
+      for i in tipInds:
+        tipSegs.append([s for s in geo.segments if s.filamentIndex==i][0])
+      paths = [pDF.distanceTo(tipSegs[u], tipLocs[u]) for u in range(len(tipInds))]
   
   # Fit longest path to longest taper and find the other fits
   P, ldend = load_params() # Load parameters

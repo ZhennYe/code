@@ -9,6 +9,7 @@ import matplotlib.patches as mpatches
 import networkx as nx
 import seaborn as sns
 import csv
+import copy
 
 
 
@@ -594,410 +595,14 @@ def hooser_sholl(geo, sholl_lines=1000):
 #   3-D plotting and is somewhat interactive (it requires actions from
 #   the user). The necessary Matlab scripts are ShollColor and ShollAxons.
 
+# ALL SUBTREE ANALYSIS HAS BEEN MOVED TO neuron_Subtrees.py SINCE
+# IT WAS GETTING VERY LONG.
 
-def sholl_color(geo, outfile, interdist=1.):
-  """
-  This color-codes hoc points based on sholl distances.
-  Pass interdist = np.inf to skip interpolation (large, detailed files)
-  """
-  pDF = PathDistanceFinder(geo, geo.soma)
-  tips, tipPositions = geo.getTips()
-  paths, _ = path_lengths2(geo)
-  maxp = max(paths)
-  nodes, dists = [], []
-  for s in geo.segments:
-    if s.length > interdist:
-      x0, y0, z0 = s.coordAt(0)[0],s.coordAt(0)[1], s.coordAt(0)[2]
-      x1, y1, z1 = s.coordAt(1)[0],s.coordAt(1)[1], s.coordAt(1)[2]
-      temp_nodes = [np.linspace(x0, x1, int(s.length/interdist)),
-                    np.linspace(y0, y1, int(s.length/interdist)),
-                    np.linspace(z0, z1, int(s.length/interdist))]
-      #print(np.shape(temp_nodes))
-      for t in range(np.shape(temp_nodes)[1]):
-        nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
-        dists.append(pDF.distanceTo(s, 0.5)/maxp)
-    else: # Add at least one node per segment
-      nodes.append(s.coordAt(0.5))
-      dists.append(pDF.distanceTo(s, 0.5)/maxp)
-  if len(dists) != len(nodes):
-    print('Warning! No. nodes: %i, No. distances: %i' %(len(nodes), len(nodes)))
-  with open(outfile, 'w') as fOut:
-    for i in range(len(nodes)):
-      fOut.write('%.5f %.5f %.5f %.5f' %(nodes[i][0], nodes[i][1], 
-                                         nodes[i][2], dists[i]))
-      fOut.write('\n')
-  print('%s file written' %outfile)
-  return
-  
-
-def axons_endpoints(geo, outfile=None, Format='matlab'):
-  # This prints possible axons and their start and end points. Feed
-  # the output into shollAxons.m to select only the "true" axon(s).
-  axons = []
-  for s in geo.branches: # Operates on BRANCHES!
-    if "Axon" in s.tags or "axon" in s.tags:
-      axons.append([geo.branches.index(s), s.coordAt(0), s.coordAt(1)])
-  if outfile is not None:
-    print('Found %i potential branch axons' %len(axons))
-    with open(outfile, 'w') as fOut:
-      for a in axons:
-        fOut.write('%i %.5f %.5f %.5f\n%i %.5f %.5f %.5f' 
-                   %(a[0], a[1][0], a[1][1], a[1][2],
-                     a[0], a[2][0], a[2][1], a[2][2]))
-    return
-  else:
-    for a in axons:
-      if Format == 'matlab':
-        print('%i %.5f %.5f %.5f\n%i %.5f %.5f %.5f' 
-              %(a[0], a[1][0], a[1][1], a[1][2],
-                a[0], a[2][0], a[2][1], a[2][2]))
-      else:
-        print(a[0], a[1], a[2])
-    print('Found %i potential branch axons' %len(axons))
-    return a
-
-
-
-def axon_help(geo, x=None, y=None, z=None):
-  for s in geo.segments:
-    for g in [0,1]:
-      if x is not None:
-        if int(s.coordAt(g)[0]) == x:
-          if y is not None:
-            if int(s.coordAt(g)[1]) == y:
-              print(geo.segments.index(s), s.coordAt(g))
-          else:
-            print(geo.segments.index(s), s.coordAt(g))
-  return
-
-
-
-def simple_axon(geo, axon, thing='branch'):
-  # Turn the axon into a NeuronGeometry.Segment (but NOT a branch!)
-  def mid_pt(geo):
-    midPt = [np.mean([s.coordAt(0)[0] for s in geo.segments]),
-             np.mean([s.coordAt(0)[1] for s in geo.segments]),
-             np.mean([s.coordAt(0)[2] for s in geo.segments])]
-    return midPt
-  #
-  def distal_seg(geo, axon, midPt): # If axon==branch, return the most distal segment
-    dists = [dist3([n.x,n.y,n.z], midPt) for n in axon.nodes]
-    node = [x for (y,x) in sorted(zip(dists, axon.nodes))][-1]
-    for s in geo.segments:
-      if node in s.nodes:
-        return s
-  #
-  midPt = mid_pt(geo)
-  if thing == 'branch':
-    return distal_seg(geo, geo.branches[axon], midPt)
-  elif thing == 'seg' or thing == 'segment':
-    return geo.segments[axon]
-
-
-
-def axon_path(geo, axons=None, things=None, outfile=None, interdist=1.):
-  """
-  Given a geofile and an axon (default axon if none provided), this
-  returns the subtrees between the soma and that axon(s).
-  """
-  print(axons, things)
-  if axons is not None and things is not None:
-    if type(axons) is not list:
-      axons = [axons]
-    if things is not None:
-      if type(things) is not list:
-        things = [things]
-    if len(axons) != len(things):
-      if len(things) == 1:
-        things = [things[0] for t in axons]
-      else:
-        print('_Things_ should be len(axons) or length 1 (if all are same type)')
-        return
-    beh = [simple_axon(geo, a, t) for a, t in zip(axons, things)]
-  elif axons is not None and things is None:
-    beh = [a for a in axons]
-  else:
-    print(axons, things)
-    for ax in beh:
-      print(ax.filamentIndex)
-    return
-  # Show the filamentIndex of the axons (for reference)
-  print('found %i axons' %len(beh))
-  for ax in beh:
-    print(ax.filamentIndex)
-  # Now get the main paths
-  pDF = PathDistanceFinder(geo, geo.soma)
-  paths = [pDF.pathTo(b) for b in beh]
-  # If no outfile, just return the path
-  if outfile is None:
-    return paths
-  else: # Else, write it to a file (with interpolation as before)
-    nodes, dists = [], []
-    for path in paths:
-      for p in path:
-        if p.length > interdist:
-          x0, y0, z0 = p.coordAt(0)[0],p.coordAt(0)[1], p.coordAt(0)[2]
-          x1, y1, z1 = p.coordAt(1)[0],p.coordAt(1)[1], p.coordAt(1)[2]
-          temp_nodes = [np.linspace(x0, x1, int(p.length/interdist)),
-                        np.linspace(y0, y1, int(p.length/interdist)),
-                        np.linspace(z0, z1, int(p.length/interdist))]
-          #print(np.shape(temp_nodes))
-          for t in range(np.shape(temp_nodes)[1]):
-            nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
-            #dists.append(pDF.distanceTo(s, 0.5)/maxp)
-        else: # Add at least one node per segment
-          nodes.append(p.coordAt(0.5))
-          #dists.append(pDF.distanceTo(s, 0.5)/maxp)
-    with open(outfile, 'w') as fOut:
-      for i in range(len(nodes)):
-        fOut.write('%.6f %.6f %.6f' %(nodes[i][0], nodes[i][1], 
-                                           nodes[i][2]))#, dists[i]))
-        fOut.write('\n')
-    print('%s file written' %outfile)
-  return
-
-
-
-def mainpath_color(geo, outfile, axon=None, things=None, interdist=1.):
-  # This will color segments based on their distance from the mainpath
-  print(axon)
-  paths = np.array(axon_path(geo, axon, things))
-  bpaths = []
-  for path in paths:
-    for p in path:
-      bpaths.append(p)
-  downpaths = bpaths[::20]
-  segdists = []
-  count = -1
-  for s in geo.segments:
-    count = count + 1
-    if s in paths:
-      segdists.append(0)
-    else:
-      pDF = PathDistanceFinder(geo, s)
-      segdists.append(min([pDF.distanceTo(p) for p in downpaths]))
-    if count % 10 == 0:
-      print('%i (of %i) segments processed' %(count, len(geo.segments)))
-  if len(segdists) != len(geo.segments):
-    print('Num segdists (%i) not equal to num segments (%i)'
-          %(len(segdists), len(geo.segments)))
-    return
-  pDF = PathDistanceFinder(geo, geo.soma)
-  maxp = max(segdists)
-  nodes, dists = [], []
-  for s in geo.segments:
-    if s.length > interdist:
-      x0, y0, z0 = s.coordAt(0)[0],s.coordAt(0)[1], s.coordAt(0)[2]
-      x1, y1, z1 = s.coordAt(1)[0],s.coordAt(1)[1], s.coordAt(1)[2]
-      temp_nodes = [np.linspace(x0, x1, int(s.length/interdist)),
-                    np.linspace(y0, y1, int(s.length/interdist)),
-                    np.linspace(z0, z1, int(s.length/interdist))]
-      #print(np.shape(temp_nodes))
-      for t in range(np.shape(temp_nodes)[1]):
-        nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
-        dists.append(segdists[geo.segments.index(s)])
-    else: # Add at least one node per segment
-      nodes.append(s.coordAt(0.5))
-      dists.append(segdists[geo.segments.index(s)])
-  with open(outfile, 'w') as fOut:
-    for n in range(len(nodes)):
-      fOut.write('%.6f %.6f %.6f %.6f\n' %(nodes[n][0], nodes[n][1], 
-                                         nodes[n][2], dists[n]))
-  print('File %s written with %i nodes' %(outfile, len(nodes)))
-  return
-
-
-
-
-# Helper function for get_subtrees
-def add_unidirect(geo, seg, prevseg, path):
-  # Add all neighbors in a unidirectional manner.
-  subtree = [] # This is a collection of segments in the subtree
-               # There is no inherent structure to the subtree
-  for n in seg.neighbors:
-    if n != seg and n != prevseg and n not in path:
-      subtree.append(n)
-  same = 0
-  while same < 5:
-    prevlength = len(subtree)
-    for s in subtree:
-      for n in s.neighbors:
-        if n != seg and n != prevseg and n not in subtree and n not in path:
-          subtree.append(n)
-    if len(subtree) == prevlength:
-      same = same + 1
-    else:
-      same = 0
-      print('subtree is length: %i' %len(subtree))
-  return subtree
-
-
-
-def get_subtrees(geo, axons, things=None):
-  # This returns the subtrees coming off the 'main' path (soma->axon)
-  # Should work with multiple axons.
-  def is_subtree_root(geo, seg, path):
-    subtree = []
-    for n in seg.neighbors:
-      if n not in np.array(path).flatten():
-        subtree.append(add_unidirect(geo, n, seg, path)) ## 
-    return subtree
-  
-  # Condition axon input
-  paths = axon_path(geo, axons, things)
-  flatpath = []
-  for path in paths:
-    for p in path:
-      if p not in flatpath:
-        flatpath.append(p)
-  # Assume path[0] == geo.soma
-  
-  subtrees = []
-  for p in flatpath:
-    # Loop over the segments in the path to create the subtrees
-    if len(p.neighbors) > 2:
-      subs = is_subtree_root(geo, p, flatpath)
-      for sub in subs:
-        if sub not in subtrees:
-          if len(sub) not in [len(i) for i in subtrees]:
-            subtrees.append(sub)
-  # Should have all unique subtrees now
-  return subtrees
-
-
-
-def show_subtrees(geo, outfile, axon=None, things=None, subtrees=None, interdist=1.):
-  # Make a txt file to plot individual subtrees in matlab
-  if subtrees is None:
-    subtrees = get_subtrees(geo, axon, things)
-    path = axon_path(geo, axon, things)
-    subtrees.append(path)
-  treenum = np.linspace(0,1,len(subtrees))
-  # Interpolate for plotting
-  nodes, dists = [], []
-  for tree in range(len(subtrees)):
-    for seg in subtrees[tree]:
-      if type(seg) is list:
-        for s in seg:
-          if s.length > interdist:
-            x0, y0, z0 = s.coordAt(0)[0],s.coordAt(0)[1], s.coordAt(0)[2]
-            x1, y1, z1 = s.coordAt(1)[0],s.coordAt(1)[1], s.coordAt(1)[2]
-            temp_nodes = [np.linspace(x0, x1, int(s.length/interdist)),
-                          np.linspace(y0, y1, int(s.length/interdist)),
-                          np.linspace(z0, z1, int(s.length/interdist))]
-            #print(np.shape(temp_nodes))
-            for t in range(np.shape(temp_nodes)[1]):
-              nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
-              dists.append(treenum[tree])
-          else: # Add at least one node per segment
-            nodes.append(s.coordAt(0.5))
-            dists.append(treenum[tree])
-      else:
-        s = seg
-        if s.length > interdist:
-          x0, y0, z0 = s.coordAt(0)[0],s.coordAt(0)[1], s.coordAt(0)[2]
-          x1, y1, z1 = s.coordAt(1)[0],s.coordAt(1)[1], s.coordAt(1)[2]
-          temp_nodes = [np.linspace(x0, x1, int(s.length/interdist)),
-                        np.linspace(y0, y1, int(s.length/interdist)),
-                        np.linspace(z0, z1, int(s.length/interdist))]
-          #print(np.shape(temp_nodes))
-          for t in range(np.shape(temp_nodes)[1]):
-            nodes.append([temp_nodes[0][t],temp_nodes[1][t],temp_nodes[2][t]])
-            dists.append(treenum[tree])
-        else: # Add at least one node per segment
-          nodes.append(s.coordAt(0.5))
-          dists.append(treenum[tree])
-  with open(outfile, 'w') as fOut:
-    for n in range(len(nodes)):
-      fOut.write('%.6f %.6f %.6f %.6f\n' %(nodes[n][0], nodes[n][1], 
-                                         nodes[n][2], dists[n]))
-  print('File %s written with %i nodes' %(outfile, len(nodes)))
-  return
-
-
-
-### Wiring
-def subtree_wiring(geo, subtrees=None, path=None, axons=None, things=None):
-  # Returns the percent of total wiring of each subtree (and the path)
-  if subtrees is None:
-    ssubtrees = get_subtrees(geo, axons, things)
-  else:
-    ssubtrees = subtrees
-  # Get rid of zero subtree
-  pico = [len(t) for t in ssubtrees]
-  if min(pico) == 0:
-    ssubtrees.pop(pico.index(0))
-  if path is None:
-    paths = axon_path(geo, axons, things)
-  else:
-    paths = path
-  pathwire = sum([sum([p.length for p in pa]) for pa in paths])
-  allsegs = []
-  for t in ssubtrees:
-    for s in t: # Add each segment
-      allsegs.append(s)
-  total = sum([s.length for s in np.array(allsegs)])
-  total = total + pathwire
-  for p in paths:
-    ssubtrees.append(p)
-  subwiring = []
-  for t in ssubtrees:
-    subwiring.append(sum([s.length for s in t])/total)
-  print('Subtree length: %i' %len(ssubtrees))
-  print('Max: %.5f, Min: %.5f' %(max(subwiring), min(subwiring)))
-  print('Mean: %.5f, Med: %.5f' %(np.mean(subwiring), np.median(subwiring)))
-  print('Path wiring: %.5f, Path wiring percent: %.5f' %(pathwire, 
-                                                         pathwire/total))
-  print('Total tree wiring: %.5f' %total)
-  print('Axons: '); print(axons)
-
-  
-
-### Get filamentInds for subtrees
-def subtree_filaments(geo, axons, things, retsegs=False):
-  """
-  This allows for rapid reconstruction of subtrees with subtree_fromfilaments.
-  """
-  subtrees = get_subtrees(geo, axons, things)
-  # Assume first segment in subtree is subtree root
-  # Get the filamentIndex for all segments and save by subtree
-  subtrees = [s for s in subtrees if len(s) > 0]
-  sub_dict = {s[0].filamentIndex: [seg.filamentIndex for seg in s]
-              for s in subtrees}
-  # return the NeuronGeometry segments?
-  if retsegs:
-    return sub_dict, {s[0].filamentIndex: s for s in subtrees}
-  return sub_dict
-
-
-
-def subtree_segments(geo, subtree_inds):
-  """
-  Return the subtrees as NeuronGeometry segments instead of filaments.
-  """
-  subtrees = {k: [seg for seg in geo.segments if seg.filamentIndex in
-                  subtree_inds[k]] for k in subtree_inds.keys()}
-  return subtrees
-  
-
-
-def subtree_tips(geo, subtrees, asindex=False):
-  """
-  Given the subtrees (either asindex=True (numbers only) or False 
-  (NeuronGeometry segment objects), get the tip clusters.
-  """
-  if asindex:
-    subtrees = subtree_segments(geo, subtrees)
-  
-  
-
-  
-  
 
 
 
 ### Subtree angles
-def subtree_angles(subtrees, path, keep=10):
+"""def subtree_angles(subtrees, path, keep=10):
   # Returns the first N('keep') successive branch angles for each subtree.
   angles = []
   for t in subtrees:
@@ -1050,7 +655,7 @@ def dendrogram_subtrees(geo, paths, subtrees):
     m = len(subtrees)
   
   return
-    
+"""
   
 
 
@@ -2597,37 +2202,134 @@ def rall_analysis(lol):
   
     for s in startlist:
       for rad in [1,2]: # Two 
-        ralls[idx].append(fit_rall_exp(l[s], l[s+rad]))
+        # Send the par, [d1, d2] pairs to fit_rall_exp
+        ralls[idx].append(fit_rall_exp(l[s], l[s+rad])) 
   ralls = [[i for i in k if i is not None] for k in ralls]
   print('All rall exponents returned')
   return ralls
-      
-  
 
 
 
-def fit_rall_exp_list(parlist, dauglist):
+def rall_analysis_dict(aDict, whichKeys, newKeys=None, norm=False):
   """
-  Given a list of ratios this fits the rall exponents (3/2 is 'ideal').
+  This acts on an entire dict with the given keys; new keys can be passed,
+  otherwise they default to +'_rall'.
   """
-  if type(parlist) is not list and type(dauglist) is not list:
-    return fit_rall_exp(parlist, dauglist)
-  assert len(parlist) == len(dauglist), "input1 (length: %i) and %input2 (length: %i)" \
-                                        %(len(parlist), len(dauglist))
-  return [math.log(parlist[i], dauglist[i]) for i in range(len(parlist))]
-  
-
-
-def fit_rall_exp(par, daug):
-  """
-  Given a list of ratios this fits the rall exponents (3/2 is 'ideal').
-  """
-  try:
-    return math.log(par, daug)
-  except:
-    print('Wrong type: par: %s, daug: %s' %(str(type(par)), str(type(daug))))
-    print(par, daug)
+  bDict = copy.deepcopy(aDict)
+  if newKeys is None:
+    newKeys = [s+'_rall' for s in whichKeys]
+  elif len(newKeys) != len(whichKeys):
+    print('whichKeys (len %i) and newKeys (%i) should be same length' 
+          %(len(whichKeys), len(newKeys)))
     return
+  
+  # For each key, compute the ralls and add it
+  for k in range(len(whichKeys)):
+    bDict[newKeys[k]] = [[] for i in bDict[whichKeys[k]]]
+    for b in range(len(bDict[newKeys[k]])): # For each cell in this key
+      if len(bDict[whichKeys[k]][b]) % 3 == 0: # If divisible by 3 (par, d1, d2)...
+        num_trips = int(len(bDict[whichKeys[k]][b])/3)
+        for s in range(num_trips): # For each triplet
+          
+          bDict[newKeys[k]][b].append(fit_rall_exp(bDict[whichKeys[k]][b][s*3], # par
+                                                   [bDict[whichKeys[k]][b][s*3+1], # d1
+                                                   bDict[whichKeys[k]][b][s*3+2]],
+                                                   norm)) # d2
+  
+  return bDict
+
+
+  
+# FIX RALL!!!!!!!!!!!!!!!!!!!!!!!!11
+
+def fit_rall_exp(par, daugs, norm=False): # This is the Rall power calculator
+  """
+  (daughter1^x + daughter2^x + ...) = parent^x
+  """
+  if type(daugs) is not list:
+    print('Daugters should be list, got %s instead' %str(type(daugs)))
+    print(par, daugs)
+    return
+  
+  if norm:
+    mmax = max([par, daugs[0], daugs[1]])
+    if mmax == 0:
+      print('Parent: %.4f, Daugs: %.4f, %.4f; divide by zero' %(par, daugs[0], daugs[1]))
+      return None
+    par = par/mmax
+    daugs = [d/mmax for d in daugs]
+  
+  try:
+    exps = np.linspace(0.001, 50, 10000)
+    remain = [(sum([d**x for d in daugs]) - par**x) for x in exps]
+    exps = [exps[i] for i in range(len(remain)) if remain[i]>0]
+    remain = [remain[i] for i in range(len(remain)) if remain[i]>0]
+    return exps[remain.index(min(remain))]
+    # return math.log(par, daug)
+  
+  except:
+    print('Wrong type: par: %s, daug: %s' %(str(type(par)), str(type(daugs))))
+    print(par, daugs)
+    return
+
+
+def plot_rall(par_daugs=None, rang=[0.001,50], steps=10000, bench=1.5,
+              xlim=[0,5], ylim=[0,5], showleg=False):
+  """
+  Examine a rall fit if numbers seem funky. Can submit one value triplet
+  ([par, d1, d2]) or several ([[p,d1,d2],[p,d1,d2],[p,d1,d2]]).
+  
+  """
+  # Check the data first; if none are supplied, use defaults.
+  if par_daugs is None:
+    par_daugs = [ [1.0, 0.5, 0.5], [1.0, 1.0, 0.5], [1.0, 1.5, 0.5],
+                  [1.0, 1.5, 1.5], [1.0, 0.6, 0.6], [1.0, 0.7, 0.7],
+                  [1.0, 0.8, 0.8], [1.0, 0.9, 0.9] ]
+  if type(par_daugs) is list:
+    if type(par_daugs[0]) is not list: # Assume a single-triplet entry
+      par_daugs = [par_daugs]
+  
+  fig = plt.figure()
+  ax = fig.add_subplot(111)
+  for entry in par_daugs:
+    par, daugs = entry[0], entry[1:3]
+    xs = np.linspace(0.001, 50, 10000)
+    ys = [(sum([d**x for d in daugs]) - par**x) for x in xs]
+    xs = [xs[i] for i in range(len(ys)) if ys[i]>0]
+    ys = [ys[i] for i in range(len(ys)) if ys[i]>0]
+    lab = 'p=%.1f, d=%.1f,%.1f' %(par, daugs[0], daugs[1])
+    ax.plot(xs, ys, label=lab, c=np.random.rand(3))
+  
+  if bench is not None:
+    try:
+      ax.plot([1.5,1.5], [ylim[0], ylim[1]], '--', c='purple', linewidth=2, alpha=0.5)
+    except:
+      print('bench must be int, floar or None; got' + type(bench))
+  
+  ax.set_xlabel('Exponent')
+  ax.set_ylabel('(D1^x+D2^x)-P^x')
+  ax.set_xlim(xlim)
+  ax.set_ylim(ylim)
+  for pos in ['top', 'right']: # Also hide these borders for all plots
+    ax.spines[pos].set_visible(False)
+  
+  if showleg:
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, labels)
+  plt.show()
+  return
+
+
+#def fit_rall_exp_list(parlist, dauglist): # Deprecated #
+#  """
+#  Given a list of ratios this fits the rall exponents (3/2 is 'ideal').
+#  """
+#  if type(parlist) is not list and type(dauglist) is list:
+#    return fit_rall_exp(parlist, dauglist)
+#  assert len(parlist) == len(dauglist), "input1 (length: %i) and %input2 (length: %i)" \
+#                                        %(len(parlist), len(dauglist))
+#  return [math.log(parlist[i], dauglist[i]) for i in range(len(parlist))]
+
 
 
 
@@ -2659,7 +2361,10 @@ def div_radius(tips, divs, hand=False):
 
 def collapse_list_to_dict(lols, keys):
   """
-  Keys should be 
+  Each lol in lols should be loaded as a csv (or similar), i.e.:
+  lol1 = get_csv(), ...
+  Keys should be the data name of each lol loaded by csv.
+  newdict = collapse_list_to_dist([lol1, lol2, ...], ['tips', 'prim', ...])
   """
   newdict = {}
   newdict['files'] = [g[0] for g in lols[0]]

@@ -653,6 +653,73 @@ def num_of_triplets(arr):
   
 
 
+###################
+# subtree stuff
+
+new_axs = [[601, 603, 604, 29451, 27749], [2848], [336], [3417, 5256, 3416, 7458], [6685, 6384, 1210, 5424], [1526], [7141], [7383, 4676, 3372]]
+things = [['branch', 'branch','branch', 'seg', 'seg'], ['seg'], ['seg'], ['branch', 'branch', 'branch', 'branch'], ['seg', 'seg', 'seg', 'seg'], ['seg'], ['seg'], ['seg','seg','seg']]
+gfils = [2, 1, 11, 3, 15, 8, 10, 0]
+
+rand_stats, act_stats = [], []
+sfs, sxs = [], []
+for gil in range(len(gfils)):
+  sf_, sx_ = subtree_filaments(geofiles[gfils[gil]], new_axs[gil], things[gil], True)
+  loc_ = subtree_tips(geofiles[gfils[gil]], sx_)
+  sts_, _ = randomize_subtrees(loc_, 2000, 1)
+  rand_stats.append(sts_)
+  stats_ = subtree_statistics(loc_)
+  act_stats.append(stats_)
+
+# From tips_locations json, get all subtree stats:
+rand_stats, samps = [], []
+for l in tips_locs['locations']:
+  try:
+    stt, smp = randomize_subtrees(l, 2000,1)
+  except:
+    try:
+      stt, smp = randomize_subtrees(l, 500, 1)
+    except:
+      try:
+        stt, smp = randomize_subtrees(l, 100, 1)
+      except:
+        stt, smp = randomize_subtrees(l, 50, 1)
+  rand_stats.append(stt)
+  samps.append(smp)
+
+
+# Print the means of each group of keys
+
+def condition_by_name(labels, arr, arr2=None, arr3=None):
+  # sort by common labels in order so same types show up next to one another
+  unique_labels = np.unique([i for i in labels])
+  order = []
+  for i in unique_labels:
+    for x in range(len(labels)):
+      if labels[x] == i:
+        order.append(x)
+  new_labels = [labels[j] for j in order]
+  new_arr = [arr[j] for j in order]
+  if arr2:
+    new_arr2 = [arr2[j] for j in order]
+  if arr3:
+    new_arr3 = [arr3[j] for j in order]
+    return new_labels, new_arr, new_arr2, new_arr3
+  if arr2:
+    return new_labels, new_arr, new_arr2
+  return new_labels, new_arr
+
+
+def dict_means(data):
+  """
+  Returns the means +/- std for the keys in a dict by cell type
+  """
+  for k in [key for key in data.keys() if key not in ['files', 'cellTypes']]:
+    labs, vals = condition_by_name(data['cellTypes'], data[k])
+    print(k, [labs[0], labs[4], labs[8], labs[12]])
+    for u in range(4):
+      print(np.mean([np.mean([vals[u*4+i]]) for i in range(4)]))
+  return
+
 
 
 

@@ -700,7 +700,7 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
   L = list(np.unique(labelsin))
   C = [L.index(i) for i in labelsin]
   # print(L,C)
-  fig = plt.figure()
+  fig = plt.figure(figsize=(6,4), dpi=150)
   plots = [fig.add_subplot(1,len(xdata),i) for i in range(len(xdata))]
   if bounds == 'norm':
     #tdata = np.linspace(0,100,len(xdata[0]))
@@ -729,10 +729,10 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
     if jittery:
       yd = np.random.randn(len(xdata[p]))/12.
     else:
-      yd = np.zeros(len(xdata[p]))
+      yd = np.zeros(len(xdata[p])) # Scatter!
     plots[p].scatter(xd, xdata[p]+yd, color=['none' if not fill else colors[C[p]] for i in [1]][0],
-                     edgecolor=colors[C[p]], alpha=0.8, s=20) # linewidth=3) #colors[C[p]]
-    if showmean:
+                     edgecolor=colors[C[p]], alpha=0.7, s=30, linewidth=1.5) # linewidth=3) #colors[C[p]]
+    if showmean: # Showmeans and medians
       def r_bin(bins, target): # always start from below
         j = [i for i in bins]
         j.sort();
@@ -740,10 +740,14 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
           if i > target:
             return i
         return j[-1] # else just return the last bin
+      alph = {True: 1.0, False: 0.5}
+      alph = alph[shade] # Set an alpha that changes depending on shading
       plots[p].plot([0,1], [np.mean(xdata[p]), np.mean(xdata[p])],
-                    '-', linewidth=3, c='k')
+                    linewidth=2.5, c=colors[C[p]], alpha=alph)
+      plots[p].plot([0,1], [np.mean(xdata[p]), np.mean(xdata[p])],
+                    linewidth=1, c='k')
       plots[p].plot([0,1], [np.median(xdata[p]), np.median(xdata[p])],
-                    '--', linewidth=3, c='k', )
+                    linewidth=2, c=colors[C[p]], alpha=alph)
       if shade:
         q25, q75 = np.percentile(xdata[p], [25, 75])
         b25, b75 = r_bin(xdata[p], q25), r_bin(xdata[p], q75)
@@ -759,7 +763,7 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
                            labelbottom='off')
       if axes:
         plots[p].set_ylabel(axes[1], fontsize=15)
-      plots[p].set_ylim([minm, maxm])
+      plots[p].set_ylim([minm-.5, maxm+.5])
       if llog is True:
         plots[p].set_yscale('log'); plots[p].set_ylim([0, maxm]) ## Log scale
       if counts is True:
@@ -772,7 +776,7 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
       plots[p].get_yaxis().set_visible(False)
       if llog is True:
         plots[p].set_yscale('log') ## Log scale
-      plots[p].set_ylim([minm,maxm])
+      plots[p].set_ylim([minm-.5,maxm+.5])
       if counts is True:
         plots[p].set_title('%i' %len(xdata[p]))
       for pos in ['left', 'top', 'right']: # Also hide these borders for all plots
@@ -785,9 +789,10 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
 
 
 
-def scatter_distribution(xdata, labelsin, moreD, title=None, axes=None, bounds=False,
-                 showmean=True, switch=False, llog=False, counts=False,
-                 jittery=False, shade=True, fill=False, bench=False, forcebins=100):
+def scatter_distribution(xdata, labelsin, moreD, moreDmean=True, title=None, 
+                 axes=None, bounds=False, showmean=True, switch=False, 
+                 llog=False, counts=False, jittery=False, shade=True,
+                 fill=False, bench=False, forcebins=100):
   """
   Plot a sample (see function below) to see what it looks like. Basically
   same as above except plots two distributions -- one as dist, one scatter.
@@ -798,9 +803,10 @@ def scatter_distribution(xdata, labelsin, moreD, title=None, axes=None, bounds=F
       xdata.append(xdata.pop(0))
       labelsin.append(labelsin.pop(0))
   colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  # colors = ['forestgreen','tomato', 'darkkhaki', 'royalblue', ] ### !!!!!
   L = list(np.unique(labelsin))
   C = [L.index(i) for i in labelsin]
-  fig = plt.figure()
+  fig = plt.figure(figsize=(6,4), dpi=150)
   plots = [fig.add_subplot(1,len(xdata),i) for i in range(len(xdata))]
   if bounds is True:
     minm, maxm = np.inf, 0 # condition the data
@@ -824,19 +830,25 @@ def scatter_distribution(xdata, labelsin, moreD, title=None, axes=None, bounds=F
       b_e = np.linspace(minm, maxm, forcebins) # len/100 bins
     hist, _ = np.histogram(xdata[p], bins=b_e)
     plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
-    # divine the appropriate bar width
-    hgt = (maxm-minm)/len([i for i in hist if i != 0]) # as high as there are filled hist elements
+    ############################## find appropriate bar width
+    try:
+      hgt = (maxm-minm)/len([i for i in hist if i != 0]) # as high as there are filled hist elements
+    except:
+      print(b_e, min(xdata[p]), max(xdata[p]))
     hgt = plotbins[2]-plotbins[1] ######### histogram #########
-    plots[p].barh(plotbins, [i/max(hist) for i in hist], height=hgt, color=colors[C[p]], 
-                  edgecolor=colors[C[p]], linewidth=0, alpha=0.45)
+    plots[p].barh(plotbins, [i/max(hist) for i in hist], height=hgt, linewidth=0, alpha=0.45,
+                  color='purple', edgecolor='purple') #=colors[C[p]])
     xxd = np.random.random(len(moreD[p]))+0 # Here can change to 1 to shift right
-    if jittery:
+    if jittery: #### MoreD #####
       yyd = np.random.randn(len(moreD[p]))/12.
     else:
       yyd = np.zeros(len(moreD[p])) ####### scatter #########
     moreD[p] = [maxm if y > maxm else y for y in moreD[p]]
     plots[p].scatter(xxd, moreD[p]+yyd, color=['none' if not fill else colors[C[p]] for i in [1]][0],
                      edgecolor=colors[C[p]], alpha=0.8, s=20) # linewidth=3) #colors[C[p]]
+    if moreDmean:
+      plots[p].plot([0,1+0], [np.mean(moreD[p]), np.mean(moreD[p])],
+                    linewidth=2, c=colors[C[p]], alpha=0.9)
     if showmean:
       def r_bin(bins, target): # always start from below
         j = [i for i in bins]
@@ -847,13 +859,13 @@ def scatter_distribution(xdata, labelsin, moreD, title=None, axes=None, bounds=F
         return j[-1] # else just return the last bin; change this too!
       plots[p].plot([0,1+0], [np.mean(xdata[p]), np.mean(xdata[p])],
                     '-', linewidth=1.5, c='purple', alpha=0.6)
-      plots[p].plot([0,1+0], [np.median(xdata[p]), np.median(xdata[p])],
-                    '--', linewidth=1.5, c='purple', alpha=0.6)
+      #plots[p].plot([0,1+0], [np.median(xdata[p]), np.median(xdata[p])],
+      #              '--', linewidth=1.5, c='purple', alpha=0.6)
       if shade: ############## shade ################
         q25, q75 = np.percentile(xdata[p], [25, 75])
         b25, b75 = r_bin(xdata[p], q25), r_bin(xdata[p], q75)
-        plots[p].axhspan(b25, b75, edgecolor=colors[C[p]], 
-                         facecolor=colors[C[p]], alpha=0.3)
+        plots[p].axhspan(b25, b75, edgecolor='purple', #colors[C[p]], 
+                         alpha=0.3, facecolor='purple')#colors[C[p]],)
       for pos in ['left', 'top', 'right']: # Also hide these borders for all plots
         plots[p].spines[pos].set_visible(False)
     if bench:
@@ -1291,12 +1303,23 @@ def pretty_dendrogram(nodes):
 
 
 def pretty_skeleton(geo):
-  # geo is a geometry object
-  nodes, edges = get_edges(geo)
-  G = nx.Graph()
-  G.add_edges_from(edges)
-  nx.draw_networkx_edges(G, nodes)
+  """
+  Draw a pretty skeleton, ignores z-values.
+  """
+  # Generate the pairs to be connected
+  branchpts = []
+  for b in geo.branches: 
+    branchpts.append([[n.x, n.y] for n in b.nodes])
+  #
+  # Plotting
+  plt.figure(figsize=(3,6), dpi=175)
+  for b in branchpts: # Plot the background skeleton first
+    for s in range(len(b)-1):
+      plt.plot([b[s][0], b[s+1][0]],
+               [b[s][1], b[s+1][1]], color='black', alpha=0.3)
   plt.show()
+  
+  
   
 
 
@@ -1386,6 +1409,29 @@ def eigsorted(cov):
   vals, vecs = np.linalg.eigh(cov)
   order = vals.argsort()[::-1]
   return vals[order], vecs[:,order]
+
+
+
+def dist3(pt0, pt1):
+  """
+  In theory this can handle node objects.
+  """
+  if type(pt0) is not list:
+    try:
+      pt0 = [pt0.x, pt0.y, pt0.z] # Try for a node
+    except:
+      print('what do I do with ' + pt0)
+  if type(pt1) is not list:
+    try:
+      pt1 = [pt1.x, pt1.y, pt1.z] # Try for a node
+    except:
+      print('what do I do with ' + pt1)
+  try:
+    return math.sqrt(sum([(pt0[i]-pt1[i])**2 for i in range(3)]))
+  except:
+    print('dimension mismatch')
+    print(pt0, pt1)
+  return None
 
 
 """

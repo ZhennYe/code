@@ -125,7 +125,7 @@ def passive_cable(stimloc=1., stimdur=5., show=False):
   h.tstop = 30
   h.run()
   # Use toolbox convert v into a numpy 2D array
-  v = ez_convert(v) 
+  v = ez_convert(v)
   
   # Plotting options
   if show:

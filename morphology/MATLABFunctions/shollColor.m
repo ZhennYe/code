@@ -43,12 +43,13 @@ scatter3(sholl(:,1), sholl(:,2), sholl(:,3), 1, sholl(:,4))
 colormap cool;
 hold on;
 % Soma
-if length(somapos) ~= 3
+if length(somapos) == 3
   [~, ind] = min(sholl(:,4));
   somapos = [sholl(ind, 1), sholl(ind, 2), sholl(ind, 3)];
+  fprintf('soma: (%d, %d, %d)\n', somapos(1), somapos(2), somapos(3))
+  scatter3(somapos(1), somapos(2), somapos(3), 300, 0, 'filled')
 end
-fprintf('soma: (%d, %d, %d)\n', somapos(1), somapos(2), somapos(3))
-scatter3(somapos(1), somapos(2), somapos(3), 300, 0, 'filled')
+
 axis('equal');
 %set(gca, 'xtick', []);
 %set(gca, 'ztick', []);
