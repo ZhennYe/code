@@ -575,16 +575,18 @@ def plot_cum_dist(V, labelsin, title=None):
 ###########################################################################
 def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
                        showmean=True, switch=False, llog=False, rrange=None,
-                       forcebins=100):
+                       forcebins=100, shade=True, eps=False):
   # xdata is list of lists (distribution)
   if switch:
     for i in range(len(xdata)-1):
       xdata.append(xdata.pop(0))
       labelsin.append(labelsin.pop(0))
   colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  alphs = [['navajowhite', 'lightskyblue', 'lightgreen', 'lightpink'] if eps
+           else ['darkkhaki', 'royalblue', 'forestgreen','tomato']][0]
   L = list(np.unique(labelsin))
   C = [L.index(i) for i in labelsin]
-  # print(L,C)
+  #print(L,C)
   fig = plt.figure(dpi=200) # Give it pub-quality DPI
   plots = [fig.add_subplot(1,len(xdata),i) for i in range(len(xdata))]
   if norm is True:
@@ -612,7 +614,7 @@ def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
       b_e = np.linspace(minm, maxm, forcebins) # len/100 bins
     hist, _ = np.histogram(xdata[p], bins=b_e)
     plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
-    # divine the appropriate bar width
+    # divine the appropriate bar width #print(minm, maxm, p);
     hgt = (maxm-minm)/len([i for i in hist if i != 0]) # as high as there are filled hist elements
     hgt = plotbins[2]-plotbins[1]
     # print(hgt)
@@ -621,7 +623,7 @@ def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
       plots[p].barh(plotbins, hist, height=hgt, color=colors[C[p]],
                     edgecolor=colors[C[p]])
     else:
-      #print(b_e[:10], hist[:10]) # height is bar width !
+      #print(colors[C[p]], p) # height is bar width !
       plots[p].barh(plotbins, hist, height=hgt, color=colors[C[p]],
                     edgecolor=colors[C[p]])
     # show the means:
@@ -633,17 +635,23 @@ def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
           if i > target:
             return i
       plots[p].plot([0,max(hist)], [r_bin(plotbins, np.mean(xdata[p])),
-                    r_bin(plotbins,np.mean(xdata[p]))], '-', linewidth=1.5, c='purple')
+                    r_bin(plotbins,np.mean(xdata[p]))], linewidth=1., c='purple')
       plots[p].plot([0,max(hist)], [r_bin(plotbins, np.median(xdata[p])),
-                    r_bin(plotbins, np.median(xdata[p]))],'--', linewidth=1.5, c='purple', )
+                    r_bin(plotbins, np.median(xdata[p]))],'--', linewidth=1., c='purple', )
       q25, q75 = np.percentile(xdata[p], [25, 75])
       b25, b75 = r_bin(plotbins, q25), r_bin(plotbins, q75)
       # Plot IQR
-      plots[p].axhspan(b25, b75, edgecolor=colors[C[p]], 
-                       facecolor=colors[C[p]], alpha=0.4)
+      if shade:
+        plots[p].axhspan(b25, b75, edgecolor=alphs[C[p]], 
+                         facecolor=alphs[C[p]], alpha=0.4)
+      else: # Shade or just indicate IQR
+        plots[p].plot([0,max(hist)], [b25, b25], color=alphs[C[p]], 
+                         linewidth=1., alpha=0.4)
+        plots[p].plot([0,max(hist)], [b75, b75], color=alphs[C[p]], 
+                         linewidth=1., alpha=0.4)
     if p == 1: #if first plot, show the axes
-      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
-                           labelbottom='off')
+      #plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+      #                     labelbottom='off')
       if axes:
         plots[p].set_ylabel(axes[1], fontsize=15)
       plots[p].set_ylim([minm, maxm])
@@ -653,14 +661,17 @@ def plot_hori_hist(xdata, labelsin, title=None, axes=None, norm=False,
         plots[p].spines[pos].set_visible(False)
     else:
       #plots[p].axis('off')
-      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
-                           labelbottom='off')
+      #plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+      #                     labelbottom='off')
       plots[p].get_yaxis().set_visible(False)
       if llog is True:
         plots[p].set_yscale('log') ## Log scale
       plots[p].set_ylim([minm,maxm])
       for pos in ['top', 'left', 'right']:
         plots[p].spines[pos].set_visible(False)
+    plt.locator_params(nbins=4) #################### Set one x-tick
+    plots[p].set_xticks([max(hist)/2.])
+    plots[p].set_xticklabels(['%i' %int(max(hist))])
   if title:
     plt.suptitle(title, fontsize=20)
   plt.show()
@@ -686,7 +697,8 @@ def hori_bars_legend():
 
 def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
                  showmean=True, switch=False, llog=False, counts=False,
-                 jittery=False, shade=True, fill=False, bench=False):
+                 jittery=False, shade=True, fill=False, bench=False,
+                 eps=False, retplot=False, size=10): # retplot returns plt object
   """
   xdata is list of lists (distribution); jittery = y jitter of +/-0.25 units
   shade=IQR shading (bad for int data); bounds=number to normalize, False for 
@@ -696,7 +708,11 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
     for i in range(len(xdata)-1):
       xdata.append(xdata.pop(0))
       labelsin.append(labelsin.pop(0))
-  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  altcolors = ['navajowhite', 'lightskyblue', 'lightgreen', 'lightpink']
+  if eps:
+    colors = altcolors
+  else:
+    colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
   L = list(np.unique(labelsin))
   C = [L.index(i) for i in labelsin]
   # print(L,C)
@@ -731,7 +747,7 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
     else:
       yd = np.zeros(len(xdata[p])) # Scatter!
     plots[p].scatter(xd, xdata[p]+yd, color=['none' if not fill else colors[C[p]] for i in [1]][0],
-                     edgecolor=colors[C[p]], alpha=0.7, s=30, linewidth=1.5) # linewidth=3) #colors[C[p]]
+                     edgecolor=colors[C[p]], alpha=0.7, s=size, linewidth=.5) # linewidth=3) #colors[C[p]]
     if showmean: # Showmeans and medians
       def r_bin(bins, target): # always start from below
         j = [i for i in bins]
@@ -743,21 +759,22 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
       alph = {True: 1.0, False: 0.5}
       alph = alph[shade] # Set an alpha that changes depending on shading
       plots[p].plot([0,1], [np.mean(xdata[p]), np.mean(xdata[p])],
-                    linewidth=2.5, c=colors[C[p]], alpha=alph)
-      plots[p].plot([0,1], [np.mean(xdata[p]), np.mean(xdata[p])],
-                    linewidth=1, c='k')
-      plots[p].plot([0,1], [np.median(xdata[p]), np.median(xdata[p])],
-                    linewidth=2, c=colors[C[p]], alpha=alph)
+                    linewidth=2., c=colors[C[p]], alpha=1.)
+      plots[p].plot([0,1], [np.median(xdata[p]), np.median(xdata[p])], '--',
+                    linewidth=2., c=colors[C[p]], alpha=1.)
+      q25, q75 = np.percentile(xdata[p], [25, 75])
+      b25, b75 = r_bin(xdata[p], q25), r_bin(xdata[p], q75)
+      # Plot IQR
       if shade:
-        q25, q75 = np.percentile(xdata[p], [25, 75])
-        b25, b75 = r_bin(xdata[p], q25), r_bin(xdata[p], q75)
-        # Plot IQR
         plots[p].axhspan(b25, b75, edgecolor=colors[C[p]], 
                          facecolor=colors[C[p]], alpha=0.4)
-      for pos in ['left', 'top', 'right']: # Also hide these borders for all plots
-        plots[p].spines[pos].set_visible(False)
+      else:
+        plots[p].plot([0,1], [b25, b25], color=altcolors[C[p]], 
+                         alpha=0.4, linewidth=1.)
+        plots[p].plot([0,1], [b75, b75], color=altcolors[C[p]], 
+                         alpha=0.4, linewidth=1.)
     if bench:
-      plots[p].plot([0,1], [bench, bench], c='purple', linewidth=2, alpha=0.3)
+      plots[p].plot([0,1], [bench, bench], c='purple', linewidth=1., alpha=0.3)
     if p == 1: #if first plot, show the axes
       plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
                            labelbottom='off')
@@ -783,6 +800,8 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
         plots[p].spines[pos].set_visible(False)
   if title:
     plt.suptitle(title, fontsize=20)
+  if retplot:
+    return fig
   plt.show()
   return
 
@@ -792,17 +811,22 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
 def scatter_distribution(xdata, labelsin, moreD, moreDmean=True, title=None, 
                  axes=None, bounds=False, showmean=True, switch=False, 
                  llog=False, counts=False, jittery=False, shade=True,
-                 fill=False, bench=False, forcebins=100):
+                 fill=False, bench=False, forcebins=100, purp=True):
   """
   Plot a sample (see function below) to see what it looks like. Basically
   same as above except plots two distributions -- one as dist, one scatter.
-  Good to compare against expected values.
+  Good to compare against expected values. moreD is the scatter data.
+  purp: refers to xdata (distribution), not the moreD (scatter)
   """
   if switch:
     for i in range(len(xdata)-1):
       xdata.append(xdata.pop(0))
       labelsin.append(labelsin.pop(0))
   colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  if purp:
+    purp = ['purple' for i in range(4)]
+  else:
+    purp = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
   # colors = ['forestgreen','tomato', 'darkkhaki', 'royalblue', ] ### !!!!!
   L = list(np.unique(labelsin))
   C = [L.index(i) for i in labelsin]
@@ -837,7 +861,7 @@ def scatter_distribution(xdata, labelsin, moreD, moreDmean=True, title=None,
       print(b_e, min(xdata[p]), max(xdata[p]))
     hgt = plotbins[2]-plotbins[1] ######### histogram #########
     plots[p].barh(plotbins, [i/max(hist) for i in hist], height=hgt, linewidth=0, alpha=0.45,
-                  color='purple', edgecolor='purple') #=colors[C[p]])
+                  color=purp[C[p]], edgecolor=purp[C[p]]) #=colors[C[p]])
     xxd = np.random.random(len(moreD[p]))+0 # Here can change to 1 to shift right
     if jittery: #### MoreD #####
       yyd = np.random.randn(len(moreD[p]))/12.
@@ -858,23 +882,24 @@ def scatter_distribution(xdata, labelsin, moreD, moreDmean=True, title=None,
             return i
         return j[-1] # else just return the last bin; change this too!
       plots[p].plot([0,1+0], [np.mean(xdata[p]), np.mean(xdata[p])],
-                    '-', linewidth=1.5, c='purple', alpha=0.6)
+                    '-', linewidth=1.5, c=purp[C[p]], alpha=0.6)
       #plots[p].plot([0,1+0], [np.median(xdata[p]), np.median(xdata[p])],
       #              '--', linewidth=1.5, c='purple', alpha=0.6)
+      q25, q75 = np.percentile(xdata[p], [25, 75])
+      b25, b75 = r_bin(xdata[p], q25), r_bin(xdata[p], q75)
       if shade: ############## shade ################
-        q25, q75 = np.percentile(xdata[p], [25, 75])
-        b25, b75 = r_bin(xdata[p], q25), r_bin(xdata[p], q75)
-        plots[p].axhspan(b25, b75, edgecolor='purple', #colors[C[p]], 
-                         alpha=0.3, facecolor='purple')#colors[C[p]],)
-      for pos in ['left', 'top', 'right']: # Also hide these borders for all plots
-        plots[p].spines[pos].set_visible(False)
+        plots[p].axhspan(b25, b75, edgecolor=purp[C[p]], #colors[C[p]], 
+                         alpha=0.3, facecolor=purp[C[p]])#colors[C[p]],)
+      else:
+        plots[p].plot([0,1], [b25, b25], color=purp[C[p]], alpha=0.3, )
+        plots[p].plot([0,1], [b75, b75], color=purp[C[p]], alpha=0.3, )
     if bench:
       plots[p].plot([0,1], [bench, bench], c='purple', linewidth=2, alpha=0.3)
     if p == 1: #if first plot, show the axes
-      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
-                           labelbottom='off')
+      #plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
+      #                     labelbottom='off')
       if axes:
-        plots[p].set_ylabel(axes[1], fontsize=15)
+        plots[p].set_ylabel(axes[1], fontsize=10)
       plots[p].set_ylim([minm, maxm+0.1])
       if llog is True:
         plots[p].set_yscale('log'); plots[p].set_ylim([0, maxm]) ## Log scale
@@ -883,8 +908,7 @@ def scatter_distribution(xdata, labelsin, moreD, moreDmean=True, title=None,
       for pos in ['top', 'right']: # Also hide these borders for all plots
         plots[p].spines[pos].set_visible(False)
     else:
-      plots[p].tick_params(axis='x',which='both',bottom='off',top='off',
-                           labelbottom='off')
+      #plots[p].tick_params(axis='x',which='both',bottom='off',top='off', labelbottom='off')
       plots[p].get_yaxis().set_visible(False)
       if llog is True:
         plots[p].set_yscale('log') ## Log scale
@@ -893,6 +917,9 @@ def scatter_distribution(xdata, labelsin, moreD, moreDmean=True, title=None,
         plots[p].set_title('%i' %len(xdata[p]))
       for pos in ['left', 'top', 'right']: # Also hide these borders for all plots
         plots[p].spines[pos].set_visible(False)
+    plt.locator_params(nbins=4) #################### Set one x-tick
+    plots[p].set_xticks([0.5])
+    plots[p].set_xticklabels(['%i' %int(max(hist))])
   if title:
     plt.suptitle(title, fontsize=20)
   plt.show()
@@ -907,12 +934,19 @@ def scatter_distribution(xdata, labelsin, moreD, moreDmean=True, title=None,
 # Angles
 
 def circular_hist(angles, labelsin, title=None, same=None, leg=True,
-                  ninety=False, save=None):
+                  ninety=False, save=None, shade=True, eps=False,
+                  only=False):
   """
   # IMPORT DEPENDENCIES FROM TOP. Same indicates same group, should be int.
   I.e.: GM same=0, LG same=1, etc.
   ninety=True if only want x-ticks plotted to 90, else 180 is default
+  only: to display a single distribution, pass two distributions [fake, real]
+  and set only=True.
   """
+  if eps:
+    altcolors = ['navajowhite', 'lightskyblue', 'lightgreen', 'lightpink']
+  else:
+    altcolors = ['purple' for i in range(4)]
   def to_radians(angs):
     return [i*np.pi/180. for i in angs]
   def r_bin(bins, target): # Return the target bin value, always start from below
@@ -938,25 +972,36 @@ def circular_hist(angles, labelsin, title=None, same=None, leg=True,
   colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
   ax = plt.subplot(111, polar=True)
   for A in range(len(angles)):
+    print(A, len(angles[A]))
     angs, rads, thetas, width, t25, t75 = angulize(rm_nan(angles[A]))
-    bar = ax.bar(thetas, rads, width=width, bottom=2.+2*A)
+    if only and A == 0: # Only 
+      bar = ax.bar([np.pi], [0.], width=width, bottom=2.+2*A)
+    else:
+      bar = ax.bar(thetas, rads, width=width, bottom=2.+2*A)
     if same is None:
       s = A
     else:
       s = same
     [b.set_facecolor(colors[s]) for b in bar.patches]
     [b.set_edgecolor(colors[s]) for b in bar.patches]
-    iqr = ax.bar(np.linspace(t25, t75, 100), np.ones(100)*1.5, 
-                 width=np.pi/(200), bottom=2.+2*A)
-    [i.set_facecolor(colors[s]) for i in iqr.patches]
-    [i.set_alpha(0.3) for i in iqr.patches]
-    [i.set_linewidth(0.) for i in iqr.patches]
-    mean = ax.bar(np.mean(angs), 1.5, width=np.pi/400, bottom=2.+2*A)
-    med = ax.bar(np.median(angs), 1.25, width=np.pi/400, bottom=2.+2*A)
-    k=['k','orange']
-    for m in [med.patches[0], mean.patches[0]]:
-      m.set_facecolor(k[[med.patches[0], mean.patches[0]].index(m)])
-      m.set_linewidth(0.)
+    if only is False or (only is True and A != 0): # Only stuff again
+      if shade: ### Shade
+        iqr = ax.bar(np.linspace(t25, t75, 100), np.ones(100)*1.5, 
+                   width=np.pi/(200), bottom=2.+2*A)
+        [i.set_facecolor(colors[s]) for i in iqr.patches]
+        [i.set_alpha(0.3) for i in iqr.patches]
+        [i.set_linewidth(0.) for i in iqr.patches]
+      else:
+        ax.bar(t25, 1, width=np.pi/200, bottom=2.+2*A, 
+               facecolor=altcolors[s], edgecolor='none')
+        ax.bar(t75, 1, width=np.pi/200, bottom=2.+2*A, 
+               facecolor=altcolors[s], edgecolor='none')
+      mean = ax.bar(np.mean(angs), 1.5, width=np.pi/400, bottom=2.+2*A)
+      med = ax.bar(np.median(angs), 1.25, width=np.pi/400, bottom=2.+2*A)
+      k=['k','orange']
+      for m in [med.patches[0], mean.patches[0]]:
+        m.set_facecolor(k[[med.patches[0], mean.patches[0]].index(m)])
+        m.set_linewidth(0.)
   khaki_patch = mpatches.Patch(color='darkkhaki',   # Legend
                 label=labelsin[0])
   patches = [khaki_patch]

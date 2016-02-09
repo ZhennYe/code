@@ -2,12 +2,17 @@
 # and involved, especially with plotting, so it has been relocated here.
 
 
+import collections # For namedtuple
+
+
+
 def dist3(pt0, pt1):
   if len(pt0) == len(pt1) and len(pt0) == 3:
     return math.sqrt(sum([(pt0[i]-pt1[i])**2 for i in range(3)]))
   else:
     print('dimension mismatch')
     print(pt0, pt1)
+
 
 
 
@@ -463,6 +468,7 @@ def subtree_fromfilaments(geo, fil_dict, asdict=True, version=1):
 def subtree_segments(geo, subtree_inds):
   """
   Return the subtrees as NeuronGeometry segments instead of filaments.
+  These subtrees are location dicts. (NO. USE SUBTREE_TIPS)
   """
   subtrees = {k: [seg for seg in geo.segments if seg.filamentIndex in
                   subtree_inds[k]] for k in subtree_inds.keys()}
@@ -483,8 +489,8 @@ def subtree_tips(geo, subtrees, asindex=False):
   tipInds, tipLocs = geo.getTipIndices()
   
   # A dict of dicts
-  locations = {k: {'root': [seg.coordAt(1) for seg in subtrees[k] if
-                            seg.filamentIndex == k],
+  locations = {k: {'root': [seg.coordAt(1) for seg in geo.segments if
+                            seg.filamentIndex == int(k)],
                    'tips': [seg.coordAt(tipLocs[tipInds.index(seg.filamentIndex)])
                             for seg in subtrees[k] if seg.filamentIndex
                             in tipInds]} for k in subtrees.keys()}
@@ -526,7 +532,7 @@ def randomize_subtrees(locations, N=2000, keep=0):
   if N/5. > numcombs:
     print('Requested %i trials but only %.2f combinations are possible'
           %(N, float(numcombs)))
-    return
+    N = int(numcombs*5)
   
   # Run N times
   stat, ret, retain = [], [int(i) for i in np.random.rand(keep)], []
@@ -565,35 +571,140 @@ def randomize_subtrees(locations, N=2000, keep=0):
 
 
 
-def subtree_statistics(testdict, cluster_rad=True, intercluster_dist=True):
+def subtree_statistics(testdict, cluster_rad=False, intercluster_dist=False,
+                       cluster_overlap=True):
   """
   Given a subtree of format {ind: {'root': (xyz), 'tips': [(xyz,xyz...)]}}
   This calculates the avg distance from the center of mass (of each cluster)
   to its tips (cluster_rad) and the avg distance from this cluster's center 
   of mass to the next-closest cluster's center of mass. (ind is meaningless)
   """
-  clustrads, clustcenter = [], []
+  clustrads, clustcenter, stds = [], [], []
   
   # Find cluster center (of mass) and avg 'radius' of each cluster
+  for k in testdict.keys():
+    if len(testdict[k]['tips']) > 0:
+      clustcenter.append([ np.mean([x[0] for x in testdict[k]['tips']]),
+                           np.mean([x[1] for x in testdict[k]['tips']]),
+                           np.mean([x[2] for x in testdict[k]['tips']]) ])
+      
+      clustrads.append( np.mean([dist3(clustcenter[-1], tip) for tip in
+                                 testdict[k]['tips']]) )
   if cluster_rad:
-    for k in testdict.keys():
-      if len(testdict[k]['tips']) > 0:
-        clustcenter.append([ np.mean([x[0] for x in testdict[k]['tips']]),
-                             np.mean([x[1] for x in testdict[k]['tips']]),
-                             np.mean([x[2] for x in testdict[k]['tips']]) ])
-        
-        clustrads.append( np.mean([dist3(clustcenter[-1], tip) for tip in
-                                   testdict[k]['tips']]) )
-        
+    return np.mean(clustrads)
+    
   # Find distance to closest cluster
-  if intercluster_dist:
+  elif intercluster_dist:
     interclust = [min([dist3(i, u) for u in clustcenter if
                        u != i]) for i in clustcenter]
+    return np.mean(interclust)
   #print(clustcenter)
   
-  return [np.mean(k) for k in [clustrads, interclust] if len(k)>0]
+  # Overlap of standard deviation
+   # Each entry is [xmin, xmax, ymin, ymax]
+  elif cluster_overlap:
+    Bounds = collections.namedtuple('Bounds', 'xmin xmax ymin ymax') # Named tuple
+    for k in testdict.keys():
+      if len(testdict[k]['tips']) > 0:
+        mn = [np.mean([x[0] for x in testdict[k]['tips']]),
+              np.mean([x[1] for x in testdict[k]['tips']])]
+        st = [np.std([x[0] for x in testdict[k]['tips']]),
+              np.std([x[1] for x in testdict[k]['tips']])]
+        stds.append(Bounds(xmin=mn[0]-st[0], xmax=mn[0]+st[0], 
+                           ymin=mn[1]-st[1], ymax=mn[1]+st[1]))
+    
+    # Detect overlaps
+    overlaps = [[] for i in stds]
+    for ref in stds:
+      for st in stds:
+        if ref != st: # Don't check the same cluster
+          if st.xmin < ref.xmax and st.xmax > ref.xmin: # X lower overlap
+            overlaps[stds.index(ref)].append(st)
+          if st.xmax > ref.xmin and st.xmin < ref.xmax: # X upper overlap
+            overlaps[stds.index(ref)].append(st)
+          if st.ymin < ref.ymax and st.ymax > ref.ymin: # Y lower overlap
+            overlaps[stds.index(ref)].append(st)
+          if st.ymax > ref.ymin and st.ymin < ref.ymax: # Y upper overlap
+            overlaps[stds.index(ref)].append(st)
+    
+    # Prune copies
+    # print(overlaps[0])
+    overlaps = [list(set(u)) for u in overlaps]
+    overlaps = [len(u) for u in overlaps]
+    return np.mean(overlaps)
   
+  else:
+    print('must set ONLY ONE to true at a time: cluster_rad, intercluster_dist,cluster_overlap')
+  return None
 
+
+
+
+
+def interclust_dist_test():
+  """
+  See if interclust distance is a valuable metric.
+  """
+  def gen_cloud(cent=(0,0), std=2):
+    x, y = np.random.random(20)*std+cent[0], np.random.random(20)*std+cent[1]
+    return list(zip(x, y))
+  
+  # Generate the random clouds
+  def randomize_clouds(trueclouds, numclouds=2):
+    centers = [[np.mean([pt[0] for pt in cloud]), np.mean([pt[1] for pt in cloud])]
+               for cloud in trueclouds]
+    all_pts = [[i[0]-centers[0][0], i[1]-centers[0][1]] for i in c1]
+    for pt in c2:
+      all_pts.append([pt[0]-centers[1][0], pt[1]-centers[1][1]]) # Get the list of all points
+    clouds = []
+    for u in range(numclouds): # Generate the clouds from random data
+      rlist = [int(i) for i in np.random.random(int(sum([len(y) 
+               for y in trueclouds]))/numclouds)*sum([len(y) for y in trueclouds])]
+      rlist = rlist # Downsample to number of pts for this cloud [::numclouds]
+      tpts = [[all_pts[r][0]+centers[u][0], all_pts[r][1]+centers[u][1]] for r in rlist] # Add the center back
+      clouds.append(tpts)
+    return clouds
+  
+  # Show the clouds
+  def show_clouds(realclouds, randclouds): # Pts are zipped within cloudlists
+    fig = plt.figure()
+    ax1 = fig.add_subplot(1,2,1) # First plot original clouds
+    rcol = []
+    for u in range(len(realclouds)): # Plot each cloud
+      rcol.append(np.random.random(3))
+      for pt in realclouds[u]:
+        ax1.plot(pt[0], pt[1],'o', color=rcol[u], alpha=0.5)
+    ax1.set_title('True clouds')
+    ax2 = fig.add_subplot(1,2,2) # Then plot random clouds
+    for u in range(len(randclouds)):
+      for pt in randclouds[u]:
+        ax2.plot(pt[0], pt[1], 'o', color=rcol[u], alpha=0.5)
+    ax2.set_title('Random clouds')
+    plt.show(); return
+  
+  # Get interclust distance
+  def ic_dist(clouds):
+    #print(clouds)
+    cloud_cents = [ [np.mean([pt[0] for pt in cloud]),
+                     np.mean([pt[1] for pt in cloud])] for cloud in clouds ]
+    dists = [min([sum([np.sqrt(a[i]**2+b[i]**2) for i in range(2)])
+                  for b in cloud_cents if b != a]) for a in cloud_cents]
+    return dists
+  
+  # Run it through
+  c1, c2 = gen_cloud((0,0), 3), gen_cloud((5,0), 2) # "real" clouds
+  r_clouds = randomize_clouds([c1,c2], 2) # Generate random clouds
+  #print(r_clouds)
+  print('True IC distances:')
+  print(ic_dist([c1,c2]))
+  print('Randomized IC distances:')
+  print(ic_dist(r_clouds))
+  show_clouds([c1,c2], r_clouds)
+  return
+
+
+
+  
 
 
 def show_tip_clusters(tipdict, showtips=False, showroots=True):
@@ -606,7 +717,7 @@ def show_tip_clusters(tipdict, showtips=False, showroots=True):
   from matplotlib.patches import Ellipse
   # For each subtree, plot its root/tips and its projection
   for k in tipdict.keys():
-    thic = np.random.rand(3)
+    thic = np.random.rand(3) # thic = random color
     if showtips: # Show the tip locations
       for t in tipdict[k]['tips']:
         ax.scatter(t[0], t[1], t[2], color=thic, edgecolor=thic, s=10,
@@ -621,7 +732,7 @@ def show_tip_clusters(tipdict, showtips=False, showroots=True):
     cov = np.cov(dat1, dat2)
     lambda_, v = np.linalg.eig(cov)
     lambda_ = np.sqrt(lambda_)
-    ell = Ellipse(xy=(np.mean(dat1), np.mean(dat2)), # Initial offset
+    ell = Ellipse(xy=(np.mean(dat1), np.mean(dat2)), # Initial offset (center)
                   width=lambda_[0]*2, height=lambda_[1]*2,
                   angle=np.rad2deg(np.arccos(v[0,0])), alpha=0.1)
     ell.set_facecolor(thic)

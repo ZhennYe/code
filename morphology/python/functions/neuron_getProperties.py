@@ -2354,6 +2354,41 @@ def div_radius(tips, divs, hand=False):
   return tips
 
 
+
+def plot_all_rall(ralldict, bounds=[0,10]):
+  """
+  Given a dict of rall objects this makes all the plots for figure 3 (E-H).
+  Keys of rall dict must include: prim_sec_raw_rall, sec_tert_raw_rall,
+  tips_raw_rall init_rall, and cellTypes.
+  """
+  targets = ['prim_sec_raw_rall', 'sec_tert_raw_rall', 'tips_raw_rall']
+  for att in targets:
+    if att not in ralldict.keys():
+      print('Dictionary is missing %s!' %att)
+      return None
+  
+  # This function calls hori_scatter from pretty_plot.py
+  figs = []
+  for target in targets:
+    labs, vals = condition_by_name(ralldict['cellTypes'], ralldict[target])
+    figs.append(hori_scatter(vals, labs, axes=['','Rall power'], 
+                             title=target, bounds=bounds, switch=True,
+                             shade=False, fill=True, bench=1.5, retplot=True))
+  
+  rlabs, rvals = condition_by_name(ralldict['cellTypes'],ralldict['init_rall'])
+  rlabs = [rlabs[i] for i in [0,4,8,12]]
+  rvals = [[rvals[u*4+i] for i in range(4)] for u in range(4)]
+  print(rvals)
+  rfig = hori_scatter(rvals, rlabs, axes=['','Rall power'], size=25,
+                      title='init_rall', bounds=bounds, showmean=False,
+                      shade=False, fill=True, bench=1.5, retplot=True)
+  
+  plt.show()
+  return
+
+  
+
+
 #########################################################################
 # Quadratic taper by path for estimated tip 
 # See bottom of quaddiameter.py
