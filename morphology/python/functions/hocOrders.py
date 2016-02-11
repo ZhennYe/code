@@ -14,28 +14,21 @@ def get_seglist(geo):
 
 
 
-def get_ordern(geo, pDF, seglist, n):
+def get_ordern(hocfile, geo, n, outfile):
   """
   Only return segments of order n and below.
   """
-  def add_seg(segarray, seg, segnum):
-    for node in seg.nodes:
-      segarray.append([segnum, node.x, node.y, node.z, node.r1])
-    return segarray
-  def real_seg(segname):
-    s = segname.split('_')[1]
-    filament = int(s.split('[')[0])
-    seg = int(s.split('[')[1].split(']')[0])
-    if filament == 999:
-      return [seg]
-    else:
-      return [filament, seg]
-  #
-  segarray = [] # [seg, x, y, z, rad]
-  for s in seglist:
-    if pDF.branchOrder(s) <= n:
-      segarray = add_seg(segarray, s, real_seg(s.name))
-  return segarray
+  geo.calcBranchOrder()
+  keepInds = [seg.filamentIndex for seg in geo.segments
+              if seg.branchOrder <= n]
+  print('Soma is %s (fil index: %i)' %(geo.soma.name, geo.soma.filamentIndex))
+  
+  # Now write only these segments (& soma)
+  with open(hocfile, 'r') as fIn:
+    with open(outfile, 'w') as fOut:
+      for line in fIn:
+        
+
 
 
 
@@ -63,4 +56,24 @@ def get_orders(geo, orders):
   
   pDF, seglist = get_seglist(geo)
   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
