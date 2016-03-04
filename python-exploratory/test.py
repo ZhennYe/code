@@ -727,6 +727,59 @@ def dict_means(data):
 bat = [[233.97541464398489, 320.43812381755367, 174.44805831951726, 209.43501860355963], [233.97541464398489, 320.43812381755367, 174.44805831951726, 209.43501860355963], [427.43688192076525, 462.10622919034574, 154.14740882414463, 187.25348006474422], [427.43688192076525, 462.10622919034574, 154.14740882414463, 187.25348006474422], [314.61810538029704, 393.5912279530362, 179.89267296624217, 216.64999370042455], [314.61810538029704, 393.5912279530362, 179.89267296624217, 216.64999370042455], [165.76553886579845, 356.8670537267941, 74.646490127909928, 203.13662098320117], [165.76553886579845, 356.8670537267941, 74.646490127909928, 203.13662098320117], [165.76553886579845, 356.8670537267941, 74.646490127909928, 203.13662098320117], [165.76553886579845, 356.8670537267941, 74.646490127909928, 203.13662098320117]]
 
 
+batch = [[1, '/home/alex/data/adriane/skeletons/diams_targets/878_061_skeleton_targetsAOdiametersxyz.002.nml'],
+[2, '/home/alex/data/adriane/skeletons/diams_targets/878_043_targetsAO.diametersxyz.001.nml'],
+[3, '/home/alex/data/adriane/skeletons/diams_targets/878_065_skeleton_targetsAOdiametersxyz.003.nml'],
+[4, '/home/alex/data/adriane/skeletons/diams_targets/878_049_targetsAO.diametersxyz.001.nml'],
+[5, '/home/alex/data/adriane/skeletons/diams_targets/878_057_targetsAOdiametersxyz.001.nml'],
+[6, '/home/alex/data/adriane/skeletons/diams_targets/878_045_targetsAOdiametersxyz.nml'],
+[8, '/home/alex/data/adriane/skeletons/diams_targets/878_053_targetsAOdiametersxyz.001.nml'],
+[9, '/home/alex/data/adriane/skeletons/diams_targets/878_056_targetsAOdiametersxyz.001.nml'],
+[10, '/home/alex/data/adriane/skeletons/diams_targets/878_041_targetsAOdiametersxyz.005.nml'],
+[12, '/home/alex/data/adriane/skeletons/diams_targets/878_062_skeleton_targetsAOdiametersxyz.002.nml']]
+
+
+def headrow(inarow=3, N=1000, show=False):
+  # How long does it take to get 3 heads in a row?
+  def cnt(trac):
+    c = 0
+    for u in trac[::-1]:
+      if u == 1:
+        c = c + 1
+      else:
+        return c
+    return c
+  traces = []
+  for n in range(N):
+    temp = [np.random.randint(0,2) for i in range(3)]
+    while sum(temp[-inarow:]) < inarow: # 1=heads, so sum(last 3) should be 1
+      temp.append(np.random.randint(0,2))
+    traces.append(temp)
+  print('Avg time to %i heads: %.2f' %(inarow, np.mean([len(u) for u in traces])))
+  print('Median time to %i heads: %.2f' %(inarow, np.median([len(u) for u in traces])))
+  if show:
+    for tr in traces[:100]:
+      plt.plot([cnt(tr[i:i+inarow]) for i in range(len(tr)-inarow+1)], color='black', alpha=0.1)
+    hist, b_e = np.histogram([len(t) for t in traces], bins=40)
+    b_c = 0.5*(b_e[:-1]+b_e[1:])
+    plt.bar(b_c, [inarow*h/max(hist) for h in hist], width=b_e[1]-b_e[0], 
+            color='blue', alpha=0.7, edgecolor='white')
+    plt.show()
+  return
+
+#
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

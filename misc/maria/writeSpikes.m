@@ -38,7 +38,7 @@ end
 
 % Get the spikes
 fprintf('Getting the spike struct with a moving window...\n');
-spk = movingSpikes(0.1, D(:, use));
+spk = movingSpikes(0.1, D(:, 1));
 
 if asstruct
   % Keep it as a struct, but transpose the rows etc
@@ -47,11 +47,12 @@ if asstruct
   for i=1:length(fields)
     n_spk.(fields{i}) = spk.(fields{i})';
   end
-
+  
   % Save as a struct
   struct2csv(n_spk, outfile);
-else
+  fprintf('File %s written.\n', outfile);
 
+else
   % Create a matrix to write to csv
   % Find the max field length
   maxF = 0;
@@ -70,7 +71,7 @@ else
     F(i,1:length(spk.(fields{i}))) = spk.(fields{i});
   end
   F(F==0) = nan; % Replace 0 with NaN
-
+  
   % Write to csv file
   csvwrite(outfile, F);
   fprintf('File %s written.\n', outfile);

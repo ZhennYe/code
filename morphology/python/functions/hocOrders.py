@@ -27,6 +27,8 @@ def get_ordern(hocfile, geo, n, outfile):
   with open(hocfile, 'r') as fIn:
     with open(outfile, 'w') as fOut:
       for line in fIn:
+        splitLine = line.split(None)
+        
         
 
 
