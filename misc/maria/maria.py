@@ -1571,11 +1571,7 @@ def findExtInDF(df, ext='abf', labrow=1, refCol=0, outfile=None):
 
 
 
-def sortColbyCol(df, col1=0, col2=5, outfile=None):
-  """
-  Group 
-  """
-  return
+def 
   
   
 
@@ -1617,6 +1613,7 @@ def getPathfromCSV(flist, full_csv_list, outfile=None):
   
   return paths
   
+
 
 
 def getFullPath(pathfil, direct='/media/alex/BACKUP/mcgenco/', outfile=None):
