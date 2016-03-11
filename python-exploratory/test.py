@@ -768,11 +768,52 @@ def headrow(inarow=3, N=1000, show=False):
   return
 
 #
+0 878_058_GM_scaled
+1 878_061_GM_scaled
+2 878_043_GM_scaled
+3 878_065_GM_scaled
+4 878_049_GM_firstpass_scaled
+5 878_057_GM_firstpass_scaled
+6 878_045_GM_scaled
+7 878_063_GM_scaled
+8 878_053_GM_scaled
+9 878_056_GM_scaled
+10 878_041_GM_firstpass_scaled
+11 878_064_GM_scaled
+12 878_062_GM_scaled
 
 
+###################### savitzky-golay ############################
+def s_golay(x, winsize, degree, deriv=0):
+  # Simple Savitzky-Golay filter, inspired by matlab
+  from math import factorial
+  assert winsize % 1 == 0, 'winsize must be int!'
+  assert winsize % 2 == 1, 'winsize must be odd!'
+  assert winsize > 0, 'winsize must be positive!'
+  assert winsize > degree + 2, 'winsize must be > (degree+2)'
+  
+  # Condition data and establish convolution coefficients
+  r_degree = range(degree+1)
+  halfwin = int((winsize-1)/2)
+  convmat = np.mat([ [k**i for i in r_degree]
+                    for k in range(-halfwin, halfwin+1) ])
+  m = np.linalg.pinv(convmat).A[deriv] * factorial(deriv)
+  
+  # Stretch the signal at extrema so that computation can continue
+  start = np.interp(np.linspace(0.5, 0.5*2*halfwin, 2*halfwin),
+                    np.linspace(0.,halfwin, halfwin), x[0:halfwin])
+  end = np.interp(np.linspace(0.5, 0.5*2*halfwin, 2*halfwin),
+                  np.linspace(0.,halfwin, halfwin), x[-(halfwin):])
+  x = np.concatenate((start, x, end)) #[halfwin:(halfwin-1)]
 
+  result = np.convolve(m[::-1], x, mode='valid')
+  # In case it's too long, shrink it
+  pad = int((len(x)-len(result))/2)
+  if pad > 0:
+    return result[pad-1:-pad]
+  return result
 
-
+#
 
 
 

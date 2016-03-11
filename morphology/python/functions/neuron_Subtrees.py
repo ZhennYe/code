@@ -528,7 +528,7 @@ def randomize_subtrees(locations, N=2000, keep=0):
   # An original root with 7 tips can get ANY 7 new random tips, but only 7
   
   # If there are >5 times fewer possible options than requested trials
-  numcombs = comb(len(rootlocs), len(rootlocs), repetition=True)
+  numcombs = comb(len(rootlocs), len(rootlocs), repetition=False)
   if N/5. > numcombs:
     print('Requested %i trials but only %.2f combinations are possible'
           %(N, float(numcombs)))

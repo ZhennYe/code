@@ -27,7 +27,8 @@ def loadCSVfeatures(fname, rmoutliers=False):
   checks = ['maxV', 'maxDerivV', 'maxDerivdV', 'minDerivV',
           'minDerivdV', 'preMinV', 'postMinV', 'preMaxCurveV',
           'preMaxCurveK', 'postMaxCurveV', 'postMaxCurveK', 'times',
-          'height', 'repolarizationV', 'intervals', 'frequencies']
+          'height', 'repolarizationV', 'intervals', 'frequencies',
+          'clust_inds', 'mslength']
   for col in df.columns:
     if col not in checks:
       df = df.drop(col, 1)
@@ -160,18 +161,17 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
        W.H. Press, S.A. Teukolsky, W.T. Vetterling, B.P. Flannery
        Cambridge University Press ISBN-13: 9780521880688
     """
-    import numpy as np
     from math import factorial
     
     try:
-        window_size = np.abs(np.int(window_size))
-        order = np.abs(np.int(order))
-    except ValueError, msg:
-        raise ValueError("window_size and order have to be of type int")
+      window_size = np.abs(np.int(window_size))
+      order = np.abs(np.int(order))
+    except ValueError: #, msg:
+      raise ValueError("window_size and order have to be of type int")
     if window_size % 2 != 1 or window_size < 1:
-        raise TypeError("window_size size must be a positive odd number")
+      raise TypeError("window_size size must be a positive odd number")
     if window_size < order + 2:
-        raise TypeError("window_size is too small for the polynomials order")
+      raise TypeError("window_size is too small for the polynomials order")
     order_range = range(order+1)
     half_window = (window_size -1) // 2
     # precompute coefficients
@@ -397,7 +397,7 @@ def discrim(a, b):
 
 
 
-def outlier(arr, as_nan=True, thresh=0.05, show=False):
+def outlier(arr, as_nan=True, thresh=0.05, show=False, report=False):
   """
   Return nan instead (more robust) of nothing (loss of index parity).
   Median is more robust than mean.
@@ -417,7 +417,7 @@ def outlier(arr, as_nan=True, thresh=0.05, show=False):
   med_res.sort(reverse=True) # Largest to smallest
   # print(med_res[:10])
   numPts = max([int(len(arr)*thresh), 2])
-  print('Testing largest %i residuals' %numPts)
+  # print('Testing largest %i residuals' %numPts)
   
   # Pretend to remove 10% of points
   for i in range(numPts): #for i in range(int(len(arr)*.1)): #
@@ -436,7 +436,6 @@ def outlier(arr, as_nan=True, thresh=0.05, show=False):
   # Find the greatest d(std)
   dstd = np.diff(stds)
   dstd = [abs(i) for i in dstd]
-  print(dstd, len(dstd))
   rm_to = list(dstd).index(max(dstd))+1 # len(diff) = len(arr)-1
 
   #print('Mean d(std): %.3f, removing all above %.3f (%i pts)'
@@ -453,7 +452,7 @@ def outlier(arr, as_nan=True, thresh=0.05, show=False):
     plt.show()
   if as_nan:
     return arr
-  return [i for i in arr if i != np.nan] # Else just eliminate it.
+  return [i for i in arr if not pd.isnull(i)] # Else just eliminate it.
 
 
 
@@ -471,6 +470,7 @@ def csvSpikes(fname, show=False):
   writeNewDF(df, fname, newn)
   return df
   
+
 
 
 def batchAnalysis(groupfil):
@@ -767,11 +767,233 @@ def byTreatment(df, keep=['GapFree', 'Pilo', 'CCh', 'ModA', 'Washout', 'MCA', 'N
 
 
   
+def burstActivity(csvfile, tryburst=True, show=True):
+  """
+  Show the bursting activity, or whatever.
+  """
+  # Clean the filename (if as abf)
+  if '.abf' in csvfile:
+    try: # Try for clusters first
+      df = loadCSVfeatures(csvfile.split('.')[0]+'_props_clusters.csv')
+      tryburst = False
+    except:
+      df = loadCSVfeatures(csvfile.split('.')[0]+'_props.csv')
+  else:
+    try: # Assume it's already a csv
+      df = loadCSVfeatures(csvfile)
+      if 'clusters' in csvfile:
+        tryburst = False
+    except: # It must be a df
+      df = csvfile
+      if 'clust_inds' in df.columns:
+        tryburst = False
   
-  
-
-
+  # Get the bursts (if needed)
+  if tryburst:
+    print('Trying to find the bursts!')
+    cents = getCenters(df, show=False)
+    clusts = runMCMC(df, cents, show=False)
+    df = assignSpikes(clusts, df, show=False, force=True)
+    timeIn, cluster_bouts = timeInClusters(df, thresh=2000., show=False)
     
+  # Show the bursting activity
+  if 'clust_inds' not in df.columns:
+    print('Could not segregate clusters!')
+    return df
+    
+  if show:
+    # First is the simple color-by-burst plot
+    collist = ['blue', 'red', 'forestgreen', 'goldenrod', 'purple', 'yellowgreen',
+             'skyblue', 'tomato', 'darkgray']
+    for i in range(df.shape[0]):
+      plt.plot([df.ix[i].times, df.ix[i].times], 
+               [df.ix[i].clust_inds-1, df.ix[i].clust_inds], 
+               color=collist[df.ix[i].clust_inds], linewidth=1.)
+    patches = []
+    for u in range(int(max(df.clust_inds))):
+      patches.append(mpatches.Patch(color=collist[u],
+                                    label='Cluster %i' %u))
+    plt.legend(handles=patches)
+    
+    # Next is the burst activity patterns
+    plt.figure()
+    checks = ['maxDerivV', 'maxDerivdV',
+              'minDerivdV', 'preMaxCurveK', 'postMaxCurveK',
+              'height', 'repolarizationV', 'intervals', 'frequencies']
+   # for ch in range(len(checks)):
+   #   plt.subplot(2,int(len(checks)/2 +1), checks.index(ch)+1)
+   #   for clust in range(max(df.clust_inds)+1): # For each cluster
+   #     plotthis = df[df.clust_inds==clust][ch]
+   #     plt.plot([i+clust for i in np.random.random(len(
+  return
+
+
+
+
+def assignToBurst(abfroot, burst, show=True, rmoutliers=True):
+  """
+  Show bursting activity by cell. abfroot should be without .abf ext.
+  Burst should be either a df (bursttms) or a path to that df.
+  """
+  # Find out type of input
+  if type(abfroot) is str:
+    if '.' in abfroot:
+      abfroot = abfroot.split('.')[0]
+    if '/' not in abfroot:
+      try:
+        dfroot = getFullPath(abfroot+'_props_clusters.csv')[0]
+        df = pd.read_csv(dfroot)
+      except:
+        dfroot = getFullPath(abfroot+'_props.csv')[0]
+        df = pd.read_csv(dfroot)
+    else:
+      dfroot = abfroot
+    # %print('Trying to load %s ....' %dfroot)
+      df = pd.read_csv(dfroot)
+  if type(burst) is str:
+    if '/' not in burst:
+      try:
+        burst = getFullPath(burst, '/home/alex/data/misc')[0]
+      except:
+        burst = getFullPath(burst)[0]
+      burst = pd.read_csv(burst)
+  
+  # Now have both as data frames
+  cell_id = 'id_'+ abfroot
+  start = burst[cell_id+'start'].dropna().values
+  stop = burst[cell_id+'stop'].dropna().values
+  
+  in_burst = [] # Check if each spike belongs to a burst
+  for i in range(df.shape[0]):
+    t_ = df.ix[i]['times']/1000. # For each spike time
+    ibs = False
+    for bur in range(len(start)): # Check if it fits inside a burst!
+      if start[bur] < t_ < stop[bur]:
+        ibs = True
+    in_burst.append(int(ibs))
+  df['in_burst'] = in_burst
+  
+  # Now do all the plotting!
+  if show:
+    # First is the simple color-by-burst plot
+    collist = ['blue', 'red', 'forestgreen', 'goldenrod', 'purple', 'yellowgreen',
+             'skyblue', 'tomato', 'darkgray']
+    for i in range(df.shape[0]):
+      plt.plot([df.ix[i].times, df.ix[i].times], 
+               [df.ix[i].in_burst-1, df.ix[i].in_burst], 
+               color=collist[int(df.ix[i].in_burst)], linewidth=1.)
+    patches = []
+    labs = ['Tonic', 'Burst']
+    for u in range(int(max(df.in_burst)+1)):
+      patches.append(mpatches.Patch(color=collist[u],
+                                    label=labs[u]))
+    plt.legend(handles=patches)
+    plt.ylim([-1.5, max(df.in_burst)+.5])
+    
+    # Next is the burst activity patterns
+    plt.figure()
+    checks = ['maxDerivV', 'maxDerivdV',
+              'minDerivdV', 'preMaxCurveK', 'postMaxCurveK',
+              'height', 'repolarizationV', 'intervals', 'frequencies']
+    for ch in range(len(checks)):
+      plt.subplot(2,int(len(checks)/2 +1), ch+1)
+      labels = ['Tonic', 'Burst']
+      
+      for clust in range(max(df.in_burst)+1): # For each cluster
+        plotthis = df[df.in_burst==clust][checks[ch]].values
+        if rmoutliers:
+          plotthis = outlier(plotthis, as_nan=False)
+          plotthis = outlier(plotthis, as_nan=False)
+        plt.plot([i*0.2+clust for i in np.random.random(len(plotthis))],
+                 plotthis, 'o', color=collist[clust], markeredgecolor='none',
+                 alpha=0.3)
+        plt.plot([clust, clust+.2], [np.mean(plotthis), np.mean(plotthis)],
+                 color='black', lw=2)
+        plt.plot([clust+.1, clust+.1], 
+                 [np.percentile(plotthis, 25), np.percentile(plotthis, 75)],
+                 color='black', lw=2)
+      labels = [labels[i] for i in range(max(df.in_burst)+1)]
+      poses = [i+.1 for i in range(len(labels))]
+      plt.xticks(poses, labels, rotation=45)
+      plt.xlim([-.1, max(df.in_burst)+.3])
+      plt.title(checks[ch])
+    plt.show()
+  
+  return df
+
+#
+
+
+def burstVtonic(filelengths, autodf, burstdf='/home/alex/data/misc/maria/bursts/pd_bursts.csv',
+                refRow=1, refCol=5):
+  """
+  autodf is a cell list where we'll find all abf files for GapFree (refRow)
+  and matching whatever is in refCol (cell type, genotype, etc).
+  burstdf is start/stop 
+  """
+  if type(burstdf) is str:
+    bs = pd.read_csv(burstdf)
+  else:
+    bs = burstdf
+  if type(autodf) is str:
+    auto = pd.read_csv(autodf)
+  else:
+    auto = autodf
+  
+  # Get the cell types for baseline props
+  cellfiles = findExtInDF(auto, refCol=5)
+  calc = pd.DataFrame(index=[f.split('/')[-1].split('.')[0] 
+                             for f in filelengths.keys()],
+                      columns=['file', 'cell', 'length', 'burst', 'tonic',
+                               'silent', 'numbursts'])
+  
+  for c in cellfiles:
+    if 'GapFree' in c[2]:
+      for k in filelengths.keys():
+        if c[1] in k:# A hit
+          print('Getting df for %s ...' %c[1])
+          try:
+            tdf = assignToBurst(c[1], bs, rmoutliers=True, show=False)
+            # print(tdf.shape)
+            temp = {}
+            print('Creating the dictionary for %s' %c[1])
+            for f in filelengths.keys(): # First get file length in ms
+              if c[1] in f:
+                temp['length'] = float(filelengths[f])
+            
+            temp['file'] = c[1].split('.')[0]
+            try: # If no bursts
+              bstart = bs['id_'+temp['file']+'start'].dropna().values
+              bstop = bs['id_'+temp['file']+'stop'].dropna().values
+              temp['numbursts'] = len(bstart) # Number of bursts
+              temp['burst'] = sum([bstop[b]-bstart[b] for b in range(temp['numbursts'])])
+              if temp['burst'] < 0:
+                print('      Warning! Found %.4f burst time for %s!' 
+                      %(temp['burst'], temp['file']))
+                temp['burst'] = 0.
+              else:
+                temp['burst'] = temp['burst']/(temp['length']/1000.) # Burst time in s!!!
+            except:
+              temp['burst'] = 0.
+            temp['cell'] = c[0]
+            temp['tonic'] = sum(tdf[tdf.in_burst==0]['intervals'].dropna().values)/temp['length']
+            temp['silent'] = 1. - (temp['burst']+temp['tonic'])
+            for k in temp.keys():
+              calc[k][temp['file']] = temp[k]
+          except:
+            print('Could not create dict for %s' %c[1])
+  
+  # With df made, can now analyze
+  return calc
+
+#
+
+        
+
+
+
+
+
         
 #########################################################################
 # Analyzing stats files
@@ -1020,8 +1242,82 @@ def minTreatments(cells, show=True):
 
 
 
+
+  
+
+
+
+
 #########################################################################
 # Rudimentary plotting
+
+
+
+
+def scatterdf(df, xfactor, yfactor, showcross=True):
+  """
+  xfactor is the grouping, yfactor is the measurement being plotted.
+  """
+  labels = list(set(df[xfactor]))
+  collist = ['blue', 'red', 'forestgreen', 'goldenrod', 'purple', 'yellowgreen',
+             'skyblue', 'tomato', 'darkgray']
+  for i in range(df.shape[0]):
+    xval = labels.index(df.ix[i][xfactor])
+    plt.plot(xval+np.random.random()*.2, df.ix[i][yfactor], 'o', markersize=10,
+             color=collist[xval], alpha=0.4, markeredgecolor='white')
+  if showcross:
+    for lab in labels:
+      mn = np.mean(calc[calc[xfactor]==lab][yfactor].values)
+      iqr = np.percentile(calc[calc[xfactor]==lab][yfactor].values, [25,75])
+      print(iqr)
+      plt.plot([labels.index(lab)-0.1, labels.index(lab)+0.3],
+               [mn, mn], lw=2, color='black')#collist[labels.index(lab)]) # Mean
+      plt.plot([labels.index(lab)+0.1, labels.index(lab)+0.1],
+               [iqr[0], iqr[1]], lw=2, color='black')#collist[labels.index(lab)]) # IQR
+  
+  plt.xlim([-1, len(labels)])
+  plt.xticks(range(len(labels)), labels, rotation=45)
+  plt.xlabel(xfactor)
+  plt.ylabel(yfactor)
+  plt.show()
+  return
+
+
+
+
+
+def stackeddf(df, xfactor, yfactors, axes=None):
+  """
+  xfactor is grouping (i.e.: celltype), yfactors is a list of measurements.
+  """
+  labels = list(set(df[xfactor]))
+  collist = ['blue', 'red', 'forestgreen', 'goldenrod', 'purple', 'yellowgreen',
+             'skyblue', 'tomato', 'darkgray']
+
+  for lab in labels:
+    bots = 0.
+    for yf in yfactors:
+      mn = np.mean(df[df[xfactor]==lab][yf])
+      plt.bar(labels.index(lab), mn, bottom=bots, color=collist[yfactors.index(yf)],
+              edgecolor='white', alpha=0.7)
+      bots = bots+mn
+  
+  # With all the xfactors and yfactors plotted and stacked, do cosmetics
+  patches = []
+  for yf in yfactors:
+    patches.append(mpatches.Patch(color=collist[yfactors.index(yf)],
+                                    label=yf))
+  plt.legend(handles=patches)
+  plt.xticks([i+0.2 for i in range(len(labels))], labels, rotation=45)
+  if axes is not None:
+    plt.xlabel(axes[0])
+    plt.ylabel(axes[1])
+  plt.show()
+  return
+
+
+
+
 
 def baselineProp(pdict, prop):
   return  {k: pdict[k][prop]['GapFree I=0 / Baseline recording'] 
@@ -1498,7 +1794,8 @@ def genoByCell(props, hidefliers=True, shaders=None):
   
   plt.show()
   return 
-  
+
+
 
 
 
@@ -1571,9 +1868,60 @@ def findExtInDF(df, ext='abf', labrow=1, refCol=0, outfile=None):
 
 
 
-def 
+def burstersFromCSV(csvfile, whichCol=1, includes=['B'], outfile=None):
+  """
+  This opens a csvfile and looks in _whichCol_ for any string that
+  includes _includes_ and keeps the path for analysis. Can write path.
+  """
+  df = pd.read_csv(csvfile)
+  includes = [o.lower() for o in includes]
+  paths = []
+  for u in range(df.shape[0]):
+    for i in includes:
+      try:
+        this = df.ix[u,whichCol].lower()
+      except: # Like for NaN
+        this = ''
+      if i in this and df.ix[u,0] not in paths:
+        paths.append(df.ix[u,0])
   
+  if outfile is not None:
+    with open(outfile, 'w') as fOut:
+      for p in paths:
+        fOut.write('%s\n' %p)
+    return
+  return paths
+
+
+
+
+def rmPath(infile, rmpath='/Users/mariagenco/Documents/',
+           newpath='/media/alex/BACKUP/mcgenco/', outfile=None):
+  """
+  Removes rmpath from each path in infile and replaces with newpath.
+  """
+  newpaths = []
+  if '/' in infile:
+    paths = []
+    with open(infile, 'r') as fIn:
+      for line in fIn:
+        paths.append(line.strip())
+  else:
+    paths = infile
   
+  for p in paths:
+    if rmpath in p:
+      t_p = p.split(rmpath)[1]
+      newpaths.append(newpath+t_p)
+  if outfile is not None:
+    with open(outfile, 'w') as fOut:
+      for p in newpaths:
+        write('%s\n' %p)
+    return
+  return newpaths
+  
+
+
 
 
 
@@ -1698,4 +2046,26 @@ def allConditions(df, startCol=9, labrow=1, refCol=0, outfile=None):
 if __name__ == "__main__":
   print('Module should be used interactively.')
 
+
+
+### Sample usage:
+"""
+In [103]: list(calc.burst).index(max(calc.burst))
+Out[103]: 58
+
+In [104]: calc.ix[58]
+Out[104]: 
+file             15722003
+cell                   1b
+length             120000
+burst        0.0009435492
+tonic          0.02137228
+silent          0.9776842
+numbursts              17
+burstfreq       0.1416667
+Name: 15722003, dtype: object
+
+In [105]: tdf = assignToBurst(calc.file['15722003'], bs, True, True)
+
+"""
 

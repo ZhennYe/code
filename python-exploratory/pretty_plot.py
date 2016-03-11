@@ -973,7 +973,7 @@ def circular_hist(angles, labelsin, title=None, same=None, leg=True,
   and set only=True.
   """
   if eps:
-    altcolors = ['navajowhite', 'lightskyblue', 'lightgreen', 'lightpink']
+    altcolors = ['palegoldenrod', 'lightskyblue', 'lightgreen', 'lightpink']
   else:
     altcolors = ['purple' for i in range(4)]
   def to_radians(angs):
@@ -1001,30 +1001,32 @@ def circular_hist(angles, labelsin, title=None, same=None, leg=True,
   colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
   ax = plt.subplot(111, polar=True)
   for A in range(len(angles)):
-    print(A, len(angles[A]))
     angs, rads, thetas, width, t25, t75 = angulize(rm_nan(angles[A]))
-    if only and A == 0: # Only 
-      bar = ax.bar([np.pi], [0.], width=width, bottom=2.+2*A)
-    else:
-      bar = ax.bar(thetas, rads, width=width, bottom=2.+2*A)
     if same is None:
       s = A
     else:
       s = same
+    barcols = [colors[s] if t75 > thetas[t] > t25 # In IQR
+               else altcolors[s] for t in range(len(thetas))]
+    if only and A == 0: # Only 
+      bar = ax.bar([np.pi], [0.], color=barcols, width=width, bottom=2.+2*A)
+    else:
+      for t in range(len(thetas)):
+        bar = ax.bar(thetas[t], rads[t], color=barcols[t],
+        edgecolor=barcols[t], width=width, bottom=2.+2*A)
     [b.set_facecolor(colors[s]) for b in bar.patches]
     [b.set_edgecolor(colors[s]) for b in bar.patches]
     if only is False or (only is True and A != 0): # Only stuff again
-      if shade: ### Shade
-        iqr = ax.bar(np.linspace(t25, t75, 100), np.ones(100)*1.5, 
-                   width=np.pi/(200), bottom=2.+2*A)
-        [i.set_facecolor(colors[s]) for i in iqr.patches]
-        [i.set_alpha(0.3) for i in iqr.patches]
-        [i.set_linewidth(0.) for i in iqr.patches]
-      else:
-        ax.bar(t25, 1, width=np.pi/200, bottom=2.+2*A, 
-               facecolor=altcolors[s], edgecolor='none')
-        ax.bar(t75, 1, width=np.pi/200, bottom=2.+2*A, 
-               facecolor=altcolors[s], edgecolor='none')
+      #if shade: ### Shade
+      #  iqr = ax.bar(np.linspace(t25, t75, 100), np.ones(100)*1.5, 
+      #             width=np.pi/(200), bottom=2.+2*A)
+      #  [i.set_facecolor(colors[s]) for i in iqr.patches]
+      #  [i.set_alpha(0.3) for i in iqr.patches]
+      #  [i.set_linewidth(0.) for i in iqr.patches]
+      #else:
+      #  ax.bar(t25, 0.1, width=t75-t25, bottom=2.+2*A + 0., 
+      #         facecolor=altcolors[s], edgecolor='white')
+      #  #ax.bar(t75, 1, width=np.pi/200, bottom=2.+2*A, facecolor=altcolors[s], edgecolor='none')
       mean = ax.bar(np.mean(angs), 1.5, width=np.pi/400, bottom=2.+2*A)
       med = ax.bar(np.median(angs), 1.25, width=np.pi/400, bottom=2.+2*A)
       k=['k','orange']
