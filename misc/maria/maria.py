@@ -924,7 +924,7 @@ def assignToBurst(abfroot, burst, show=True, rmoutliers=True):
 #
 
 
-def burstVtonic(filelengths, autodf, burstdf='/home/alex/data/misc/maria/bursts/pd_bursts.csv',
+def burstVtonic(filelengths, autodf, burstdf='/home/alex/data/misc/maria/bursts/bursts_times.csv',
                 refRow=1, refCol=5):
   """
   autodf is a cell list where we'll find all abf files for GapFree (refRow)
@@ -986,9 +986,82 @@ def burstVtonic(filelengths, autodf, burstdf='/home/alex/data/misc/maria/bursts/
   # With df made, can now analyze
   return calc
 
+
+
+def df_pca(df_in, keep=None, expvar=False, rmoutliers=True, show=True):
+  """
+  Run a simple PCA on the df features of keep.
+  If expvar is True, a plot of explained variance is also shown.
+  Heavily inspired by http://sebastianraschka.com/Articles/2015_pca_in_3_steps.html
+  """
+  from sklearn.preprocessing import StandardScaler
+  if keep is None:
+    keep = ['maxV', 'maxDerivV', 'maxDerivdV', 'minDerivV', 
+            'minDerivdV', 'preMinV', 'postMinV', 'preMaxCurveK', 
+            'postMaxCurveK', 'postMaxCurveV', 'preMaxCurveV', 'height', 
+            'repolarizationV', 'intervals']
+  # Clean the data frame
+  df = df_in.copy()
+  for col in df.columns:
+    if col not in keep:
+      df = df.drop(col, 1)
+    else:
+      df[col] = outlier(df[col].values)
+  df = df.dropna()
+  
+  # Make into np.array
+  data = []
+  for col in df.columns:
+    temp_ = df[col]
+    data.append(temp_)
+  data = np.array(data).T # Make as array and transpose
+  data = StandardScaler().fit_transform(data) # Standardize data
+  
+  # run pca (svd)
+  u, eigvals, eigvecs = np.linalg.svd(data, full_matrices=False)
+  eigpairs = [(np.abs(eigvals[i]), eigvecs[:,i])
+              for i in range(len(eigvals))]
+  eigpairs.sort()
+  eigpairs.reverse()
+  mat_w = np.hstack((eigpairs[0][1].reshape(eigvals.shape[0],1),
+                      eigpairs[1][1].reshape(eigvals.shape[0],1)))
+  Y = data.dot(mat_w) # Re-transform by matrix
+  
+  # Plot these data
+  if show:
+    #with plt.style.context('seaborn-whitegrid'):
+    plt.figure()
+    plt.scatter(Y[:,0], Y[:,1], color='blue', edgecolor='none',
+                alpha=0.7)
+    plt.xlabel('Principal Component 1')
+    plt.ylabel('Principal Component 2')
+    plt.tight_layout()
+  
+    # Explained variance
+    if expvar: # eigvals come pre-sorted
+      var_exp = [i/sum(eigvals)*100. for i in s]
+      cum_var_exp = np.cumsum(var_exp)
+      #with plt.style.context('seaborn_whitegrid'):
+      plt.figure()
+      plt.bar(range(len(var_exp)), var_exp, alpha=0.5, align='center',
+              label='individual explained variance')
+      plt.step(range(len(cum_var_exp)), cum_var_exp, where='mid',
+               label='cumulative explained variance')
+      plt.xlabel('Principal components')
+      plt.ylabel('Explained variance (\%100)') # \\%
+      plt.legend(loc='best')
+      plt.tight_layout()
+    
+    plt.show() # Show the plots
+  return Y
+
+
 #
 
-        
+
+
+
+
 
 
 

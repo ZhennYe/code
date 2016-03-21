@@ -784,9 +784,8 @@ def headrow(inarow=3, N=1000, show=False):
 
 
 ###################### savitzky-golay ############################
-def s_golay(x, winsize, degree, deriv=0):
+def s_golay(x, winsize, degree):
   # Simple Savitzky-Golay filter, inspired by matlab
-  from math import factorial
   assert winsize % 1 == 0, 'winsize must be int!'
   assert winsize % 2 == 1, 'winsize must be odd!'
   assert winsize > 0, 'winsize must be positive!'
@@ -797,14 +796,14 @@ def s_golay(x, winsize, degree, deriv=0):
   halfwin = int((winsize-1)/2)
   convmat = np.mat([ [k**i for i in r_degree]
                     for k in range(-halfwin, halfwin+1) ])
-  m = np.linalg.pinv(convmat).A[deriv] * factorial(deriv)
+  m = np.linalg.pinv(convmat).A[0]
   
   # Stretch the signal at extrema so that computation can continue
   start = np.interp(np.linspace(0.5, 0.5*2*halfwin, 2*halfwin),
                     np.linspace(0.,halfwin, halfwin), x[0:halfwin])
   end = np.interp(np.linspace(0.5, 0.5*2*halfwin, 2*halfwin),
                   np.linspace(0.,halfwin, halfwin), x[-(halfwin):])
-  x = np.concatenate((start, x, end)) #[halfwin:(halfwin-1)]
+  x = np.concatenate((start, x, end))
 
   result = np.convolve(m[::-1], x, mode='valid')
   # In case it's too long, shrink it
