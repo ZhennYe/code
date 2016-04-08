@@ -815,6 +815,95 @@ def s_golay(x, winsize, degree):
 #
 
 
+def read_matfile(fname, sep=' '):
+  arr = []
+  with open(fname, 'r') as F:
+    for line in F:
+      temp_ = []
+      for u in line.strip().split(sep):
+        try:
+          temp_.append(float(u))
+        except:
+          pass
+      arr.append(temp_)
+  return arr
+
+
+
+def norm_sholl(counts):
+  import scipy.stats as stats
+  x = list(range(len(counts)))
+  newcnt = []
+  for c in range(len(counts)):
+    temp = [x[c] for i in range(int(counts[c]))]
+    for t in temp:
+      newcnt.append(t)
+  return float(stats.mode(newcnt)[0])/float(len(counts))
+
+
+def combine_dict(big_one, small_one, by='files'):
+  # Add keys from small one that match big one if that key isn't in big one
+  for k in small_one.keys():
+    if k not in big_one.keys():
+      big_one[k] = []
+      # Line up the file names by ###_### notebook
+      for fil1 in big_one[by]: # This is the order that matters
+        for fil2 in small_one[by]:
+          seek = '_'.join(fil2.split('_')[:2])
+          print('looking for ' +seek)
+          if seek in fil1: # Find the matching small
+            big_one[k].append(small_one[k][small_one[by].index(fil2)]) # Add that one
+  return big_one
+
+
+  
+def num_nodes(geofile):
+  count = 0
+  with open(geofile, 'r') as fIn:
+    for line in fIn:
+      if line:
+        if 'pt3dadd' in line:
+          count += 1
+  print(count)
+  return count
+
+
+
+def intraclass_corrlation(V, groups, collapsed=True):
+  """
+  Simple intraclass correlation where a V= list of lists, or a list of floats,
+  and len(labelsin) == len(V). Can pass cols of a df if collapsed=False.
+  (within group variance)^2 / ( (within group var)^2 + (between all sample var)^2 )
+  0 = individuals are source of variab., 1 = groups are source of variab.
+  """
+  import scipy.stats as stats
+  if not collapsed:
+    V = [[i] for i in V]
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
+  var = [np.var(i) for i in V]
+  uniq = list(set(groups))
+  v_sort = [[] for u in uniq] # Make a blank list, preparing for IC
+  v_means = [[] for u in uniq] # v_means is a list of list of means for each cell of each type
+  v_var, v_skew, v_kurt = [[] for u in uniq], [[] for u in uniq], [[] for u in uniq]
+  for v in range(len(V)):
+    i = uniq.index(groups[v])
+    v_sort[i].append(V[v])
+    v_means[i].append(np.mean(V[v]))
+    v_var[i].append(np.var(V[v]))
+  # ic = var_between^2 / (var_between^2 + var_within^2)  
+  ic = []
+  for v in range(len(uniq)):
+    I = np.var(v_means[v])**2 / \
+        (np.var(v_means[v])**2 + sum([np.var(i) for i in v_sort[v]])**2)
+    ic.append([I])
+  print(ic)
+  group_means = [np.mean(k) for k in v_means] # group_means are the master means (only 4)
+  master_ic = np.var(group_means)**2 / \
+              (np.var(group_means)**2 + sum([np.var(i) for i in v_means])**2)
+  print('Master IC for this set: %.5f' %master_ic)
+  return ic
+
+
 
 
 

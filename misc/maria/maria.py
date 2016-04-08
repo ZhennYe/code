@@ -859,6 +859,10 @@ def assignToBurst(abfroot, burst, show=True, rmoutliers=True):
       burst = pd.read_csv(burst)
   
   # Now have both as data frames
+  bs_cells = [i.split('s')[0].split('_')[1] for i in burst.columns] # Make sure it's in burst df
+  if abfroot not in bs_cells:
+    df['in_burst'] = [False for f in range(df.shape[0])]
+    return df # No bursts, just return the df
   cell_id = 'id_'+ abfroot
   start = burst[cell_id+'start'].dropna().values
   stop = burst[cell_id+'stop'].dropna().values
@@ -924,6 +928,119 @@ def assignToBurst(abfroot, burst, show=True, rmoutliers=True):
 #
 
 
+
+def burstDFhelper(tdf, temp, bs, cell_id):
+  """
+  Populate the temp dictionary.
+  """
+  def ibi_cv(bstart, bstop):
+    """
+    Calculate inter-burst interval coefficient of variation.
+    """
+    ibis = []
+    for b in range(len(bstart)-1):
+      if bstart[b+1] > bstop[b]: # ortho, correct
+        ibis.append(bstart[b+1] - bstop[b])
+      else:
+        print('    In %s, %.2f starts before burst ends at %.2f' 
+              %(cell_id, bstart[b+1], bstop[b]))
+    return np.mean(ibis), np.std(ibis)/np.mean(ibis)
+  
+  def spikesperburst(tdf, bstart, bstop):
+    """
+    Count spikes per burst and spikes/burst CV.
+    """
+    tms = list(tdf.times.dropna().values)
+    bursts = [[tms[u] for u in range(len(tms)) if bstart[k]<(tms[u]/1000.)<bstop[k] ]
+              for k in range(len(bstart))]
+    bursts = [len(i) for i in bursts]
+    return np.mean(bursts), np.std(bursts)/np.mean(bursts)
+  
+  def burst_time(temp, bstart, bstop):
+    """
+    Make sure bstop[i] is always after bstart[i]; also burst length
+    """
+    to_sum = []
+    for b in range(len(bstart)):
+      if bstop[b]-bstart[b] >= 0:
+        to_sum.append(bstop[b]-bstart[b])
+      elif bstop[b]-bstart[b] < 0 and b == len(bstop)+1: # Make it go to end
+        to_sum.append(temp['length']/1000.-bstart[b])
+      else:
+        pass
+    return np.mean(to_sum), np.std(to_sum)/np.mean(to_sum), sum(to_sum)/(temp['length']/1000.)
+  
+  bs_cells = [i.split('s')[0].split('_')[1] for i in bs.columns]
+  #print(cell_id, bs_cells)
+  if cell_id in bs_cells:
+    
+    bstart = bs['id_'+cell_id+'start'].dropna().values
+    bstop = bs['id_'+cell_id+'stop'].dropna().values
+    temp['numbursts'] = len(bstart) # Number of bursts
+    print('  --> Found %i bursts ' %temp['numbursts'])
+    temp['burst_length'], temp['burst_length_cv'], \
+         temp['burst'] = burst_time(temp, bstart, bstop)
+    temp['spikespburst'], temp['spikespburst_cv'] = \
+                                      spikesperburst(tdf, bstart, bstop)
+    if temp['burst'] < 0:
+      print('      Warning! Found %.4f burst time for %s!' 
+            %(temp['burst'], temp['file']))
+      temp['burst'] = 0.
+    else:
+      temp['burst'] = temp['burst']/(temp['length']/1000.) # Burst time in s!!!
+    temp['ibi_length'], temp['ibi_cv'] = ibi_cv(bstart, bstop)
+  else:  # Else, it doesn't burst
+    temp['burst'], temp['burst_length_cv'], temp['ibi_cv'] = 0., np.nan, np.nan
+  temp['tonic'] = sum(tdf[tdf.in_burst==0]['intervals'].dropna().values)/temp['length']
+  temp['silent'] = 1. - (temp['burst']+temp['tonic'])
+  
+  return temp
+
+
+
+
+def tonicDFhelper(tdf, temp, bs, cell_id, burstpresent=True):
+  """
+  Tonic isi and tonic isi cv
+  """
+  if type(tdf) is str: # Load the data frame
+    if '.' in tdf:
+      tdf = tdf.split('.')[0]
+    if '/' not in tdf:
+      try:
+        dfroot = getFullPath(tdf+'_props_clusters.csv')[0]
+        tdf = pd.read_csv(dfroot)
+      except:
+        dfroot = getFullPath(tdf+'_props.csv')[0]
+        tdf = pd.read_csv(dfroot)
+    else:
+      dfroot = tdf
+    # %print('Trying to load %s ....' %dfroot)
+      tdf = pd.read_csv(dfroot)
+  
+  if burstpresent:
+    bstart = bs['id_'+cell_id+'start'].dropna().values
+    bstop = bs['id_'+cell_id+'stop'].dropna().values
+  else:
+    bstart, bstop = [0.], [0.000001]
+  isis = []
+  for t in range(tdf.shape[0]):
+    tms = t/1000.
+    add = True
+    for b in range(len(bstart)):
+      if bstart[b] < bstop[b]:
+        if bstart[b] < tms < bstop[b]: # time is in burst
+          add = False
+      elif bstop[b] == 0:
+        if bstart[b] < tms < temp['length']/1000.:
+          add = False
+    if add:
+      isis.append(tms)
+  return np.mean(isis), np.std(isis)/np.mean(isis)
+  
+
+
+
 def burstVtonic(filelengths, autodf, burstdf='/home/alex/data/misc/maria/bursts/bursts_times.csv',
                 refRow=1, refCol=5):
   """
@@ -932,7 +1049,7 @@ def burstVtonic(filelengths, autodf, burstdf='/home/alex/data/misc/maria/bursts/
   burstdf is start/stop 
   """
   if type(burstdf) is str:
-    bs = pd.read_csv(burstdf)
+    bs = pd.read_csv(burstdf) # bs is the bursting data
   else:
     bs = burstdf
   if type(autodf) is str:
@@ -945,50 +1062,87 @@ def burstVtonic(filelengths, autodf, burstdf='/home/alex/data/misc/maria/bursts/
   calc = pd.DataFrame(index=[f.split('/')[-1].split('.')[0] 
                              for f in filelengths.keys()],
                       columns=['file', 'cell', 'length', 'burst', 'tonic',
-                               'silent', 'numbursts'])
+                               'silent', 'numbursts', 'burst_length_cv', 'ibi_cv',
+                               'spikespburst', 'spikespburst_cv',
+                               'burst_length', 'ibi_length',
+                               'tonic_isi', 'tonic_isi_cv'])
   
   for c in cellfiles:
     if 'GapFree' in c[2]:
       for k in filelengths.keys():
         if c[1] in k:# A hit
           print('Getting df for %s ...' %c[1])
+          temp = {}
+          
           try:
             tdf = assignToBurst(c[1], bs, rmoutliers=True, show=False)
             # print(tdf.shape)
-            temp = {}
-            print('Creating the dictionary for %s' %c[1])
             for f in filelengths.keys(): # First get file length in ms
               if c[1] in f:
                 temp['length'] = float(filelengths[f])
-            
-            temp['file'] = c[1].split('.')[0]
-            try: # If no bursts
-              bstart = bs['id_'+temp['file']+'start'].dropna().values
-              bstop = bs['id_'+temp['file']+'stop'].dropna().values
-              temp['numbursts'] = len(bstart) # Number of bursts
-              temp['burst'] = sum([bstop[b]-bstart[b] for b in range(temp['numbursts'])])
-              if temp['burst'] < 0:
-                print('      Warning! Found %.4f burst time for %s!' 
-                      %(temp['burst'], temp['file']))
-                temp['burst'] = 0.
-              else:
-                temp['burst'] = temp['burst']/(temp['length']/1000.) # Burst time in s!!!
-            except:
-              temp['burst'] = 0.
-            temp['cell'] = c[0]
-            temp['tonic'] = sum(tdf[tdf.in_burst==0]['intervals'].dropna().values)/temp['length']
-            temp['silent'] = 1. - (temp['burst']+temp['tonic'])
-            for k in temp.keys():
-              calc[k][temp['file']] = temp[k]
+            print('Creating the dictionary for %s' %c[1])
+            temp = burstDFhelper(tdf, temp, bs, c[1].split('.')[0])
+            temp['tonic_isi'], temp['tonic_isi_cv'] = \
+                   tonicDFhelper(tdf, temp, bs, c[1].split('.')[0])
+          
           except:
-            print('Could not create dict for %s' %c[1])
-  
+            try: # Just get tonic stuff
+              temp['tonic_isi'], temp['tonic_isi_cv'] = \
+                       tonicDFhelper(c[1].split('.')[0], temp, 
+                                     bs, c[1].split('.')[0], False)
+            except:
+              print('Could not create dict for %s' %c[1])
+                     
+          temp['cell'] = c[0]
+          temp['file'] = c[1].split('.')[0]
+          for k in temp.keys():
+            calc[k][temp['file']] = temp[k]
   # With df made, can now analyze
   return calc
 
 
 
-def df_pca(df_in, keep=None, expvar=False, rmoutliers=True, show=True):
+# Plot calc stuff
+def plot_props(df, p1, p2, size=None, colors='cell', cinv=True, 
+               axes=None, sizefactor=100, title=None):
+  contcols = ['lightskyblue', 'brown', 'orange', 'springgreen',
+            'fuchsia', 'tomato', 'gold', 'indigo',
+            'darkslateblue', 'black', 'darkgreen', 'aqua',
+            'darkorchid', 'grey', 'salmon', 'plum',
+            'coral', 'sienna', 'darkkhaki', 'yellowgreen',
+            'deeppink', 'ivory', 'orchid', 'lightsteelblue']
+  cellcolors = [contcols[list(set(df[colors].values)).index(u)]
+                for u in df[colors].values]
+  if size is None:
+    size=20.
+  else:
+    if cinv: # Invert from 0
+      size=[(1-i)*sizefactor for i in df[size]]
+    else:
+      size=[(i)*sizefactor for i in df[size]]
+  plt.scatter(df[p1].values, df[p2].values,
+              color=cellcolors, s=size, alpha=0.5)
+  patches = []
+  for u in range(len(list(set(df[colors].values)))):
+    patches.append(mpatches.Patch(color=contcols[u],
+                                  label=list(set(df[colors].values))[u]))
+  plt.legend(handles=patches, fontsize=15)
+  if axes is not None:
+    plt.xlabel(axes[0])
+    plt.ylabel(axes[1])
+  else:
+    plt.xlabel(p1)
+    plt.ylabel(p2)
+  if title is not None:
+    plt.title(title)
+  plt.show()
+  return
+
+
+
+
+def df_pca(df_in, keep=None, expvar=False, rmoutliers=True, show=True,
+           colorcol=None):
   """
   Run a simple PCA on the df features of keep.
   If expvar is True, a plot of explained variance is also shown.
@@ -1006,9 +1160,12 @@ def df_pca(df_in, keep=None, expvar=False, rmoutliers=True, show=True):
     if col not in keep:
       df = df.drop(col, 1)
     else:
-      df[col] = outlier(df[col].values)
+      if col != colorcol:
+        df[col] = outlier(df[col].values)
   df = df.dropna()
-  
+  if colorcol is not None:
+    colors = df[colorcol].values
+    df = df.drop(colorcol, 1)
   # Make into np.array
   data = []
   for col in df.columns:
@@ -1029,9 +1186,21 @@ def df_pca(df_in, keep=None, expvar=False, rmoutliers=True, show=True):
   
   # Plot these data
   if show:
-    #with plt.style.context('seaborn-whitegrid'):
+    contcols = ['lightskyblue', 'brown', 'orange', 'springgreen',
+            'fuchsia', 'tomato', 'gold', 'indigo',
+            'darkslateblue', 'black', 'darkgreen', 'aqua',
+            'darkorchid', 'grey', 'salmon', 'plum',
+            'coral', 'sienna', 'darkkhaki', 'yellowgreen',
+            'deeppink', 'ivory', 'orchid', 'lightsteelblue']
     plt.figure()
-    plt.scatter(Y[:,0], Y[:,1], color='blue', edgecolor='none',
+    if colorcol is not None:
+      try:
+        colors = [contcols[list(set(colors)).index(u)] for u in colors]
+      except:
+        colors = 'blue'
+    else:
+      colors='blue'
+    plt.scatter(Y[:,0], Y[:,1], color=colors, edgecolor='none',
                 alpha=0.7)
     plt.xlabel('Principal Component 1')
     plt.ylabel('Principal Component 2')
@@ -1039,7 +1208,7 @@ def df_pca(df_in, keep=None, expvar=False, rmoutliers=True, show=True):
   
     # Explained variance
     if expvar: # eigvals come pre-sorted
-      var_exp = [i/sum(eigvals)*100. for i in s]
+      var_exp = [i/sum(eigvals)*100. for i in eigvals]
       cum_var_exp = np.cumsum(var_exp)
       #with plt.style.context('seaborn_whitegrid'):
       plt.figure()

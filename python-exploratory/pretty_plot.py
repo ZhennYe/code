@@ -440,7 +440,8 @@ def pretty_2d(v1, labelsin, v2, title=None, axes=None, showleg=None,
     for u in range(len(L)):
       dat1 = [v1[j] for j in range(len(C)) if C[j]==u]
       dat2 = [v2[j] for j in range(len(C)) if C[j]==u]
-      cov = np.cov(dat1, dat2)
+      cov = np.cov([i for i in dat1 if not pd.isnull(i)], 
+                   [i for i in dat2 if not pd.isnull(i)])
       if u in alteig:
         vals, vecs = eigsorted(cov)
         theta = np.degrees(np.arctan2(*vecs[:,0][::-1]))
@@ -612,8 +613,8 @@ def hori_histogram(xdata, labelsin, title=None, axes=None, norm=False,
     for i in range(len(xdata)-1):
       xdata.append(xdata.pop(0))
       labelsin.append(labelsin.pop(0))
-  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato']
-  altcolors = ['palegoldenrod', 'lightskyblue', 'lightgreen', 'lightpink']
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato', 'darkorchid']
+  altcolors = ['palegoldenrod', 'lightskyblue', 'lightgreen', 'lightpink', 'plum']
   L = list(np.unique(labelsin))
   C = [L.index(i) for i in labelsin]
   #print(L,C)
@@ -689,6 +690,204 @@ def hori_histogram(xdata, labelsin, title=None, axes=None, norm=False,
 
 
 
+
+def violin_box(xdata, labelsin, title=None, axes=None, norm=False,
+                showmean=True, switch=False, llog=False, rrange=None,
+                forcebins=100, shade=True, eps=False, xcnt=True):
+  """xcnt is the max of the y axis (on bottom)
+  """
+  if switch:
+    for i in range(len(xdata)-1):
+      xdata.append(xdata.pop(0))
+      labelsin.append(labelsin.pop(0))
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato', 'darkorchid']
+  altcolors = ['palegoldenrod', 'lightskyblue', 'lightgreen', 'lightpink', 'plum']
+  L = list(np.unique(labelsin))
+  C = [L.index(i) for i in labelsin]
+  #print(L,C)
+  fig = plt.figure(dpi=200) # Give it pub-quality DPI
+  plots = [fig.add_subplot(1,len(xdata),i+1) for i in range(len(xdata))]
+  if norm is True:
+    #tdata = np.linspace(0,100,len(xdata[0]))
+    X = []
+    for x in xdata:
+      X.append([i/max(x) for i in x])
+    xdata = X
+    minm, maxm = 0, 1.
+  elif norm is False and rrange is None:
+    minm, maxm = np.inf, 0 # condition the data
+    for x in xdata:
+      if np.mean(x)-np.std(x) < minm:
+        minm = np.mean(x)-2*np.std(x)
+      if np.mean(x)+np.std(x) > maxm:
+        maxm = np.mean(x)+2*np.std(x)
+    if minm < 0:
+      minm = 0.
+  else:
+    minm, maxm = rrange[0], rrange[1]
+  for p in range(len(xdata)): # now plot
+    if type(forcebins) is list:
+      b_e = forcebins
+    else:
+      b_e = np.linspace(minm, maxm, forcebins) # len/100 bins
+    hist, _ = np.histogram(xdata[p], bins=b_e)
+    plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
+    # find the appropriate bar width #print(minm, maxm, p);
+    hgt = (maxm-minm)/len([i for i in hist if i != 0]) # as high as there are filled hist elements
+    # hgt = plotbins[2]-plotbins[1]
+    q25, q75 = np.percentile(xdata[p], [25, 75])
+    barcols = [colors[C[p]] if q75 > plotbins[t] > q25 # In IQR
+               else altcolors[C[p]] for t in range(len(plotbins))]
+    # Plot the baseline
+    for base in [[q25+hgt,q75,colors[C[p]]], [q25,min(plotbins),altcolors[C[p]]], [max(plotbins),q75+hgt,altcolors[C[p]]]]:
+      plots[p].plot([0.,0.], [base[0],base[1]], c=base[2], linewidth=1, alpha=0.9) 
+    for b in range(len(plotbins)): # Plot the +bar and -bar
+      #plots[p].barh(plotbins[b], 0.5+hist[b]/(2*max(hist)), height=hgt, linewidth=0, alpha=0.9,
+      #              color=barcols[b], edgecolor=barcols[b]) #=colors[C[p]])
+      plots[p].barh(plotbins[b], hist[b]/(max(hist)), height=hgt, linewidth=0, alpha=0.9,
+                    color=barcols[b], edgecolor=barcols[b],
+                    left=-(hist[b]/(2*max(hist)))) #=colors[C[p]])
+    # show the means:
+    if showmean:
+      plots[p].plot([-.5,.5], [np.mean(xdata[p]), np.mean(xdata[p])], 
+                    linewidth=1., c='purple')
+      plots[p].plot([-.5,.5], [np.median(xdata[p]), np.median(xdata[p])],
+                    '--', linewidth=1., c='purple', )
+    if p == 0: #if first plot, show the axes
+      if axes:
+        plots[p].set_ylabel(axes[1], fontsize=15)
+      plots[p].set_ylim([minm, maxm])
+      if llog is True:
+        plots[p].set_yscale('log'); plots[p].set_ylim([0, maxm]) ## Log scale
+      for pos in ['top', 'right']:
+        plots[p].spines[pos].set_visible(False)
+    else:
+      plots[p].get_yaxis().set_visible(False)
+      if llog is True:
+        plots[p].set_yscale('log') ## Log scale
+      plots[p].set_ylim([minm,maxm])
+      for pos in ['top', 'left', 'right']:
+        plots[p].spines[pos].set_visible(False)
+    plt.locator_params(nbins=4) #################### Set one x-tick
+    plots[p].set_xticks([.5])
+    plots[p].set_xticklabels(['%i' %int(max(hist))])
+    # plots[p].set_xlim([0,1.])
+  if title:
+    plt.suptitle(title, fontsize=20)
+  plt.show()
+  return
+
+
+
+
+
+
+def violin_spline(xdata, labelsin, title=None, axes=None, norm=False,
+                showmean=True, stepfilled=True, llog=False, rrange=None,
+                forcebins=100, shade=True, eps=False, xcnt=True):
+  """xcnt is the max of the y axis (on bottom)
+  """
+  from scipy.ndimage.filters import gaussian_filter1d as filt
+  colors = ['darkkhaki', 'royalblue', 'forestgreen','tomato', 'darkorchid']
+  altcolors = ['palegoldenrod', 'lightskyblue', 'lightgreen', 'lightpink', 'plum']
+  L = list(np.unique(labelsin))
+  C = [L.index(i) for i in labelsin]
+  #print(L,C)
+  fig = plt.figure(dpi=200) # Give it pub-quality DPI
+  plots = [fig.add_subplot(1,len(xdata),i+1) for i in range(len(xdata))]
+  if norm is True:
+    #tdata = np.linspace(0,100,len(xdata[0]))
+    X = []
+    for x in xdata:
+      X.append([i/max(x) for i in x])
+    xdata = X
+    minm, maxm = 0, 1.
+  elif norm is False and rrange is None:
+    minm, maxm = np.inf, 0 # condition the data
+    for x in xdata:
+      if np.mean(x)-np.std(x) < minm:
+        minm = np.mean(x)-2*np.std(x)
+      if np.mean(x)+np.std(x) > maxm:
+        maxm = np.mean(x)+2*np.std(x)
+    if minm < 0:
+      minm = 0.
+  else:
+    minm, maxm = rrange[0], rrange[1]
+  for p in range(len(xdata)): # now plot
+    if type(forcebins) is list:
+      b_e = forcebins
+    else:
+      b_e = np.linspace(minm, maxm, forcebins) # len/100 bins
+    hist, _ = np.histogram(xdata[p], bins=b_e)
+    occupied = len([i for i in hist if i != 0])
+    if type(forcebins) is int and occupied < forcebins/2.: # Sparse bins
+      hist, b_e = np.histogram(xdata[p], bins=occupied*2)
+    plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
+    # find the appropriate bar width #print(minm, maxm, p);
+    hgt = (maxm-minm)/occupied # as high as there are filled hist elements
+    # hgt = plotbins[2]-plotbins[1]
+    q25, q75 = np.percentile(xdata[p], [25, 75])
+    barcols = [colors[C[p]] if q75 > plotbins[t] > q25 # In IQR
+               else altcolors[C[p]] for t in range(len(plotbins))]
+    # Plot the baseline
+    for base in [[q25,q75,colors[C[p]]], [q25,min(plotbins),altcolors[C[p]]], [max(plotbins),q75+hgt,altcolors[C[p]]]]:
+      plots[p].plot([0.,0.], [base[0],base[1]], c=base[2], linewidth=1, alpha=0.9) 
+    fit = filt(hist, 1.5)
+    q1_inds = [[plotbins[u], fit[u]] for u in range(len(fit)) if plotbins[u] < q25+hgt]
+    q4_inds = [[plotbins[u], fit[u]] for u in range(len(fit)) if plotbins[u] > q75-hgt]
+    iqr_inds = [[plotbins[u], fit[u]] for u in range(len(fit)) if q25 < plotbins[u] < q75]
+    plots[p].fill_betweenx([q[0] for q in q1_inds],[q[1]/max(fit) for q in q1_inds], 
+                          [-q[1]/max(fit) for q in q1_inds], color=altcolors[C[p]], alpha=0.9)
+    plots[p].fill_betweenx([q[0] for q in q4_inds],[q[1]/max(fit) for q in q4_inds], 
+                          [-q[1]/max(fit) for q in q4_inds], color=altcolors[C[p]], alpha=0.9)
+    plots[p].fill_betweenx([q[0] for q in iqr_inds],[q[1]/max(fit) for q in iqr_inds], 
+                          [-q[1]/max(fit) for q in iqr_inds], color=colors[C[p]], alpha=0.9)
+    if stepfilled:
+      xsteps = [plotbins[0], plotbins[0], plotbins[0], plotbins[1]]
+      ysteps = [0,            hist[0],      hist[1], hist[1]]   # 
+      for u in range(1,len(plotbins)-1):
+        ysteps.append(hist[u+1]); ysteps.append(hist[u+1]) # ysteps xsteps-1 -> xsteps+1
+        xsteps.append(plotbins[u]); xsteps.append(plotbins[u+1]) # now xsteps -> ysteps+1
+      xsteps.append(xsteps[-1]); ysteps.append(plotbins[-1]) # Back to 0
+      ysteps = np.array(ysteps)/max(ysteps)
+      plots[p].plot(ysteps, xsteps, color='white', linewidth=0.5)
+      plots[p].plot(-ysteps, xsteps, color='white', linewidth=0.5)
+    # show the means:
+    if showmean:
+      plots[p].plot([-.5,.5], [np.mean(xdata[p]), np.mean(xdata[p])], 
+                    linewidth=1., c='purple')
+      plots[p].plot([-.5,.5], [np.median(xdata[p]), np.median(xdata[p])],
+                    ':',linewidth=2., c='purple', )
+    if p == 0: #if first plot, show the axes
+      if axes:
+        plots[p].set_ylabel(axes[1], fontsize=15)
+      plots[p].set_ylim([minm, maxm])
+      if llog is True:
+        plots[p].set_yscale('log'); plots[p].set_ylim([0, maxm]) ## Log scale
+      for pos in ['top', 'right']:
+        plots[p].spines[pos].set_visible(False)
+    else:
+      plots[p].get_yaxis().set_visible(False)
+      if llog is True:
+        plots[p].set_yscale('log') ## Log scale
+      plots[p].set_ylim([minm,maxm])
+      for pos in ['top', 'left', 'right']:
+        plots[p].spines[pos].set_visible(False)
+    plt.locator_params(nbins=4) #################### Set one x-tick
+    plots[p].set_xticks([.5])
+    plots[p].set_xticklabels(['%i' %int(max(hist))])
+    # plots[p].set_xlim([0,1.])
+  if title:
+    plt.suptitle(title, fontsize=20)
+  plt.show()
+  return
+
+
+
+
+
+############################################################################
+
 def hori_bars_legend():
   plt.bar(range(100),np.random.normal(100),facecolor='darkgray', edgecolor='darkgray')
   plt.axvspan(25, 75, 0,1, color='gray', alpha=0.3)
@@ -755,7 +954,8 @@ def hori_scatter(xdata, labelsin, title=None, axes=None, bounds=False,
     else:
       yd = np.zeros(len(xdata[p])) # Scatter!
     plots[p].scatter(xd, xdata[p]+yd, color=[colors[C[p]] if fill else 'none' for i in [1]][0],
-                     edgecolor=colors[C[p]], alpha=0.4, s=size, linewidth=1) # linewidth=3) #colors[C[p]]
+                     edgecolor=colors[C[p]], alpha=0.3, s=size, linewidth=1,
+                     ) # linewidth=3) #colors[C[p]]
     if showmean: # Showmeans and medians
       alph = {True: 1.0, False: 0.5}
       alph = alph[shade] # Set an alpha that changes depending on shading
@@ -1287,7 +1487,7 @@ def pretty_dendrogram(nodes):
 
 
 
-def pretty_skeleton(geo):
+def pretty_skeleton(geo, color=None):
   """
   Draw a pretty skeleton, ignores z-values.
   """
@@ -1298,10 +1498,12 @@ def pretty_skeleton(geo):
   #
   # Plotting
   plt.figure(figsize=(3,6), dpi=175)
+  if color is None:
+    color='black'
   for b in branchpts: # Plot the background skeleton first
     for s in range(len(b)-1):
       plt.plot([b[s][0], b[s+1][0]],
-               [b[s][1], b[s+1][1]], color='black', alpha=0.3)
+               [b[s][1], b[s+1][1]], color=color, alpha=0.3)
   plt.show()
   
   
