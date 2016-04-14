@@ -138,6 +138,9 @@ ggsave(filename='', width=, height=) # Reverts to most recent plot
 
 
 
+chart.RiskReturnScatter(edhec)
+data(managers)
+chart.RiskReturnScatter(managers)
 
 
 

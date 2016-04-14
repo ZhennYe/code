@@ -821,7 +821,7 @@ def violin_spline(xdata, labelsin, title=None, axes=None, norm=False,
     hist, _ = np.histogram(xdata[p], bins=b_e)
     occupied = len([i for i in hist if i != 0])
     if type(forcebins) is int and occupied < forcebins/2.: # Sparse bins
-      hist, b_e = np.histogram(xdata[p], bins=occupied*2)
+      hist, b_e = np.histogram(xdata[p], bins=int(occupied*2))
     plotbins = [(b_e[i]+b_e[i+1])/2. for i in range(len(b_e)-1)]
     # find the appropriate bar width #print(minm, maxm, p);
     hgt = (maxm-minm)/occupied # as high as there are filled hist elements
@@ -872,11 +872,13 @@ def violin_spline(xdata, labelsin, title=None, axes=None, norm=False,
         plots[p].set_yscale('log') ## Log scale
       plots[p].set_ylim([minm,maxm])
       for pos in ['top', 'left', 'right']:
-        plots[p].spines[pos].set_visible(False)
-    plt.locator_params(nbins=4) #################### Set one x-tick
-    plots[p].set_xticks([.5])
-    plots[p].set_xticklabels(['%i' %int(max(hist))])
-    # plots[p].set_xlim([0,1.])
+        plots[p].spines[pos].set_visible(False)    
+    plt.locator_params(nbins=4) 
+    plots[p].set_xticks([.0])
+    if xcnt: #################### Set one x-tick
+      plots[p].set_xticklabels(['%i' %int(max(hist))])
+    else:
+      plots[p].set_xticklabels([''])
   if title:
     plt.suptitle(title, fontsize=20)
   plt.show()
